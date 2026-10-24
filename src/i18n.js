@@ -7,8 +7,8 @@ const D = {
   newArena: ['NEW ARENA', 'YENİ ARENA'], leave: ['LEAVE MATCH', 'MAÇTAN ÇIK'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
   menuHint: ['Left click fire · Esc menu · F3 FPS', 'Sol tık ateş · Esc menü · F3 FPS'],
   build: ['build', 'derleme'],
-  igpuWarn: ['Running on integrated graphics: lower FPS, and on some laptops the graphics driver freezes the picture briefly every few seconds. If this computer has a dedicated GPU, set your browser to <b>High performance</b> (Windows: Settings → System → Display → Graphics), then close and reopen the browser.',
-    'Dahili ekran kartında çalışıyor: FPS düşük olur, bazı dizüstülerde ekran kartı sürücüsü görüntüyü birkaç saniyede bir kısa süre dondurur. Bilgisayarında harici ekran kartı varsa tarayıcıyı <b>Yüksek performans</b>a al (Windows: Ayarlar → Sistem → Ekran → Grafik), sonra tarayıcıyı kapatıp yeniden aç.'],
+  igpuWarn: ['Running on integrated graphics (lower FPS). If the picture freezes every few seconds, <b>update your graphics driver</b>: older Intel drivers have this bug. If this computer has a dedicated GPU, set your browser to <b>High performance</b> (Windows: Settings → System → Display → Graphics), then close and reopen the browser.',
+    'Dahili ekran kartında çalışıyor (FPS düşük olur). Görüntü birkaç saniyede bir donuyorsa <b>ekran kartı sürücünü güncelle</b>: eski Intel sürücülerinde bu hata var. Bilgisayarında harici ekran kartı varsa tarayıcıyı <b>Yüksek performans</b>a al (Windows: Ayarlar → Sistem → Ekran → Grafik), sonra tarayıcıyı kapatıp yeniden aç.'],
   lockFail: ['Could not lock the mouse, click again.', 'Fare kilitlenemedi, tekrar tıkla.'],
   closeHint: ['Press Alt+F4 to close the window.', 'Pencereyi kapatmak için Alt+F4.'],
   // ayarlar
