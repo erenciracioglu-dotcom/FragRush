@@ -6,3 +6,4 @@ reports/
 *.tar.gz
 tools/pack.sh
 .publish/
+.probe/

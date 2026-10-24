@@ -50,10 +50,14 @@ export class Input {
   async lock() {
     try {
       const p = this.canvas.requestPointerLock({ unadjustedMovement: true });
-      if (p && p.catch) await p.catch(() => this.canvas.requestPointerLock());
+      if (p && p.catch) await p.catch(() => this._plainLock());
     } catch (e) {
-      try { this.canvas.requestPointerLock(); } catch (e2) { /* yok */ }
+      this._plainLock();
     }
+  }
+  // unadjustedMovement desteklenmezse duz kilit; reddedilirse pointerlockerror olayi zaten isleniyor
+  _plainLock() {
+    try { const p = this.canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* yok */ }
   }
   unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 

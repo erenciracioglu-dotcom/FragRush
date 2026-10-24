@@ -12,12 +12,15 @@ export class Audio {
     this.lastPlay = new Map();
   }
 
-  // ilk kullanici etkilesiminde cagrilmali
-  init() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+  // Ses baglamini onceden (yukleme bitince) kur. new AudioContext() ana is parcacigini Windows'ta
+  // ~150-200 ms kilitliyor (ses aygiti sorgusu); bu OYNA tiklamasinda olursa oyun basinda takilma olur.
+  // Kullanici etkilesimi olmadan baglam 'suspended' baslar; asil acma init() icinde resume() ile.
+  prepare() {
+    if (this.ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    const ctx = new AC({ latencyHint: 'interactive' });
+    let ctx;
+    try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { return; }
     this.ctx = ctx;
     this.master = ctx.createGain();
     this.master.gain.value = this.volume;
@@ -37,6 +40,13 @@ export class Audio {
     // bozulma egrisi
     this.distCurve = new Float32Array(1024);
     for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; this.distCurve[i] = Math.tanh(x * 3.2); }
+  }
+
+  // ilk kullanici etkilesiminde (OYNA) cagrilmali: hazir baglami yalnizca baslatir
+  init() {
+    this.prepare();
+    if (!this.ctx) return;
+    if (this.ctx.state !== 'running') { try { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* yok */ } }
     this.enabled = true;
   }
 
@@ -53,7 +63,7 @@ export class Audio {
   }
 
   setListener(cam) {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.enabled) return;
     const L = this.ctx.listener;
     const p = cam.position;
     this.listener.x = p.x; this.listener.y = p.y; this.listener.z = p.z;

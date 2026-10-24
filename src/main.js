@@ -234,6 +234,8 @@ if (canLog && !testMode) setInterval(() => {
 }, 30000);
 
 game.init(progress).then(() => {
+  // ses baglami simdi (menude, kimse oynamiyorken) kurulsun; OYNA tiklamasi yalniz baslatir
+  audio.prepare();
   window.__enkaz.ready = true;
   checkGpu(); setHint();
   $('loading').classList.add('hidden');

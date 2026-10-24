@@ -81,11 +81,13 @@ Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**
   is generated in the browser).
 
 **Laptops:** if the game stutters or runs slowly, the browser is probably on the integrated GPU
-(the menu shows a warning when it is). On one test laptop, Chrome on Intel integrated graphics
-froze for up to a second at a time, even on a minimal WebGL test page; on the dedicated GPU it
-runs smoothly. On Windows, set
-the browser to "High performance" in *Settings → System → Display → Graphics*, or use the
-launcher below.
+(the menu shows a warning when it is). On the test laptop (Intel integrated graphics + RTX 5080),
+the Intel graphics driver held the picture back for 0.3–0.8 s every 6 seconds whenever something
+was drawing non-stop: in Chrome, on a minimal WebGL page and in a small native Direct3D test
+program alike, so it is not something the game can fix. On the dedicated GPU the game runs
+smoothly. On Windows, set the browser to "High performance" in
+*Settings → System → Display → Graphics* and restart the browser, or use the launcher below.
+Laptops with a MUX switch can also be set to "dGPU only".
 
 ## Run locally
 
@@ -111,8 +113,10 @@ Measured on an RTX 5080 Laptop at 2560×1362, Ultra:
 - 30 seconds of non-stop Doomsday rockets (one per second, the arena almost completely leveled,
   ~380k voxels removed): worst frame 12 ms, no frame over 20 ms.
 - 5-minute heavy-destruction soak tests: stable memory (no leaks), no shader compiles during play.
-- Known issue: in long sessions a rare ~0.5 s hitch can appear every few minutes. It happens inside
-  the browser's GPU process / driver, not in the game's own CPU or GPU work.
+- Known issue: on most hybrid-graphics laptops the built-in screen is driven by the integrated GPU,
+  even when the game renders on the dedicated one. On that path a rare ~0.5 s hitch can still
+  appear every few minutes; the same hitch shows up in a native Direct3D test program, so it is not
+  in the game's own CPU or GPU work. "dGPU only" (MUX) mode takes the integrated GPU out of that path.
 
 Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`).
 
@@ -179,8 +183,11 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   sırasında da değişir), 7 kademe bot zorluğu (Acemi'den Kâbus'a), ses. Botlardan üçü aile:
   Papa Eren, Eray the Kid ve Mama Aigul.
 - **Gereksinim:** WebGL 2 destekli masaüstü tarayıcı (Chrome / Edge önerilir), fare ve klavye.
-  Harici ekran kartı önerilir; dahili ekran kartında *Medium* ya da *Low* seç. Dizüstünde yavaşsa
-  Windows *Ayarlar → Sistem → Ekran → Grafik* bölümünden tarayıcıyı "Yüksek performans"a al.
+  Harici ekran kartı önerilir. Dizüstünde yavaşsa ya da birkaç saniyede bir donuyorsa tarayıcı
+  dahili ekran kartında çalışıyordur (menüde uyarı çıkar): Windows *Ayarlar → Sistem → Ekran →
+  Grafik* bölümünden tarayıcıyı "Yüksek performans"a al ve tarayıcıyı kapatıp yeniden aç. Test
+  dizüstünde Intel sürücüsü, oyundan bağımsız olarak (yalın bir Direct3D test programında da),
+  her 6 saniyede bir görüntüyü 0,3-0,8 saniye durduruyordu.
 - **Yerelde:** `docs/index.html` tek dosyadır, doğrudan açılabilir. Windows'ta `FragRush.bat`
   yerel sunucuyu açar ve oyunu ayrı, tam ekran bir Chrome penceresinde harici ekran kartıyla başlatır.
   Kaynaktan derlemek için `npm install` ve `node build.mjs`.
