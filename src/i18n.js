@@ -1,0 +1,79 @@
+// Iki dil (English / Turkce). t('anahtar', ...degerler) -> metin; {0},{1} yer tutucu.
+// HTML'de data-i18n="anahtar" olan ogelerin metni applyDom() ile guncellenir.
+const D = {
+  // menu
+  tagline: ['Break · Blast · Bury', 'Break · Blast · Bury'],
+  play: ['PLAY', 'OYNA'], resume: ['RESUME', 'DEVAM ET'], settings: ['SETTINGS', 'AYARLAR'], controls: ['CONTROLS', 'KONTROLLER'],
+  newArena: ['NEW ARENA', 'YENİ ARENA'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
+  menuHint: ['Left click fire · Esc menu · F3 FPS', 'Sol tık ateş · Esc menü · F3 FPS'],
+  build: ['build', 'derleme'],
+  lockFail: ['Could not lock the mouse, click again.', 'Fare kilitlenemedi, tekrar tıkla.'],
+  closeHint: ['Press Alt+F4 to close the window.', 'Pencereyi kapatmak için Alt+F4.'],
+  // ayarlar
+  sLang: ['Language', 'Dil'], sSens: ['Mouse sensitivity', 'Fare hassasiyeti'], sFov: ['Field of view (FOV)', 'Görüş alanı (FOV)'],
+  sQuality: ['Graphics quality', 'Grafik kalitesi'], qUltra: ['Ultra', 'Ultra'], qHigh: ['High', 'Yüksek'], qMedium: ['Medium', 'Orta'], qLow: ['Low', 'Düşük'],
+  sBots: ['Bot count', 'Bot sayısı'], sDiff: ['Bot difficulty', 'Bot zorluğu'],
+  d0: ['Rookie', 'Acemi'], d1: ['Novice', 'Çaylak'], d2: ['Normal', 'Normal'], d3: ['Hard', 'Zor'], d4: ['Very Hard', 'Çok Zor'], d5: ['Master', 'Usta'], d6: ['Nightmare', 'Kâbus'],
+  sVol: ['Volume', 'Ses'], sInvert: ['Invert mouse', 'Fareyi ters çevir'], sFps: ['Show FPS', 'FPS göster'],
+  // kontroller
+  kMove: ['move', 'hareket'], kSpace: ['Space', 'Boşluk'], kJump: ['jump (hold: bunny hop)', 'zıpla (basılı tut: tavşan zıplaması)'],
+  kDash: ['dash', 'atılma (dash)'], kCrouch: ['crouch · slide while running', 'eğil · koşarken kayma'],
+  kLmb: ['Left click', 'Sol tık'], kFire: ['fire', 'ateş'], kRmb: ['Right click', 'Sağ tık'], kZoom: ['aim / zoom', 'nişan / yakınlaştırma'],
+  kWheel: ['1-5 / wheel', '1-5 / tekerlek'], kWeapon: ['weapon', 'silah'], kPrev: ['previous weapon', 'önceki silah'],
+  kTab: ['scoreboard', 'skor tablosu'], kEsc: ['menu', 'menü'], kF3: ['FPS meter', 'FPS göstergesi'],
+  kRj: ['Rocket jump:', 'Roketle zıpla:'], kRjText: ['fire a rocket at your feet + jump', 'ayağının dibine roket at + zıpla'],
+  // yukleme
+  ldArena: ['Building arena...', 'Arena kuruluyor...'], ldMesh: ['Voxel mesh: {0}/{1}', 'Voxel mesh: {0}/{1}'],
+  ldNav: ['Mapping paths...', 'Yol haritası çıkarılıyor...'], ldShaders: ['Compiling shaders...', 'Gölgelendiriciler derleniyor...'],
+  ldReady: ['Ready', 'Hazır'], error: ['ERROR: ', 'HATA: '],
+  // HUD
+  you: ['YOU', 'SEN'], resumeHint: ['Click or press Enter to resume', 'Devam etmek için tıkla ya da Enter'],
+  hp: ['HEALTH', 'CAN'], armor: ['ARMOR', 'ZIRH'], frags: ['FRAGS', 'PARÇALAMA'], scoreboard: ['SCOREBOARD', 'SKOR TABLOSU'],
+  sbPlayer: ['PLAYER', 'OYUNCU'], sbFrags: ['FRAGS', 'PARÇALAMA'], sbDeaths: ['DEATHS', 'ÖLÜM'],
+  quadHud: ['DOOMSDAY {0}', 'KIYAMET MODU {0}'],
+  respawnIn: ['respawn: {0}', 'yeniden doğuş: {0}'], respawnClick: ['click / space to respawn', 'doğmak için tıkla / boşluk'],
+  youDied: ['FRAGGED', 'PARÇALANDIN'], selfKill: ['YOU FRAGGED YOURSELF', 'KENDİNİ PARÇALADIN'], selfFeed: ['fragged themself', 'kendini parçaladı'],
+  fps: ['{0} FPS  ·  worst {1} ms  ·  {2}k tris  ·  {3} draws  ·  {4}\ndebris {5}  ·  particles {6}  ·  falling {7}  ·  scale {8}%',
+    '{0} FPS  ·  en kötü {1} ms  ·  {2}k üçgen  ·  {3} çizim  ·  {4}\nenkaz {5}  ·  parçacık {6}  ·  düşen {7}  ·  ölçek {8}%'],
+  // silahlar
+  'w.pulse': ['Pulse Rifle', 'Darbe Tüfeği'], 'w.shotgun': ['Shotgun', 'Saçmalı'], 'w.plasma': ['Plasma Gun', 'Plazma'], 'w.rocket': ['Rocket Launcher', 'Roketatar'], 'w.rail': ['Railgun', 'Raylı Tüfek'],
+  'k.pulse': ['PULSE', 'DARBE'], 'k.shotgun': ['SHOTGUN', 'SAÇMA'], 'k.plasma': ['PLASMA', 'PLAZMA'], 'k.rocket': ['ROCKET', 'ROKET'], 'k.rail': ['RAIL', 'RAY'], 'k.crush': ['RUBBLE', 'ENKAZ'], 'k.world': ['WORLD', 'DÜNYA'],
+  // esyalar
+  'i.health': ['+25 HEALTH', '+25 CAN'], 'i.mega': ['MEGA HEALTH', 'MEGA CAN'], 'i.armor': ['+50 ARMOR', '+50 ZIRH'], 'i.ammo': ['AMMO', 'CEPHANE'], 'i.quad': ['DOOMSDAY MODE', 'KIYAMET MODU'],
+  quadSpawn: ['DOOMSDAY ORB IS HERE', 'KIYAMET KÜRESİ GELDİ'], quadWhere: ['on the roof of the central tower', 'merkez kulenin çatısında'],
+  quadYou: ['DOOMSDAY MODE IS YOURS!', 'KIYAMET MODU SENDE!'], quadOther: ['{0} HAS DOOMSDAY MODE', '{0} KIYAMET MODUNDA'],
+  quadYouSub: ['every hit kills · 5x rocket blast · 15 s', 'her isabet öldürür · 5 kat roket patlaması · 15 sn'], careful: ['watch out!', 'dikkat!'],
+  // olum / oldurme
+  crushedFeed: ['got buried in rubble', 'enkaz altında kaldı'], blewUp: ['blew themself up', 'kendini havaya uçurdu'],
+  multi2: ['DOUBLE FRAG!', 'ÇİFTE PARÇALAMA!'], multi3: ['TRIPLE DESTRUCTION!', 'ÜÇLÜ YIKIM!'], multi4: ['MASSACRE!', 'KATLİAM!'], multi5: ['DOOMSDAY!', 'KIYAMET!'],
+  buried: ['BURIED IN RUBBLE!', 'ENKAZ ALTINDA KALDI!'], headshot: ['HEADSHOT!', 'KAFADAN!'], fragged: ['FRAGGED', 'PARÇALADIN'],
+  streak5: ['UNSTOPPABLE!', 'DURDURULAMAZ!'], streak10: ['DEMOLITION MACHINE!', 'YIKIM MAKİNESİ!'], streak15: ['LEGENDARY!', 'EFSANE!'],
+  fragCount: ['{0} frags', '{0} parçalama'],
+  campWarn: ['you stayed too long in one spot: your position will be revealed soon', 'aynı yerde fazla kaldın: yakında konumun açığa çıkacak'],
+  campReveal: ['YOUR POSITION IS REVEALED!', 'KONUMUN AÇIĞA ÇIKTI!'],
+  youWin: ['YOU WON THE MATCH!', 'MAÇI KAZANDIN!'], winner: ['{0} WINS', '{0} KAZANDI'], newArenaSoon: ['building a new arena...', 'yeni arena hazırlanıyor...'],
+};
+
+const LANGS = ['en', 'tr'];
+let lang = 'en';
+const listeners = [];
+
+export function setLang(l) {
+  lang = LANGS.includes(l) ? l : 'en';
+  document.documentElement.lang = lang;
+  applyDom();
+  for (const f of listeners) f(lang);
+}
+export function getLang() { return lang; }
+export function onLangChange(f) { listeners.push(f); }
+
+export function t(key, ...args) {
+  const e = D[key];
+  let s = e ? e[lang === 'tr' ? 1 : 0] : key;
+  for (let i = 0; i < args.length; i++) s = s.split('{' + i + '}').join(String(args[i]));
+  return s;
+}
+
+export function applyDom(root = document) {
+  for (const el of root.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+}

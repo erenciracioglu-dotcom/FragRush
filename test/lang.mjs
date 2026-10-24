@@ -1,0 +1,33 @@
+// Dil kontrolu: menu/ayarlar/HUD Ingilizce ve Turkce ekran goruntusu + konsol hatalari
+import { chromium } from 'playwright';
+import { spawn } from 'node:child_process';
+const out = process.argv[2] || '/tmp/claude-0/shots/lang';
+const srv = spawn('node', ['serve.mjs'], { env: { ...process.env, PORT: '8796' }, stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 400));
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1100, height: 640 } });
+const logs = [];
+page.on('pageerror', (e) => logs.push('[pageerror] ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error') logs.push('[err] ' + m.text()); });
+await page.goto('http://127.0.0.1:8796/?test&q=low&bots=4&seed=4242');
+await page.waitForFunction(() => window.__enkaz && window.__enkaz.ready, null, { timeout: 180000, polling: 500 });
+await page.evaluate(() => window.__enkaz.step(2, 1 / 60, true));
+await page.screenshot({ path: out + '_menu_en.png' });
+await page.click('#btnSettings');
+await page.screenshot({ path: out + '_settings_en.png' });
+await page.selectOption('#setLang', 'tr');
+await page.screenshot({ path: out + '_settings_tr.png' });
+await page.click('#btnBack1');
+await page.click('#btnControls');
+await page.screenshot({ path: out + '_controls_tr.png' });
+await page.click('#btnBack2');
+await page.evaluate(() => { window.__enkaz.play(); window.__enkaz.step(120, 1 / 60, true); });
+await page.screenshot({ path: out + '_hud_tr.png' });
+const txt = await page.evaluate(() => [document.getElementById('weaponName').textContent, document.getElementById('weaponList').textContent, document.documentElement.lang]);
+console.log('tr hud:', JSON.stringify(txt));
+// tekrar yukle: ayar kaydedildi mi?
+await page.goto('http://127.0.0.1:8796/?test&q=low&bots=4&seed=4242');
+await page.waitForFunction(() => window.__enkaz && window.__enkaz.ready, null, { timeout: 180000, polling: 500 });
+console.log('reload lang:', await page.evaluate(() => [document.documentElement.lang, document.getElementById('btnPlay').textContent]));
+console.log(logs.slice(0, 10).join('\n'));
+await browser.close(); srv.kill();

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FragRush</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hitmarker"></div>
+  <div id="nametag"><span id="ntName"></span><div class="ntbar"><div id="ntHp"></div></div></div>
+  <div id="dmgdir"></div>
+  <div id="vitals">
+    <div class="vital hp"><span class="lbl" data-i18n="hp">HEALTH</span><span class="val" id="hpVal">100</span><div class="bar"><div id="hpBar"></div></div></div>
+    <div class="vital ar"><span class="lbl" data-i18n="armor">ARMOR</span><span class="val" id="arVal">0</span><div class="bar"><div id="arBar"></div></div></div>
+  </div>
+  <div id="weaponbox">
+    <div id="ammoVal">0</div>
+    <div id="weaponName">-</div>
+    <div id="weaponList"></div>
+  </div>
+  <div id="score">
+    <div id="fragVal">0</div><div class="lbl" data-i18n="frags">FRAGS</div>
+    <div id="rankVal">1/8</div>
+    <div id="timeVal">10:00</div>
+  </div>
+  <div id="killfeed"></div>
+  <div id="center-msg"></div>
+  <div id="sub-msg"></div>
+  <div id="powerup"></div>
+  <div id="fps"></div>
+</div>
+<div id="resumeHint" class="hidden" data-i18n="resumeHint"></div>
+
+<div id="scoreboard" class="hidden"><h2 data-i18n="scoreboard">SCOREBOARD</h2><table id="sbTable"></table></div>
+
+<div id="death" class="hidden">
+  <div class="big" id="deathTitle">FRAGGED</div>
+  <div id="deathBy"></div>
+  <div id="deathTimer"></div>
+</div>
+
+<div id="menu">
+  <div class="menu-inner">
+    <div class="title"><span>FRAG<b>RUSH</b></span><small data-i18n="tagline">Break · Blast · Bury</small></div>
+    <div id="loading">
+      <div class="lbar"><div id="loadBar"></div></div>
+      <div id="loadText">Building arena...</div>
+    </div>
+    <div id="menuButtons" class="hidden">
+      <button id="btnPlay" class="primary">PLAY</button>
+      <button id="btnSettings" data-i18n="settings">SETTINGS</button>
+      <button id="btnControls" data-i18n="controls">CONTROLS</button>
+      <button id="btnNewMap" data-i18n="newArena">NEW ARENA</button>
+      <button id="btnQuit" data-i18n="quit">QUIT</button>
+    </div>
+    <div id="panelSettings" class="panel hidden">
+      <label><span data-i18n="sLang">Language</span> <select id="setLang"><option value="en">English</option><option value="tr">Türkçe</option></select></label>
+      <label><span data-i18n="sSens">Mouse sensitivity</span> <input type="range" id="setSens" min="0.2" max="4" step="0.05"><span id="setSensV"></span></label>
+      <label><span data-i18n="sFov">Field of view (FOV)</span> <input type="range" id="setFov" min="80" max="120" step="1"><span id="setFovV"></span></label>
+      <label><span data-i18n="sQuality">Graphics quality</span> <select id="setQuality"><option value="ultra" data-i18n="qUltra">Ultra</option><option value="high" data-i18n="qHigh">High</option><option value="medium" data-i18n="qMedium">Medium</option><option value="low" data-i18n="qLow">Low</option></select></label>
+      <label><span data-i18n="sBots">Bot count</span> <input type="range" id="setBots" min="0" max="11" step="1"><span id="setBotsV"></span></label>
+      <label><span data-i18n="sDiff">Bot difficulty</span> <select id="setDiff"><option value="0" data-i18n="d0">Acemi</option><option value="1" data-i18n="d1">Çaylak</option><option value="2" data-i18n="d2">Normal</option><option value="3" data-i18n="d3">Zor</option><option value="4" data-i18n="d4">Çok Zor</option><option value="5" data-i18n="d5">Usta</option><option value="6" data-i18n="d6">Kâbus</option></select></label>
+      <label><span data-i18n="sVol">Volume</span> <input type="range" id="setVol" min="0" max="1" step="0.05"><span id="setVolV"></span></label>
+      <label><span data-i18n="sInvert">Invert mouse</span> <input type="checkbox" id="setInvert"></label>
+      <label><span data-i18n="sFps">Show FPS</span> <input type="checkbox" id="setFps"></label>
+      <button id="btnBack1" data-i18n="back">BACK</button>
+    </div>
+    <div id="panelControls" class="panel hidden">
+      <div class="keys">
+        <div><b>WASD</b> <span data-i18n="kMove"></span></div><div><b data-i18n="kSpace"></b> <span data-i18n="kJump"></span></div>
+        <div><b>Shift</b> <span data-i18n="kDash"></span></div><div><b>Ctrl / C</b> <span data-i18n="kCrouch"></span></div>
+        <div><b data-i18n="kLmb"></b> <span data-i18n="kFire"></span></div><div><b data-i18n="kRmb"></b> <span data-i18n="kZoom"></span></div>
+        <div><b data-i18n="kWheel"></b> <span data-i18n="kWeapon"></span></div><div><b>Q</b> <span data-i18n="kPrev"></span></div>
+        <div><b>Tab</b> <span data-i18n="kTab"></span></div><div><b>Esc</b> <span data-i18n="kEsc"></span></div>
+        <div><b>F3</b> <span data-i18n="kF3"></span></div><div><b data-i18n="kRj"></b> <span data-i18n="kRjText"></span></div>
+      </div>
+      <button id="btnBack2" data-i18n="back">BACK</button>
+    </div>
+    <div id="menuHint"></div>
+  </div>
+</div>
+
+<script>/*__JS__*/</script>
+</body>
+</html>

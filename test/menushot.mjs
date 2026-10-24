@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+import { spawn } from 'node:child_process';
+const srv = spawn('node', ['serve.mjs'], { env: { ...process.env, PORT: '8802' }, stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 400));
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+await page.goto('http://127.0.0.1:8802/?test&q=low&bots=5&seed=4242' + (process.argv[3] || ''));
+await page.waitForFunction(() => window.__enkaz && window.__enkaz.ready, null, { timeout: 180000, polling: 500 });
+await page.evaluate(() => window.__enkaz.step(2));
+await page.screenshot({ path: process.argv[2] || 'menu.png' });
+await browser.close(); srv.kill();

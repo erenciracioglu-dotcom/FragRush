@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+import { spawn } from 'node:child_process';
+const srv = spawn('node', ['serve.mjs'], { env: { ...process.env, PORT: '8801' }, stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 400));
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 640, height: 400 } });
+await page.goto('http://127.0.0.1:8801/?q=low&bots=3&seed=4242');
+await page.waitForFunction(() => window.__enkaz && window.__enkaz.ready, null, { timeout: 180000, polling: 500 });
+await page.evaluate(() => { window.__enkaz.game.time = 12.3; window.__enkaz.game.update = (() => { const u = window.__enkaz.game.update.bind(window.__enkaz.game); let n = 0; return (dt) => { if (n++ === 3) throw new Error('deneme hatasi'); return u(dt); }; })(); });
+await new Promise((r) => setTimeout(r, 1500));
+const alive = await page.evaluate(() => { const a = window.__enkaz.game.time; return new Promise((r) => setTimeout(() => r(window.__enkaz.game.time !== a || window.__enkaz.game.state), 500)); });
+console.log('hatadan sonra dongu:', alive);
+await page.evaluate(() => window.__enkaz.game.renderer.getContext().getExtension('WEBGL_lose_context').loseContext());
+await page.waitForNavigation({ timeout: 15000 }).then(() => console.log('yeniden yuklendi')).catch(() => console.log('yeniden yuklenmedi'));
+await browser.close(); srv.kill();

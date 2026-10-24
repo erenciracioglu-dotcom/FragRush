@@ -1,0 +1,466 @@
+// FragRush giris noktasi: ayarlar, menu, ana dongu.
+import { Game } from './game/game.js';
+import { Input } from './core/input.js';
+import { HUD } from './ui/hud.js';
+import { Audio } from './audio/sfx.js';
+import { MeshBasicMaterial as THREE_Basic, MeshStandardMaterial as THREE_Std } from 'three';
+import { voxelUniforms } from './world/voxelMaterial.js';
+import { t, setLang, onLangChange } from './i18n.js';
+
+/* global __BUILD_TIME__ */
+const params = new URLSearchParams(location.search);
+const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'ultra', bots: 7, difficulty: 2, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false };
+function loadSettings() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem('fragrush.settings') || localStorage.getItem('enkaz.settings') || '{}'); } catch (e) { s = {}; }
+  // zorluk olcegi 4 -> 7 seviyeye cikti: eski kayitli zorluk yeni varsayilana (Normal) doner
+  if (s.diffScale !== 2) { s.difficulty = DEFAULTS.difficulty; s.diffScale = 2; }
+  // ilk acilista grafik kalitesi: dahili / mobil / yazilimsal ekran kartinda daha hafif baslat
+  if (!s.quality) s.quality = guessQuality();
+  return { ...DEFAULTS, ...s };
+}
+function guessQuality() {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) return 'low';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    const lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
+    if (/swiftshader|llvmpipe|software|basic render/i.test(r)) return 'low';
+    if (/nvidia|geforce|rtx|quadro|radeon (rx|pro)|\brx ?\d{3,4}|arc\(tm\) a|apple m\d (pro|max|ultra)/i.test(r)) return 'ultra';
+    if (/intel|iris|uhd|radeon\(tm\) graphics|radeon graphics|vega|mali|adreno|powervr|apple/i.test(r)) return 'medium';
+    return 'high';
+  } catch (e) { return 'high'; }
+}
+function saveSettings(s) { try { localStorage.setItem('fragrush.settings', JSON.stringify(s)); } catch (e) { /* yok */ } }
+
+const settings = loadSettings();
+if (params.get('q')) settings.quality = params.get('q');
+if (params.has('bots')) settings.bots = Number(params.get('bots'));
+if (params.get('lang')) settings.lang = params.get('lang');
+setLang(settings.lang);
+settings.seed = params.has('seed') ? Number(params.get('seed')) : 0;
+const testMode = params.has('test');
+if (testMode) settings.volume = 0;
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('game');
+const input = new Input(canvas);
+const hud = new HUD();
+const audio = new Audio();
+audio.setVolume(settings.volume);
+hud.showFps = !!settings.showFps;
+const game = new Game(canvas, settings, { hud, audio, input });
+window.__enkaz = { game, ready: false, input };
+
+const menu = $('menu'), btnPlay = $('btnPlay');
+const panels = { settings: $('panelSettings'), controls: $('panelControls') };
+const buttons = $('menuButtons');
+function showPanel(name) {
+  buttons.classList.toggle('hidden', !!name);
+  for (const k in panels) panels[k].classList.toggle('hidden', k !== name);
+}
+function showMenu(v) {
+  menu.classList.toggle('hidden', !v);
+  hud.show(!v && game.state === 'playing');
+  if (v) showPanel(null);
+  btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play');
+}
+function setHint() {
+  $('menuHint').innerHTML = t('menuHint') + '<br><span style="opacity:.6">' + t('build') + ' ' + (typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__.slice(0, 16).replace('T', ' ') : '') + '</span>';
+}
+setHint();
+onLangChange(() => { setHint(); btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play'); hud.relabel(); game.player.name = t('you'); });
+
+btnPlay.addEventListener('click', async () => {
+  audio.init();
+  audio.setVolume(settings.volume);
+  if (game.state === 'menu') game.startMatch(true);
+  else if (game.state === 'paused') game.state = 'playing';
+  else if (game.state !== 'playing') return;
+  showMenu(false);
+  resumeHint(false);
+  if (settings.fullscreen !== false && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+    try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) { /* olmadi */ }
+  }
+  lockKeys();
+  input.lock();
+});
+
+// ---- Esc / Enter ile menu ----
+// Tam ekranda Esc tusunu sayfaya al (tarayici Esc'yi yutmasin; tam ekrandan cikmak icin Esc basili tutulur)
+function lockKeys() {
+  try { if (document.fullscreenElement && navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(() => {}); } catch (e) { /* yok */ }
+}
+const resumeEl = $('resumeHint');
+function resumeHint(v) { resumeEl.classList.toggle('hidden', !v); }
+let lastPauseT = 0;
+function pauseGame() {
+  if (game.state !== 'playing') return;
+  game.state = 'paused'; lastPauseT = performance.now();
+  resumeHint(false); showMenu(true); input.unlock();
+}
+function resumeGame() {
+  if (game.state !== 'paused') return;
+  game.state = 'playing'; showMenu(false); resumeHint(false);
+  lockKeys(); input.lock();
+}
+input.onLockChange = (locked, error) => {
+  if (error) {
+    // kilit alinamadi (or. Esc ile devam: tarayici Esc'yi kullanici hareketi saymiyor) -> tikla / Enter ile devam
+    if (game.state === 'playing') { game.state = 'paused'; showMenu(false); hud.show(true); resumeHint(true); }
+    return;
+  }
+  if (locked) { resumeHint(false); if (game.state === 'paused' && menu.classList.contains('hidden')) game.state = 'playing'; return; }
+  if (game.state === 'playing') pauseGame();
+};
+// oyunda / devam ipucunda tiklayinca kilidi geri al
+canvas.addEventListener('click', () => {
+  if (game.state === 'playing' && !input.locked) input.lock();
+  else if (game.state === 'paused' && menu.classList.contains('hidden')) resumeGame();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || (e.code !== 'Escape' && e.code !== 'Enter' && e.code !== 'NumpadEnter')) return;
+  if (game.state === 'loading' || game.state === 'matchEnd' || !$('loading').classList.contains('hidden')) return;
+  const menuOpen = !menu.classList.contains('hidden');
+  const panel = Object.keys(panels).find((k) => !panels[k].classList.contains('hidden'));
+  if (e.code === 'Escape') {
+    e.preventDefault();
+    // kilit Esc ile birakildiysa ayni tus vurusu menuyu hemen kapatmasin
+    if (performance.now() - lastPauseT < 350) return;
+    if (menuOpen) {
+      if (panel) { if (panel === 'settings') saveSettings(settings); showPanel(null); return; }
+      if (game.state === 'paused') resumeGame();
+      return;
+    }
+    if (game.state === 'playing') pauseGame();
+    else if (game.state === 'paused') resumeGame();
+    return;
+  }
+  // Enter: ana menude OYNA / DEVAM ET, devam ipucunda devam
+  if (menuOpen && !panel && document.activeElement && document.activeElement.tagName !== 'BUTTON' && document.activeElement.tagName !== 'SELECT') { e.preventDefault(); btnPlay.click(); }
+  else if (!menuOpen && game.state === 'paused') { e.preventDefault(); resumeGame(); }
+});
+$('btnSettings').addEventListener('click', () => showPanel('settings'));
+$('btnQuit').addEventListener('click', () => { try { window.close(); } catch (e) { /* yok */ } setTimeout(() => { $('menuHint').textContent = t('closeHint'); }, 300); });
+// sunucuya canlilik sinyali (oyun kapaninca sunucu kendini kapatir)
+// yalniz yerel sunucuda (serve.mjs): canlilik sinyali ve hata gunlugu. GitHub Pages gibi statik sunucuda kapali.
+const localServer = location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+if (!localServer) $('btnQuit').classList.add('hidden');
+if (localServer) setInterval(() => { fetch('/__ping', { cache: 'no-store' }).catch(() => {}); }, 5000);
+$('btnControls').addEventListener('click', () => showPanel('controls'));
+$('btnBack1').addEventListener('click', () => { saveSettings(settings); showPanel(null); });
+$('btnBack2').addEventListener('click', () => showPanel(null));
+$('btnNewMap').addEventListener('click', async () => {
+  buttons.classList.add('hidden');
+  $('loading').classList.remove('hidden');
+  hud.show(false);
+  await game.newArena(progress);
+  $('loading').classList.add('hidden');
+  showMenu(true);
+});
+
+// ayar paneli
+function bindRange(id, key, fmt, apply) {
+  const el = $(id), out = $(id + 'V');
+  el.value = settings[key];
+  const upd = () => { settings[key] = Number(el.value); if (out) out.textContent = fmt(settings[key]); if (apply) apply(settings[key]); saveSettings(settings); };
+  el.addEventListener('input', upd);
+  if (out) out.textContent = fmt(settings[key]);
+}
+bindRange('setSens', 'sensitivity', (v) => v.toFixed(2));
+bindRange('setFov', 'fov', (v) => String(v), () => { game._fov = -1; });
+bindRange('setVol', 'volume', (v) => Math.round(v * 100) + '%', (v) => audio.setVolume(v));
+bindRange('setBots', 'bots', (v) => String(v), () => { if (game.state !== 'loading') game.syncBots(); });
+const selL = $('setLang'); selL.value = settings.lang;
+selL.addEventListener('change', () => { settings.lang = selL.value; setLang(settings.lang); saveSettings(settings); });
+const selQ = $('setQuality'); selQ.value = settings.quality;
+selQ.addEventListener('change', () => { game.setQuality(selQ.value); saveSettings(settings); });
+const selD = $('setDiff'); selD.value = String(settings.difficulty);
+selD.addEventListener('change', () => { settings.difficulty = Number(selD.value); for (const b of game.bots) b.setSkill(settings.difficulty); saveSettings(settings); });
+const chkI = $('setInvert'); chkI.checked = !!settings.invert; chkI.addEventListener('change', () => { settings.invert = chkI.checked; saveSettings(settings); });
+const chkF = $('setFps'); chkF.checked = !!settings.showFps; chkF.addEventListener('change', () => { settings.showFps = chkF.checked; hud.showFps = chkF.checked; saveSettings(settings); });
+
+const loadBar = $('loadBar'), loadText = $('loadText');
+function progress(p, msg) { loadBar.style.width = (p * 100).toFixed(0) + '%'; loadText.textContent = msg; }
+
+// hata gunlugu: sunucuya (reports/game.log) yazilir; bir hata olsa da oyun dongusu durmaz
+const canLog = localServer;
+let logCount = 0;
+function glog(kind, msg) {
+  if (logCount++ > 60) return;
+  const st = `[${kind}] state=${game.state} t=${(game.time || 0).toFixed(1)} bots=${game.bots.length} v=${typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '-'}\n${msg}\nevents: ${(game.events || []).join(' | ')}`;
+  if (canLog) fetch('/__log', { method: 'POST', body: st }).catch(() => {});
+  else console.error(st);
+}
+window.__enkaz.glog = glog;
+window.addEventListener('error', (e) => glog('error', (e.error && e.error.stack) || e.message));
+window.addEventListener('unhandledrejection', (e) => glog('reject', (e.reason && e.reason.stack) || String(e.reason)));
+let frameErrs = 0, lastErrMsg = '';
+let last = performance.now();
+function frame(now, manual = false, fixedDt = 0, doRender = true) {
+  if (!manual) requestAnimationFrame(frame);
+  const dt = manual ? fixedDt : Math.min(0.05, Math.max(0.0005, (now - last) / 1000));
+  last = now;
+  try {
+    if (input.pressed('F3')) { hud.showFps = !hud.showFps; settings.showFps = hud.showFps; chkF.checked = hud.showFps; }
+    game.update(dt);
+    if (doRender) game.render(dt);
+  } catch (e) {
+    if (manual) throw e;
+    const m = (e && e.stack) || String(e);
+    frameErrs++;
+    if (m !== lastErrMsg || frameErrs % 600 === 1) { glog('frame', m + ' (x' + frameErrs + ')'); lastErrMsg = m; }
+  }
+  input.endFrame();
+}
+// ekran karti sifirlanirsa (GPU surucu resetlenmesi) sayfayi yeniden yukle
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  glog('contextlost', 'WebGL baglami kayboldu');
+  $('menuHint').textContent = 'GPU reset...';
+  setTimeout(() => location.reload(), 2500);
+});
+canvas.addEventListener('webglcontextrestored', () => { glog('contextrestored', ''); location.reload(); });
+// oyun acikken 30 sn'de bir kisa durum satiri (donma olursa son durumu gormek icin)
+if (canLog && !testMode) setInterval(() => {
+  if (game.state !== 'playing') return;
+  fetch('/__log', { method: 'POST', body: `[beat] t=${game.time.toFixed(0)} fps=${Math.round(game.lastFps || 0)} bots=${game.bots.length} alive=${game.bots.filter((b) => b.alive).length} quad=${game.player.quad.toFixed(1)} tris=${game.chunks.triangles} def=${game.chunks.deferred.size} bodies=${game.destruction.bodies.length} heap=${performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : '-'}` }).catch(() => {});
+}, 30000);
+
+game.init(progress).then(() => {
+  window.__enkaz.ready = true;
+  $('loading').classList.add('hidden');
+  showMenu(true);
+  if (testMode) {
+    window.__enkaz.step = (n = 1, dt = 1 / 60, renderLast = true) => {
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) frame(performance.now(), true, dt, renderLast && i === n - 1);
+      return performance.now() - t0;
+    };
+    window.__enkaz.capture = () => game.renderer.domElement.toDataURL('image/png');
+    window.__enkaz.play = () => { game.startMatch(true); showMenu(false); };
+    window.__enkaz.stats = () => ({ state: game.state, fps: game.lastFps, actors: game.actors.map((a) => [a.name, a.alive, a.frags, Math.round(a.health)]), debris: game.fx.debris.count, bodies: game.destruction.bodies.length, d: game.destruction.stats, tris: game.chunks.triangles });
+  } else if (params.has('bench')) {
+    runBench();
+  } else requestAnimationFrame(frame);
+}).catch((e) => { console.error(e); loadText.textContent = t('error') + e.message; });
+
+// ---------------- performans olcumu (?bench) ----------------
+// Kamera bir botun gozunden izler, zaman zaman buyuk patlamalar olur; sonuc sunucuya yazilir.
+function runBench() {
+  const dur = Number(params.get('bench')) || 30;
+  const frames = [];
+  const upd = [], ren = [];
+  let t0 = 0, lastT = performance.now(), shots = 0, nextBoom = 3, skipNext = false;
+  // soak: uzun sure, sik ve arenaya dagilmis patlamalar, 10 sn'lik ornekler (bozulma / bellek sizintisi var mi)
+  const soak = params.has('soak');
+  const samples = [];
+  const spikes = [], gpuSpikes = [];
+  let lastShotT = -99, lastHeap = null, lastHeapT = 0;
+  let lastProgN = game.renderer.info.programs ? game.renderer.info.programs.length : -1;
+  let winFrames = [], nextSample = 10;
+  const shotTimes = soak ? [0.15, 0.35, 0.55, 0.75, 0.95].map((k) => k * dur) : [5, 10, 15, 20, 25];
+  game.spectate = game.bots[0] || null;
+  game.benchMode = true;
+  if (params.has('fp')) game.benchFirstPerson = true;
+  hud.show(false); menu.classList.add('hidden');
+  const gl = game.renderer.getContext();
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'bilinmiyor';
+  const post = (path, body) => fetch(path, { method: 'POST', body }).catch(() => {});
+  const tq = params.has('notq') ? null : gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  const gpuMs = [];
+  const pending = [];
+  const forensicLog = [];
+  // ---- goruntu adli incelemesi: ayni karede tek tek alt sistemleri kapatip saf beyaz/siyah piksel say ----
+  let pixBuf = null;
+  // tani modunda siniflar tam renk: yesil NaN(bit), sari Inf, camgobegi NaN(isnan), pembe sirasiz, mavi negatif, turuncu >65000, kirmizi >20, mor alfa
+  function countPix() {
+    const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+    if (!pixBuf || pixBuf.length !== w * h * 4) pixBuf = new Uint8Array(w * h * 4);
+    game.renderer.setRenderTarget(null);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixBuf);
+    // siniflar (tani modunda): yesil NaN(bit), sari Inf, camgobegi NaN(isnan), beyaz sirasiz karsilastirma,
+    // mavi negatif, mor >65000, kirmizi >20, siyah alfa bozuk. Normal modda white/black = saf beyaz/siyah.
+    const C = { white: 0, black: 0, nan: 0, inf: 0, isnan: 0, unord: 0, neg: 0, big: 0, red: 0, alpha: 0 };
+    let n = 0;
+    const hi = (v) => v > 235, lo = (v) => v < 20;
+    for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) {
+      const i = (y * w + x) * 4; n++;
+      const r = pixBuf[i], g = pixBuf[i + 1], b = pixBuf[i + 2];
+      if (r >= 250 && g >= 250 && b >= 250) C.white++;
+      else if (r <= 2 && g <= 2 && b <= 2) C.black++;
+      if (lo(r) && hi(g) && lo(b)) C.nan++;
+      else if (hi(r) && hi(g) && lo(b)) C.inf++;
+      else if (lo(r) && hi(g) && hi(b)) C.isnan++;
+      else if (hi(r) && hi(g) && hi(b)) C.unord++;
+      else if (lo(r) && lo(g) && hi(b)) C.neg++;
+      else if (hi(r) && lo(g) && hi(b)) C.big++;
+      else if (hi(r) && lo(g) && lo(b)) C.red++;
+      else if (lo(r) && lo(g) && lo(b)) C.alpha++;
+    }
+    for (const k in C) C[k] = +(C[k] * 1000 / n).toFixed(1);
+    return C;
+  }
+  function forensic(nm) {
+    const fx = game.fx, P = game.post, scene = game.scene;
+    const res = { name: nm, t: +((performance.now() - t0) / 1000).toFixed(1), v: {} };
+    const measure = () => { game.render(0); return countPix(); };
+    const snap = (suffix) => post('/__shot?name=fz_' + nm + '_' + suffix, game.renderer.domElement.toDataURL('image/jpeg', 0.85));
+    const bad = (v) => v.nan + v.inf + v.isnan + v.unord + v.neg + v.big + v.alpha;
+    res.v.base = measure(); snap('base');
+    P.setDiag(true);
+    const all = res.v.all = measure(); snap('all');
+    const variant = (name, apply, undo) => {
+      apply();
+      const v = res.v[name] = measure();
+      if (bad(all) > 3 && bad(v) < bad(all) * 0.4) snap(name);
+      undo();
+    };
+    if (P.n8) variant('noao', () => { P.n8.enabled = false; }, () => { P.n8.enabled = true; });
+    const si = game.sun.intensity;
+    variant('nosun', () => { game.sun.intensity = 0; }, () => { game.sun.intensity = si; });
+    const pls = [...fx.lights.slots.map((s) => s.light), ...game.staticLights.map((L) => L.light)];
+    const pi = pls.map((l) => l.intensity);
+    variant('nopoint', () => pls.forEach((l) => { l.intensity = 0; }), () => pls.forEach((l, i) => { l.intensity = pi[i]; }));
+    const hemi = scene.children.find((o) => o.isHemisphereLight);
+    if (hemi) { const hi = hemi.intensity; variant('nohemi', () => { hemi.intensity = 0; }, () => { hemi.intensity = hi; }); }
+    const ei = scene.environmentIntensity;
+    variant('noenv', () => { scene.environmentIntensity = 0; }, () => { scene.environmentIntensity = ei; });
+    if (scene.fog) { const fd = scene.fog.density; variant('nofog', () => { scene.fog.density = 0; }, () => { scene.fog.density = fd; }); }
+    const ud = voxelUniforms.uDetail.value;
+    variant('nodetail', () => { voxelUniforms.uDetail.value = 0; }, () => { voxelUniforms.uDetail.value = ud; });
+    const hideFx = [fx.add.mesh, fx.smoke.mesh, fx.beams.mesh, game.sky.mesh];
+    const hv = hideFx.map((o) => o.visible);
+    const basicM = new THREE_Basic({ color: 0x808080 });
+    variant('ovr_basic', () => { scene.overrideMaterial = basicM; hideFx.forEach((o) => { o.visible = false; }); }, () => { scene.overrideMaterial = null; hideFx.forEach((o, i) => { o.visible = hv[i]; }); });
+    const stdM = new THREE_Std({ color: 0x808080, roughness: 0.7, metalness: 0 });
+    variant('ovr_std', () => { scene.overrideMaterial = stdM; hideFx.forEach((o) => { o.visible = false; }); }, () => { scene.overrideMaterial = null; hideFx.forEach((o, i) => { o.visible = hv[i]; }); });
+    variant('nodebris', () => { fx.debris.mesh.visible = false; fx.glowDebris.mesh.visible = false; }, () => { fx.debris.mesh.visible = true; fx.glowDebris.mesh.visible = true; });
+    if (nm.endsWith('_1') || nm.endsWith('_3')) {
+      // golge kapali (shader yeniden derlenir, sadece adli incelemede)
+      variant('noshadow', () => { game.sun.castShadow = false; }, () => { game.sun.castShadow = !params.has('noshadow'); });
+    }
+    P.setDiag(false);
+    res.lights = fx.lights.slots.filter((s) => s.active).map((s) => [+s.light.intensity.toFixed(1), +s.light.distance.toFixed(1), +s.light.position.x.toFixed(1), +s.light.position.y.toFixed(1), +s.light.position.z.toFixed(1)]);
+    res.cam = [+game.camera.position.x.toFixed(2), +game.camera.position.y.toFixed(2), +game.camera.position.z.toFixed(2)];
+    res.counts = { debris: fx.debris.count, glow: fx.glowDebris.count, add: fx.add.count, smoke: fx.smoke.count, bodies: game.destruction.bodies.length };
+    forensicLog.push(res);
+    post('/__report?name=forensic_' + (params.get('tag') || 'x'), JSON.stringify(forensicLog, null, 1));
+  }
+  function loop(now) {
+    const rawMs = now - lastT;
+    const dt = Math.min(0.05, Math.max(0.0005, rawMs / 1000));
+    lastT = now;
+    if (!t0) t0 = now;
+    const el = (now - t0) / 1000;
+    // doomall: butun botlar surekli KIYAMET modunda (gercek dovus, tek vurus + dev roketler)
+    if (params.has('doomall')) for (const b of game.bots) if (b.alive) b.quad = 15;
+    const a = performance.now();
+    game.update(dt);
+    const b = performance.now();
+    let q = null;
+    if (tq && pending.length < 6) { q = gl.createQuery(); gl.beginQuery(tq.TIME_ELAPSED_EXT, q); }
+    game.render(dt);
+    if (q) { gl.endQuery(tq.TIME_ELAPSED_EXT); pending.push(q); }
+    while (pending.length) {
+      const q0 = pending[0];
+      if (!gl.getQueryParameter(q0, gl.QUERY_RESULT_AVAILABLE)) break;
+      const disjoint = gl.getParameter(tq.GPU_DISJOINT_EXT);
+      const ns = gl.getQueryParameter(q0, gl.QUERY_RESULT);
+      if (!disjoint && el > 2) {
+        gpuMs.push(ns / 1e6);
+        if (ns / 1e6 > 25) gpuSpikes.push({ t: +el.toFixed(2), gpu: +(ns / 1e6).toFixed(1), made: game.destruction.stats.bodies, coll: game.destruction.stats.collapses, tris: game.renderer.info.render.triangles, geo: game.renderer.info.memory.geometries });
+      }
+      gl.deleteQuery(q0); pending.shift();
+    }
+    const c = performance.now();
+    if (el > 2 && !skipNext) { frames.push(dt * 1000); upd.push(b - a); ren.push(c - b); winFrames.push(dt * 1000); }
+    // takilma kaydi: hangi karede ne oldu (shader derlemesi = program sayisi artar)
+    const progN = game.renderer.info.programs ? game.renderer.info.programs.length : -1;
+    if (el > 2 && (c - b > 25 || b - a > 15 || dt > 0.02 || progN !== lastProgN)) {
+      spikes.push({ t: +el.toFixed(2), sinceShot: +(el - lastShotT).toFixed(2), skip: skipNext, upd: +(b - a).toFixed(1), ren: +(c - b).toFixed(1), raw: +rawMs.toFixed(1), prog: progN, prevProg: lastProgN,
+        made: game.destruction.stats.bodies, coll: game.destruction.stats.collapses,
+        heap: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null, prevHeap: lastHeap,
+        geo: game.renderer.info.memory.geometries, bodies: game.destruction.bodies.length, queued: game.destruction.settleQueue ? game.destruction.settleQueue.length : 0,
+        tris: game.renderer.info.render.triangles });
+      if (spikes.length > 60) spikes.shift();
+    }
+    lastProgN = progN;
+    // bellek okumasi pahali olabilir: 250 ms'de bir
+    if (performance.memory && now - lastHeapT > 250) { lastHeapT = now; lastHeap = +(performance.memory.usedJSHeapSize / 1048576).toFixed(1); }
+    skipNext = false;
+    if (el > nextSample) {
+      nextSample += 10;
+      const wf = winFrames.slice().sort((x, y) => x - y);
+      const wavg = wf.reduce((s, x) => s + x, 0) / Math.max(1, wf.length);
+      samples.push({
+        t: Math.round(el), fps: +(1000 / wavg).toFixed(1), p99: wf.length ? +wf[Math.floor(wf.length * 0.99)].toFixed(2) : 0, max: wf.length ? +wf[wf.length - 1].toFixed(2) : 0,
+        heapMB: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null,
+        tris: game.renderer.info.render.triangles, calls: game.renderer.info.render.calls, chunkTris: game.chunks.triangles,
+        geo: game.renderer.info.memory.geometries, tex: game.renderer.info.memory.textures,
+        debris: game.fx.debris.count, add: game.fx.add.count, smoke: game.fx.smoke.count, bodies: game.destruction.bodies.length,
+        removed: game.destruction.stats.removed, collapses: game.destruction.stats.collapses, state: game.state,
+      });
+      winFrames = [];
+    }
+    if (el > nextBoom && !params.has('calm')) {
+      nextBoom += soak ? 1.2 : params.has('doom') ? 1.0 : 2.5;
+      // soak: arenada rastgele bir noktaya (yukaridan asagi isin) buyuk patlama
+      if (soak && Math.random() < 0.6) {
+        const W = game.world, h = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
+        const x = 4 + Math.random() * 64, z = 4 + Math.random() * 64, y0 = 23.5;
+        if (W.raycast(x, y0, z, 0, -1, 0, 30, h)) {
+          const hy = y0 - h.dist;
+          if (hy > 1.8) { game.destruction.blast(x, hy, z, 2.6 + Math.random() * 1.2, 520, null, 12, 320); game.fx.explosion(x, hy + 0.2, z, 3.2, 0xff7a1a, 1.1, 0, 1, 0); }
+        }
+      }
+      // izlenen botun baktigi yere buyuk patlama
+      const s = game.spectate || game.bots[0];
+      if (s && s.alive) {
+        const e = s.eye(new game.camera.position.constructor()), d = s.aimDir(new game.camera.position.constructor());
+        const h = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
+        if (game.world.raycast(e.x, e.y, e.z, d.x, d.y, d.z, 40, h)) {
+          const x = e.x + d.x * h.dist, y = e.y + d.y * h.dist, z = e.z + d.z * h.dist;
+          if (params.has('doom')) {
+            // KIYAMET roketi: gercek patlama yolu (5 kat yaricap)
+            const W = game.WEAPONS.find((w) => w.id === 'rocket');
+            game.projectiles.explode({ W, owner: s, quad: 3, vel: d }, x - d.x * 0.1, y - d.y * 0.1, z - d.z * 0.1, -d.x, -d.y, -d.z, null);
+          } else {
+            game.destruction.blast(x, y, z, 3.2, 520, null, 12, 320);
+            game.fx.explosion(x, y, z, 3.4, 0xff7a1a, 1.2);
+          }
+        }
+      }
+    }
+    if (shots < 5 && el > shotTimes[shots] && !params.has('noshots')) {
+      shots++;
+      lastShotT = el;
+      skipNext = true; // ekran goruntusu kodlamasi olcumu bozmasin
+      const nm = (params.get('tag') || settings.quality) + '_' + shots;
+      if (params.has('forensic')) forensic(nm);
+      else post('/__shot?name=shot_' + nm, game.renderer.domElement.toDataURL('image/jpeg', 0.85));
+    }
+    if (el < dur) { requestAnimationFrame(loop); return; }
+    const sorted = [...frames].sort((x, y) => x - y);
+    const avg = frames.reduce((s, x) => s + x, 0) / frames.length;
+    const pct = (p) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+    const mean = (arr) => arr.reduce((s, x) => s + x, 0) / arr.length;
+    const report = {
+      gpu, quality: settings.quality, w: game.renderer.domElement.width, h: game.renderer.domElement.height, dpr: window.devicePixelRatio,
+      inner: [window.innerWidth, window.innerHeight], screen: [screen.width, screen.height], renderScale: game.renderScale, ua: navigator.userAgent,
+      frames: frames.length, avgFps: 1000 / avg, avgMs: avg, p50: pct(0.5), p95: pct(0.95), p99: pct(0.99), max: sorted[sorted.length - 1],
+      over20: frames.filter((x) => x > 20).length, over33: frames.filter((x) => x > 33).length,
+      updMs: mean(upd), renMs: mean(ren), updMax: Math.max(...upd), renMax: Math.max(...ren),
+      gpuMs: gpuMs.length ? mean(gpuMs) : null, gpuMax: gpuMs.length ? Math.max(...gpuMs) : null, gpuN: gpuMs.length, prof: game.prof,
+      tris: game.renderer.info.render.triangles, calls: game.renderer.info.render.calls,
+      chunkTris: game.chunks.triangles, debris: game.fx.debris.count, d: game.destruction.stats,
+      frags: game.actors.map((x) => x.name + ':' + x.frags),
+      samples, spikes, gpuSpikes,
+      programs: game.renderer.info.programs ? game.renderer.info.programs.map((p) => p.name || p.cacheKey.slice(0, 60)) : null,
+    };
+    post('/__report?name=bench_' + (params.get('tag') || settings.quality), JSON.stringify(report, null, 1)).then(() => { document.title = 'BENCH DONE'; });
+  }
+  requestAnimationFrame(loop);
+}

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+reports/
+.chrome-profile/
+.bench-profile/
+*.tar.gz
+tools/pack.sh
+.publish/
