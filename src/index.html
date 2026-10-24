@@ -86,5 +86,14 @@
 </div>
 
 <script>/*__JS__*/</script>
+<script>
+// GoatCounter ziyaret sayaci: yalniz yayindaki GitHub Pages sayfasinda (yerel / file:// acilislar sayilmaz)
+if (/\.github\.io$/.test(location.hostname)) {
+  var gc = document.createElement('script');
+  gc.async = true; gc.src = 'https://gc.zgo.at/count.js';
+  gc.setAttribute('data-goatcounter', 'https://fragrush.goatcounter.com/count');
+  document.body.appendChild(gc);
+}
+</script>
 </body>
 </html>

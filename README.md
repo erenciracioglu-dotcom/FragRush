@@ -76,7 +76,9 @@ Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**
 - A dedicated GPU is recommended. The first launch picks a graphics quality from your GPU
   (Medium on integrated graphics); you can change it any time. Lower settings also render at a
   lower resolution.
-- No install, no downloads, no network after the page has loaded (everything, including all sound,
+- No install, no downloads. The online version counts anonymous visits with
+  [GoatCounter](https://www.goatcounter.com) (no cookies, no personal data); local copies don't.
+- No other network use after the page has loaded (everything, including all sound,
   is generated in the browser).
 
 **Laptops:** if the game runs slowly, the browser may be on the integrated GPU. On Windows, set
