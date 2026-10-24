@@ -9,28 +9,13 @@ import { t, setLang, onLangChange } from './i18n.js';
 
 /* global __BUILD_TIME__ */
 const params = new URLSearchParams(location.search);
-const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'ultra', bots: 7, difficulty: 2, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false };
+const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'low', bots: 7, difficulty: 2, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false };
 function loadSettings() {
   let s = {};
   try { s = JSON.parse(localStorage.getItem('fragrush.settings') || localStorage.getItem('enkaz.settings') || '{}'); } catch (e) { s = {}; }
   // zorluk olcegi 4 -> 7 seviyeye cikti: eski kayitli zorluk yeni varsayilana (Normal) doner
   if (s.diffScale !== 2) { s.difficulty = DEFAULTS.difficulty; s.diffScale = 2; }
-  // ilk acilista grafik kalitesi: dahili / mobil / yazilimsal ekran kartinda daha hafif baslat
-  if (!s.quality) s.quality = guessQuality();
   return { ...DEFAULTS, ...s };
-}
-function guessQuality() {
-  try {
-    const gl = document.createElement('canvas').getContext('webgl2');
-    if (!gl) return 'low';
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    const r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
-    const lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
-    if (/swiftshader|llvmpipe|software|basic render/i.test(r)) return 'low';
-    if (/nvidia|geforce|rtx|quadro|radeon (rx|pro)|\brx ?\d{3,4}|arc\(tm\) a|apple m\d (pro|max|ultra)/i.test(r)) return 'ultra';
-    if (/intel|iris|uhd|radeon\(tm\) graphics|radeon graphics|vega|mali|adreno|powervr|apple/i.test(r)) return 'medium';
-    return 'high';
-  } catch (e) { return 'high'; }
 }
 function saveSettings(s) { try { localStorage.setItem('fragrush.settings', JSON.stringify(s)); } catch (e) { /* yok */ } }
 
@@ -65,9 +50,21 @@ function showMenu(v) {
   hud.show(!v && game.state === 'playing');
   if (v) showPanel(null);
   btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play');
+  $('btnLeave').classList.toggle('hidden', game.state !== 'paused');
+}
+// tarayici dahili ekran kartinda calisiyorsa (cift kartli dizustulerde sik) kisa bir uyari goster
+let gpuIntegrated = null;
+function checkGpu() {
+  try {
+    const gl = game.renderer && game.renderer.getContext();
+    if (!gl) return;
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
+    gpuIntegrated = /intel|radeon\(tm\) graphics|radeon graphics|vega \d/i.test(r) && !/arc\(tm\) a\d/i.test(r);
+  } catch (e) { gpuIntegrated = false; }
 }
 function setHint() {
-  $('menuHint').innerHTML = t('menuHint') + '<br><span style="opacity:.6">' + t('build') + ' ' + (typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__.slice(0, 16).replace('T', ' ') : '') + '</span>';
+  $('menuHint').innerHTML = (gpuIntegrated ? '<div class="gpuwarn">' + t('igpuWarn') + '</div>' : '') + t('menuHint') + '<br><span style="opacity:.6">' + t('build') + ' ' + (typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__.slice(0, 16).replace('T', ' ') : '') + '</span>';
 }
 setHint();
 onLangChange(() => { setHint(); btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play'); hud.relabel(); game.player.name = t('you'); });
@@ -142,6 +139,14 @@ window.addEventListener('keydown', (e) => {
   else if (!menuOpen && game.state === 'paused') { e.preventDefault(); resumeGame(); }
 });
 $('btnSettings').addEventListener('click', () => showPanel('settings'));
+// maci birak: ana menuye don (arkada botlar oynamaya devam eder), tam ekrandan cik
+$('btnLeave').addEventListener('click', () => {
+  if (game.state !== 'paused') return;
+  game.startMatch(false);
+  resumeHint(false);
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { /* yok */ }
+  showMenu(true);
+});
 $('btnQuit').addEventListener('click', () => { try { window.close(); } catch (e) { /* yok */ } setTimeout(() => { $('menuHint').textContent = t('closeHint'); }, 300); });
 // sunucuya canlilik sinyali (oyun kapaninca sunucu kendini kapatir)
 // yalniz yerel sunucuda (serve.mjs): canlilik sinyali ve hata gunlugu. GitHub Pages gibi statik sunucuda kapali.
@@ -230,6 +235,7 @@ if (canLog && !testMode) setInterval(() => {
 
 game.init(progress).then(() => {
   window.__enkaz.ready = true;
+  checkGpu(); setHint();
   $('loading').classList.add('hidden');
   showMenu(true);
   if (testMode) {

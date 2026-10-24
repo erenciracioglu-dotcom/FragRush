@@ -109,6 +109,8 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 .lbar { height: 4px; background: rgba(255,255,255,0.1); width: 100%; }
 #loadBar { height: 100%; width: 0; background: var(--acc); transition: width 0.2s; box-shadow: 0 0 10px var(--acc); }
 #loadText { font-size: 13px; letter-spacing: 3px; color: var(--dim); margin-top: 10px; }
+#menuHint .gpuwarn { color: #ffcf6a; margin-bottom: 10px; line-height: 1.45; }
+#menuHint b { color: #fff; }
 #menuHint { margin-top: 26px; font-size: 13px; color: var(--dim); letter-spacing: 1px; line-height: 1.6; }
 
 #nametag { position: absolute; left: 50%; top: calc(50% + 30px); transform: translateX(-50%); text-align: center; font-size: 14px; letter-spacing: 2px; opacity: 0; transition: opacity 0.15s; text-shadow: 0 1px 2px #000; }

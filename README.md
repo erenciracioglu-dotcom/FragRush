@@ -28,7 +28,7 @@ last.
 | Right click | zoom (railgun) |
 | 1-5 / wheel / Q | select weapon / previous weapon |
 | Tab | scoreboard |
-| Esc | menu (pause); in menus: back, on the main menu: resume |
+| Esc | menu (pause; *Leave match* returns to the main menu); in menus: back, on the main menu: resume |
 | Enter | play / resume |
 | F3 | FPS and performance overlay |
 
@@ -73,15 +73,17 @@ Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**
 
 - A desktop browser with **WebGL 2**. Chrome or Edge recommended (tested in Chrome).
 - Mouse and keyboard. Mobile is not supported.
-- A dedicated GPU is recommended. The first launch picks a graphics quality from your GPU
-  (Medium on integrated graphics); you can change it any time. Lower settings also render at a
-  lower resolution.
+- A dedicated GPU is recommended. The game starts on **Low** quality; raise it in Settings if
+  your GPU has headroom (press F3 to see FPS).
 - No install, no downloads. The online version counts anonymous visits with
   [GoatCounter](https://www.goatcounter.com) (no cookies, no personal data); local copies don't.
 - No other network use after the page has loaded (everything, including all sound,
   is generated in the browser).
 
-**Laptops:** if the game runs slowly, the browser may be on the integrated GPU. On Windows, set
+**Laptops:** if the game stutters or runs slowly, the browser is probably on the integrated GPU
+(the menu shows a warning when it is). On one test laptop, Chrome on Intel integrated graphics
+froze for up to a second at a time, even on a minimal WebGL test page; on the dedicated GPU it
+runs smoothly. On Windows, set
 the browser to "High performance" in *Settings → System → Display → Graphics*, or use the
 launcher below.
 

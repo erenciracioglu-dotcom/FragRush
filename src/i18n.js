@@ -4,9 +4,11 @@ const D = {
   // menu
   tagline: ['Break · Blast · Bury', 'Break · Blast · Bury'],
   play: ['PLAY', 'OYNA'], resume: ['RESUME', 'DEVAM ET'], settings: ['SETTINGS', 'AYARLAR'], controls: ['CONTROLS', 'KONTROLLER'],
-  newArena: ['NEW ARENA', 'YENİ ARENA'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
+  newArena: ['NEW ARENA', 'YENİ ARENA'], leave: ['LEAVE MATCH', 'MAÇTAN ÇIK'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
   menuHint: ['Left click fire · Esc menu · F3 FPS', 'Sol tık ateş · Esc menü · F3 FPS'],
   build: ['build', 'derleme'],
+  igpuWarn: ['Running on integrated graphics. If this computer has a dedicated GPU, set your browser to <b>High performance</b> (Windows: Settings → System → Display → Graphics) and reload.',
+    'Dahili ekran kartında çalışıyor. Bilgisayarında harici ekran kartı varsa tarayıcıyı <b>Yüksek performans</b>a al (Windows: Ayarlar → Sistem → Ekran → Grafik) ve sayfayı yenile.'],
   lockFail: ['Could not lock the mouse, click again.', 'Fare kilitlenemedi, tekrar tıkla.'],
   closeHint: ['Press Alt+F4 to close the window.', 'Pencereyi kapatmak için Alt+F4.'],
   // ayarlar
