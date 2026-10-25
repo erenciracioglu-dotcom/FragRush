@@ -27,6 +27,14 @@ export const M = {
   LAMP: 22,
   STEEL: 23,
   CONCRETE_RED: 24,
+  // cayir haritasi (dogal malzemeler)
+  GRASS: 25,
+  DIRT: 26,
+  BARK: 27,
+  LEAVES: 28,
+  ROCK: 29,
+  CLIFF: 30,
+  FLOWER: 31,
 };
 
 // [id, ad, renk, puruzluluk, metallik, emissive, tough, ses]
@@ -55,6 +63,13 @@ const DEFS = [
   [M.LAMP, 'lamba', 0xfff0c4, 0.3, 0.0, 1.0, 40, 'glass'],
   [M.STEEL, 'kiris', 0x3a3f47, 0.5, 0.8, 0, 230, 'metal'],
   [M.CONCRETE_RED, 'kirmizi beton', 0x8c5a4c, 0.9, 0.0, 0, 110, 'stone'],
+  [M.GRASS, 'cimen', 0x5d8c34, 0.95, 0.0, 0, 40, 'dirt'],
+  [M.DIRT, 'toprak', 0x6a4a2c, 1.0, 0.0, 0, 38, 'dirt'],
+  [M.BARK, 'kabuk', 0x5b4330, 0.9, 0.0, 0, 62, 'wood'],
+  [M.LEAVES, 'yaprak', 0x3f6d26, 0.8, 0.0, 0, 12, 'leaf'],
+  [M.ROCK, 'kaya', 0x7d7a72, 0.85, 0.0, 0, 175, 'stone'],
+  [M.CLIFF, 'ucurum', 0x6e685e, 0.9, 0.0, 0, 255, 'stone'],
+  [M.FLOWER, 'cicek', 0x5d8c34, 0.9, 0.0, 0, 40, 'dirt'],
 ];
 
 export const MAT_COUNT = 32;

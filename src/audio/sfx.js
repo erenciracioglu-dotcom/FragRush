@@ -26,7 +26,11 @@ export class Audio {
     this.master.gain.value = this.volume;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.2;
-    this.master.connect(comp); comp.connect(ctx.destination);
+    // su alti: tum sesler bogulur (alcak geciren suzgec master ile kompresor arasinda)
+    this.uw = ctx.createBiquadFilter();
+    this.uw.type = 'lowpass'; this.uw.frequency.value = 22000; this.uw.Q.value = 0.7;
+    this.underwater = false;
+    this.master.connect(this.uw); this.uw.connect(comp); comp.connect(ctx.destination);
     // yanki
     this.reverb = ctx.createConvolver();
     this.reverb.buffer = this._impulse(2.4, 2.6);
@@ -51,6 +55,15 @@ export class Audio {
   }
 
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
+
+  setUnderwater(on) {
+    if (!this.ctx || on === this.underwater) return;
+    this.underwater = on;
+    const t = this.ctx.currentTime;
+    this.uw.frequency.cancelScheduledValues(t);
+    this.uw.frequency.setTargetAtTime(on ? 520 : 22000, t, on ? 0.04 : 0.12);
+    if (on && this.enabled) this.play('plunge', 0, 0, 0, 1, true);
+  }
 
   _impulse(seconds, decay) {
     const ctx = this.ctx, rate = ctx.sampleRate, len = Math.floor(rate * seconds);
@@ -183,6 +196,8 @@ export class Audio {
   s_imp_metal(x, y, z, v, local) { this._voice(0.35, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.25 * v, 0.7); const f = 1600 + Math.random() * 1400; this._tone('sine', f, f * 0.97, 0.25, 0.4, o, t); this._tone('sine', f * 1.53, f * 1.5, 0.18, 0.25, o, t); this._noise('highpass', 4000, 3000, 0.7, 0.04, 0.6, o, t); }); }
   s_imp_wood(x, y, z, v, local) { this._voice(0.2, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.32 * v, 0.5); this._noise('lowpass', 1100, 300, 1, 0.09, 0.8, o, t); this._tone('triangle', 260, 140, 0.08, 0.4, o, t); }); }
   s_imp_glass(x, y, z, v, local) { this._voice(0.4, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.25 * v, 0.8); this._noise('highpass', 5000, 3500, 1, 0.12, 0.6, o, t); for (let i = 0; i < 3; i++) this._tone('sine', 2500 + Math.random() * 2500, 2400, 0.2, 0.15, o, t + i * 0.03); }); }
+  s_imp_dirt(x, y, z, v, local) { this._voice(0.15, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.3 * v, 0.4); this._noise('lowpass', 700 + Math.random() * 300, 180, 1, 0.08, 0.9, o, t); }); }
+  s_imp_leaf(x, y, z, v, local) { this._voice(0.25, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.22 * v, 0.4); this._noise('highpass', 2600 + Math.random() * 1500, 1800, 0.8, 0.18, 0.7, o, t, 0.01); }); }
   s_creak(x, y, z, v, local) { this._voice(1.2, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 1.2); this._tone('sawtooth', 75, 42, 0.9, 0.25, o, t, 0.08); this._noise('lowpass', 500, 80, 1, 1.0, 0.7, o, t, 0.05); }); }
   s_crumble(x, y, z, v, local) {
     this._voice(2.0, () => {
@@ -210,6 +225,22 @@ export class Audio {
   s_switch(x, y, z, v) { this._voice(0.1, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.15 * v, 0); this._noise('bandpass', 2500, 1500, 2, 0.04, 0.8, o, t); this._tone('square', 500, 400, 0.04, 0.2, o, t + 0.03); }); }
   s_empty(x, y, z, v) { this._voice(0.1, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.2 * v, 0); this._noise('bandpass', 3500, 3000, 3, 0.03, 0.8, o, t); }); }
   s_scan(x, y, z, v) { this._voice(1.0, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.35 * v, 1.2); for (let i = 0; i < 3; i++) this._tone('square', 1200, 1150, 0.12, 0.25, o, t + i * 0.18); this._tone('sine', 300, 60, 0.8, 0.4, o, t); }); }
+  // su sesleri
+  s_splash(x, y, z, v, local) {
+    this._voice(1.1, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.55 * v, 0.9);
+      this._noise('lowpass', 2600, 300, 0.9, 0.5, 1.0, o, t, 0.004);
+      this._noise('bandpass', 900, 260, 1.4, 0.35, 0.6, o, t + 0.02);
+      this._tone('sine', 140, 55, 0.2, 0.5, o, t);
+      for (let i = 0; i < 7; i++) this._tone('sine', 700 + Math.random() * 900, 1300 + Math.random() * 900, 0.05, 0.12, o, t + 0.15 + Math.random() * 0.6);
+    });
+  }
+  s_wade(x, y, z, v, local) { this._voice(0.3, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.16 * v, 0.4); this._noise('bandpass', 1200 + Math.random() * 600, 500, 1.1, 0.16, 0.8, o, t, 0.01); this._tone('sine', 420 + Math.random() * 300, 700, 0.05, 0.15, o, t + 0.03); }); }
+  s_swim(x, y, z, v, local) { this._voice(0.5, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.16 * v, 0.4); this._noise('bandpass', 700, 1500, 1.0, 0.32, 0.8, o, t, 0.05); }); }
+  s_swimUnder(x, y, z, v, local) { this._voice(0.6, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.2 * v, 0.2); this._noise('lowpass', 500, 160, 1.0, 0.4, 0.7, o, t, 0.06); this._tone('sine', 300 + Math.random() * 200, 600, 0.08, 0.1, o, t + 0.1); }); }
+  s_plunge(x, y, z, v) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.3 * v, 0.3); this._noise('lowpass', 900, 120, 0.8, 0.6, 0.9, o, t, 0.01); for (let i = 0; i < 5; i++) this._tone('sine', 350 + Math.random() * 300, 700, 0.06, 0.15, o, t + 0.05 + Math.random() * 0.4); }); }
+  s_gurgle(x, y, z, v, local) { this._voice(0.9, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.38 * v, 0.3); for (let i = 0; i < 9; i++) this._tone('sine', 180 + Math.random() * 260, 420 + Math.random() * 300, 0.07, 0.35, o, t + i * 0.07 + Math.random() * 0.03); this._noise('lowpass', 400, 120, 1, 0.5, 0.4, o, t, 0.02); }); }
+  s_gasp(x, y, z, v, local) { this._voice(0.9, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.4 * v, 0.3); this._noise('bandpass', 1800, 900, 2.2, 0.5, 0.9, o, t, 0.06); this._noise('bandpass', 1100, 1500, 2.5, 0.35, 0.6, o, t + 0.45, 0.04); }); }
   s_botDeath(x, y, z, v, local) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 1); this._tone('square', 900, 90, 0.5, 0.3, o, t); this._noise('bandpass', 1500, 300, 1, 0.4, 0.8, o, t); }); }
   s_playerDeath(x, y, z, v) { this._voice(1.2, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.45 * v, 1); this._tone('sawtooth', 300, 40, 1.0, 0.35, o, t); this._noise('lowpass', 1200, 80, 0.8, 0.9, 0.6, o, t); }); }
 }

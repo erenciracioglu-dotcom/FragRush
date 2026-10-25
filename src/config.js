@@ -28,6 +28,25 @@ export const MOVE = {
   maxFallSpeed: 60,
 };
 
+// Su (cayir haritasi): siglikta yavaslama, derinde yuzme, bogulma.
+export const WATER = {
+  swimDepth: 1.0,        // ayak derinligi (m): bunun ustunde yuzulur, altinda yurunur
+  wadeSlow: 1.5,         // siglikta yavaslama: hiz carpani 1 - batan oran * wadeSlow
+  wadeMin: 0.45,
+  swimSpeed: 4.2,        // m/s (kosu 9.6)
+  swimAccel: 4,          // yatay su direnci / itme (1/s)
+  buoyancy: 0.97,        // tamamen batinca kaldirma / yercekimi (1'in alti: yavasca batar)
+  thrustUp: 0.21,        // Bosluk: yukari itme (yercekimi orani); yuzeyde basin suyun ustunde kalir
+  thrustDown: 0.3,       // C: dalis
+  dragY: 2,              // dikey dogrusal direnc (1/s)
+  dragQ: 0.35,           // karesel direnc: hizli dusus suya girince cabuk yavaslar
+  ledge: 1.0,            // sudan tirmanilabilen kiyi yuksekligi (su yuzeyinin ustu, m)
+  air: 12,               // nefes (s)
+  drownFirst: 10,        // nefes bitince ilk hasar; her saniye drownStep artar
+  drownStep: 5,
+  drownMax: 40,
+};
+
 export const PLAYER = {
   maxHealth: 100,
   overHealth: 200,

@@ -45,10 +45,11 @@ export class Player extends Actor {
 
     const fwd = (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0) - (input.down('KeyS') || input.down('ArrowDown') ? 1 : 0);
     const side = (input.down('KeyD') || input.down('ArrowRight') ? 1 : 0) - (input.down('KeyA') || input.down('ArrowLeft') ? 1 : 0);
+    // Ctrl kullanilmaz: Chrome'da Ctrl+W sekmeyi kapatir. C: egil / kay, suda dal.
     const cmd = {
-      fwd, side, yaw: this.yaw,
+      fwd, side, yaw: this.yaw, pitch: this.pitch,
       jump: input.down('Space'),
-      crouch: input.down('ControlLeft') || input.down('KeyC') || input.down('ControlRight'),
+      crouch: input.down('KeyC'),
       dash: input.pressed('ShiftLeft') || input.pressed('ShiftRight'),
     };
     const m = this.mover;
@@ -64,11 +65,14 @@ export class Player extends Actor {
       if (audio) audio.play('land', p.x, p.y, p.z, Math.min(1.5, m.landSpeed / 10), true);
       if (m.landSpeed > 12) this.game.fx.dustPuff(p.x, p.y, p.z, 1);
     }
-    // ayak sesleri
+    // ayak sesleri (suda su sesi)
     const hs = Math.hypot(m.vel.x, m.vel.z);
-    if (m.onGround && hs > 2 && !m.crouching) {
+    if (m.swimming) {
+      this.stepAcc += (hs + Math.abs(m.vel.y)) * dt;
+      if (this.stepAcc > 1.6) { this.stepAcc = 0; if (audio) audio.play(m.eyesUnder ? 'swimUnder' : 'swim', p.x, p.y, p.z, 0.7, true); }
+    } else if (m.onGround && hs > 2 && !m.crouching) {
       this.stepAcc += hs * dt;
-      if (this.stepAcc > 2.3) { this.stepAcc = 0; if (audio) audio.play('step', p.x, p.y, p.z, 0.6 + hs / 20, true); }
+      if (this.stepAcc > 2.3) { this.stepAcc = 0; if (audio) audio.play(m.inWater ? 'wade' : 'step', p.x, p.y, p.z, 0.6 + hs / 20, true); }
     }
 
     // silah secimi
@@ -78,10 +82,16 @@ export class Player extends Actor {
     if (wh) { if (ws.cycle(wh > 0 ? 1 : -1) && audio) audio.play('switch', p.x, p.y, p.z, 1, true); }
     if (input.pressed('KeyQ')) { if (ws.select(ws.previous) && audio) audio.play('switch', p.x, p.y, p.z, 1, true); }
     ws.update(dt);
-    this.zoom = input.mouseDown(2) && !!ws.def.zoom && ws.pending < 0;
+    const under = m.eyesUnder;
+    this.zoom = input.mouseDown(2) && !!ws.def.zoom && ws.pending < 0 && !under;
 
-    // ates
-    if (input.mouseDown(0)) {
+    // ates (gozler su altindayken silah calismaz)
+    if (under) {
+      if (input.mouseHit(0)) {
+        if (audio) audio.play('empty', p.x, p.y, p.z, 1, true);
+        if (this.game.hud) this.game.hud.subMsg(t('noFireWater'), 1.2);
+      }
+    } else if (input.mouseDown(0)) {
       if (ws.canFire()) {
         const W2 = ws.def;
         this.game.camera.updateMatrixWorld();

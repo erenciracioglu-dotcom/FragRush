@@ -60,6 +60,7 @@ function traceBullet(game, shooter, o, d, W, quad, muzzle, tracer) {
     if (r) { best = a; bestT = r.t; bestHead = r.head; }
   }
   const ex = o.x + d.x * bestT, ey = o.y + d.y * bestT, ez = o.z + d.z * bestT;
+  if (tracer) waterCross(game, o, d, bestT);
   if (best) {
     const dmg = quad > 1 ? DOOMSDAY.lethal : W.damage * (bestHead ? W.headMul : 1);
     best.takeDamage(dmg, shooter, W.id, d, bestHead);
@@ -108,11 +109,25 @@ function railShot(game, shooter, o, d, W, quad, muzzle) {
     game.fx.robotHit(hx, hy, hz, d.x, d.y, d.z, a.color, 1.5);
   }
   const ex = o.x + d.x * end, ey = o.y + d.y * end, ez = o.z + d.z * end;
+  waterCross(game, o, d, end, 0.6);
   game.fx.rail(muzzle.x, muzzle.y, muzzle.z, ex, ey, ez, W.color);
   if (firstWall >= 0) {
     const fx0 = o.x + d.x * firstWall, fy0 = o.y + d.y * firstWall, fz0 = o.z + d.z * firstWall;
     game.fx.impact(fx0, fy0, fz0, -d.x, -d.y, -d.z, 2, 1.5);
   }
+}
+
+// mermi yolu su yuzeyini kesiyorsa orada kucuk sicrama + halka
+function waterCross(game, o, d, len, power = 0.22) {
+  const ws = game.waterSys;
+  if (!ws || !ws.active || Math.abs(d.y) < 1e-4) return;
+  const L = game.world.waterY;
+  const t = (L - o.y) / d.y;
+  if (t <= 0.05 || t >= len) return;
+  const x = o.x + d.x * t, z = o.z + d.z * t;
+  if (!ws.isWater(x, L - 0.1, z)) return;
+  game.fx.splash(x, L, z, power);
+  ws.ripple(x, z, 0.25, 0.02);
 }
 
 // patlama hasari (roket, plazma). Q3 tarzi: dogrudan vurulan disarida, sicrama hasari mesafeyle azalir.

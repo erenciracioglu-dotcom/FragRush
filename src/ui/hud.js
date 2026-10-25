@@ -1,5 +1,6 @@
 // HUD: can/zirh/cephane, nisangah, isabet isareti, hasar yonu, olum akisi, mesajlar, skor tablosu.
 import { WEAPONS } from '../game/weapons.js';
+import { WATER } from '../config.js';
 import { t } from '../i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -14,6 +15,7 @@ export class HUD {
       fps: $('fps'), cross: $('crosshair'), hit: $('hitmarker'), dmg: $('dmgdir'),
       nt: $('nametag'), ntName: $('ntName'), ntHp: $('ntHp'),
       sb: $('scoreboard'), sbt: $('sbTable'), death: $('death'), deathBy: $('deathBy'), deathTimer: $('deathTimer'), deathTitle: $('deathTitle'),
+      air: $('air'), airLbl: $('airLbl'), airBar: $('airBar'),
     };
     this.cache = {};
     this.wSpans = WEAPONS.map((W, i) => {
@@ -75,6 +77,17 @@ export class HUD {
     const mm = Math.floor(tl / 60), ss = Math.floor(tl % 60);
     this.set('time', e.time, mm + ':' + String(ss).padStart(2, '0'));
     this.set('pw', e.power, p.quad > 0 ? t('quadHud', Math.ceil(p.quad)) : '');
+    // nefes: su altindayken ya da dolarken
+    const under = p.alive && p.mover.eyesUnder;
+    const showAir = p.alive && (under || p.air < WATER.air);
+    if (this.cache.air !== showAir) { this.cache.air = showAir; e.air.classList.toggle('hidden', !showAir); }
+    if (showAir) {
+      const out = p.air <= 0;
+      this.set('airw', e.airBar.style, (p.air / WATER.air * 100).toFixed(1) + '%', 'width');
+      this.set('airl', e.airLbl, out ? t('drowning') : t('air'));
+      this.set('airc', e.air, out ? 'out' : p.air < 4 ? 'low' : '', 'className');
+    }
+    if (this.cache.nofire !== under) { this.cache.nofire = under; e.cross.classList.toggle('nofire', under); }
     // nisangah acikligi
     const W = WEAPONS[cur];
     const spread = W.pellets > 1 ? W.spread : Math.min(W.spreadMax || 0, (W.spread || 0) + ws.heat);
@@ -167,8 +180,9 @@ export class HUD {
     setTimeout(() => d.remove(), 6000);
   }
 
-  death(killerName, weaponLabel, self) {
-    this.el.deathTitle.textContent = self ? t('selfKill') : t('youDied');
-    this.el.deathBy.textContent = self ? '' : `${killerName} · ${weaponLabel}`;
+  death(killerName, weaponLabel, self, weaponId) {
+    const drown = weaponId === 'drown';
+    this.el.deathTitle.textContent = drown ? t('youDrowned') : self ? t('selfKill') : t('youDied');
+    this.el.deathBy.textContent = drown ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
   }
 }

@@ -29,6 +29,8 @@ export class VoxelWorld {
     this.stack = new Int32Array(1 << 20);
     this.listeners = [];
     this.version = 0;
+    // su seviyesi (m): bunun altindaki her bos voxel sudur; susuz haritada -Infinity
+    this.waterY = -Infinity;
   }
 
   idx(x, y, z) { return x + this.sx * (z + this.sz * y); }

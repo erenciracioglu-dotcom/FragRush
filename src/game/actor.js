@@ -1,6 +1,6 @@
 // Oyuncu ve botlarin ortak tabani: can/zirh, hasar, isabet hacimleri, dogma.
 import * as THREE from 'three';
-import { PLAYER, MOVE, DOOMSDAY } from '../config.js';
+import { PLAYER, MOVE, DOOMSDAY, WATER } from '../config.js';
 import { Mover } from './mover.js';
 import { WeaponState } from './weapons.js';
 
@@ -46,7 +46,15 @@ export class Actor {
     this.lastFireTime = -100;
     this.decayTimer = 0;
     this.killer = null;
+    // nefes: gozler su altindayken azalir, bitince bogulma hasari (her saniye artar)
+    this.air = WATER.air;
+    this.underT = 0;
+    this.drownT = 0;
+    this.drownDmg = 0;
   }
+
+  // gozler su altinda: ates edilemez, nefes azalir
+  get submerged() { return this.mover.eyesUnder; }
 
   get pos() { return this.mover.pos; }
   eye(out) { const p = this.mover.pos; return out.set(p.x, p.y + this.mover.eyeHeight - this.mover.stepSmooth * 0.0, p.z); }
@@ -67,6 +75,7 @@ export class Actor {
     this.weapons.current = this.isPlayer ? 3 : this.weapons.bestAvailable();
     this.streak = 0;
     this.lastAttacker = null;
+    this.air = WATER.air; this.underT = 0; this.drownT = 0; this.drownDmg = 0;
   }
 
   // isin - aktor kesisimi: {t, head} ya da null
@@ -91,13 +100,13 @@ export class Actor {
     return Math.hypot(x - cx, y - cy, z - cz);
   }
 
-  takeDamage(dmg, attacker, weaponId, dir, head) {
+  takeDamage(dmg, attacker, weaponId, dir, head, pierceArmor = false) {
     if (!this.alive || dmg <= 0) return 0;
     if (this.protect > 0 && attacker !== this) return 0;
     if (attacker === this) dmg *= PLAYER.selfDamageScale;
     if (attacker && attacker !== this && attacker.quad > 0 && weaponId !== 'crush') dmg *= 1; // quad carpani silahta uygulanir
     dmg = Math.round(dmg);
-    const absorbed = Math.min(this.armor, Math.ceil(dmg * 0.66));
+    const absorbed = pierceArmor ? 0 : Math.min(this.armor, Math.ceil(dmg * 0.66));
     this.armor -= absorbed;
     const real = dmg - absorbed;
     this.health -= real;
@@ -138,11 +147,34 @@ export class Actor {
   tickStats(dt) {
     this.protect = Math.max(0, this.protect - dt);
     this.quad = Math.max(0, this.quad - dt);
+    this.tickAir(dt);
+    if (!this.alive) return;
     this.decayTimer += dt;
     if (this.decayTimer >= 1) {
       this.decayTimer -= 1;
       if (this.health > PLAYER.maxHealth) this.health--;
       if (this.armor > PLAYER.maxHealth) this.armor--;
+    }
+  }
+
+  // Quake gibi: su ustune cikinca nefes hemen dolar; nefes bitince bogulma hasari zirhi delip gecer
+  // ve olum kendini parcalama sayilir (saldirgan yok)
+  tickAir(dt) {
+    if (this.mover.eyesUnder) {
+      this.underT += dt;
+      this.air = Math.max(0, this.air - dt);
+      if (this.air <= 0) {
+        this.drownT -= dt;
+        if (this.drownT <= 0) {
+          this.drownT = 1;
+          this.drownDmg = this.drownDmg ? Math.min(WATER.drownMax, this.drownDmg + WATER.drownStep) : WATER.drownFirst;
+          if (this.game.onDrown) this.game.onDrown(this, this.drownDmg);
+          this.takeDamage(this.drownDmg, null, 'drown', null, false, true);
+        }
+      }
+    } else {
+      if (this.underT > 0 && this.game.onSurface) this.game.onSurface(this, this.underT);
+      this.underT = 0; this.air = WATER.air; this.drownT = 0; this.drownDmg = 0;
     }
   }
 }

@@ -2,11 +2,13 @@
 import * as THREE from 'three';
 import { VS, WORLD, FLOOR_Y, MATCH, PLAYER } from '../config.js';
 import { VoxelWorld } from '../world/voxelWorld.js';
-import { generateArena } from '../world/mapgen.js';
+import { LEVELS, resolveLevel } from '../world/levels.js';
 import { MeshWorkers, ChunkManager } from '../world/chunkManager.js';
 import { createVoxelMaterial, voxelUniforms } from '../world/voxelMaterial.js';
 import { M } from '../world/materials.js';
 import { createSky, createEnvironment } from '../fx/sky.js';
+import { WaterSystem } from '../fx/water.js';
+import { MEADOW_SKY, MEADOW_WATER, createHills } from '../fx/environments.js';
 import { PostFX, QUALITY } from '../fx/post.js';
 import { Effects } from '../fx/effects.js';
 import { Destruction } from './destruction.js';
@@ -23,7 +25,10 @@ import { WEAPONS } from './weapons.js';
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 
-const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world']);
+const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown']);
+// statik nokta isiklari her haritada bu kadar (sayi degisirse tum malzemeler yeniden derlenir)
+const STATIC_LIGHTS = 10;
+const ARENA_ENV = { fog: 0x5d5a74, fogDensity: 0.0088, sun: 0xffdcb8, sunIntensity: 3.2, hemi: 0.38, envIntensity: 0.9 };
 
 export class Game {
   constructor(canvas, settings, { hud, audio, input }) {
@@ -66,9 +71,11 @@ export class Game {
     this.sunDir = sunDir;
     this.sky = createSky(sunDir);
     scene.add(this.sky.mesh);
+    this.arenaSunDir = sunDir.clone();
     scene.environment = createEnvironment(renderer, sunDir);
-    scene.environmentIntensity = 0.9;
-    scene.fog = new THREE.FogExp2(new THREE.Color(0x5d5a74), 0.0088);
+    this.envSunset = scene.environment;
+    scene.environmentIntensity = ARENA_ENV.envIntensity;
+    scene.fog = new THREE.FogExp2(new THREE.Color(ARENA_ENV.fog), ARENA_ENV.fogDensity);
 
     const center = new THREE.Vector3(WORLD.X * VS / 2, 0, WORLD.Z * VS / 2);
     this.center = center;
@@ -85,7 +92,10 @@ export class Game {
     sun.shadow.radius = 2;
     scene.add(sun, sun.target);
     this.sun = sun;
-    scene.add(new THREE.HemisphereLight(0x8a9ad8, 0x3a3030, 0.38));
+    this.hemi = new THREE.HemisphereLight(0x8a9ad8, 0x3a3030, ARENA_ENV.hemi);
+    scene.add(this.hemi);
+    this.hills = createHills(center);
+    scene.add(this.hills);
 
     this.world = new VoxelWorld(WORLD.X, WORLD.Y, WORLD.Z);
     const nWorkers = Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 2));
@@ -101,10 +111,11 @@ export class Game {
     this.nav = new NavGrid(this.world);
     this.staticLights = [];
     this.items = null;
+    this.waterSys = new WaterSystem(this);
 
     await this.buildArena(this.settings.seed || ((Math.random() * 1e9) | 0), onProgress);
 
-    this.post = new PostFX(renderer, scene, camera, this.settings.quality, this.viewmodel);
+    this.post = new PostFX(renderer, scene, camera, this.settings.quality, this.viewmodel, this.waterSys.active ? this.waterSys : null);
     this.resize();
     window.addEventListener('resize', () => this.resize());
     this.createBots();
@@ -149,8 +160,9 @@ export class Game {
     try { this.post.render(0.016); } catch (e) { console.warn(e); }
   }
 
-  async buildArena(seed, onProgress = () => {}) {
+  async buildArena(seed, onProgress = () => {}, map = null) {
     this.seed = seed;
+    this.mapId = map && LEVELS[map] ? map : resolveLevel(this.settings.map, this.mapId);
     onProgress(0.05, t('ldArena'));
     await nextFrame();
     // eski durum temizligi
@@ -160,13 +172,17 @@ export class Game {
     if (this.items) this.items.dispose();
     for (const L of this.staticLights) this.scene.remove(L.light);
     this.staticLights = [];
-    this.arena = generateArena(this.world, seed);
+    this.arena = LEVELS[this.mapId].generate(this.world, seed);
+    this.world.waterY = this.arena.water ? this.arena.water.y : -Infinity;
+    this.applyEnvironment(this.arena);
     this.world.dirtyList = []; this.world.chunkDirty.fill(0);
     this.world.markAllDirty();
     this.world.version++;
     // statik isiklar
     const w = this.world;
-    for (const L of this.arena.lights) {
+    const defs = this.arena.lights.slice(0, STATIC_LIGHTS);
+    while (defs.length < STATIC_LIGHTS) defs.push({ x: this.center.x, y: -60, z: this.center.z, color: 0x000000, intensity: 0, distance: 1 });
+    for (const L of defs) {
       const pl = new THREE.PointLight(L.color, L.intensity, L.distance, 2);
       pl.position.set(L.x, L.y, L.z);
       this.scene.add(pl);
@@ -197,12 +213,84 @@ export class Game {
     for (const p of this.arena.pads) this.nav.addPad(p.x, p.y, p.z, p.tx, p.ty, p.tz);
     this.items = new Items(this, this.arena.items);
     this.pads = this.arena.pads;
+    this._attractCam = null;
+    if (this.post) {
+      this.post.setWater(this.waterSys.active ? this.waterSys : null);
+      await this.warmLevel();
+    }
   }
 
-  async newArena(onProgress) {
+  // harita degisince yeni malzeme/gecis shader'larini (su, gokyuzu kupu, tepeler) oyundan once derle
+  async warmLevel() {
+    await nextFrame();
+    try {
+      if (this.waterSys.active) this.waterSys.update(0, this.camera);
+      this.renderer.setRenderTarget(this.post.composer.inputBuffer);
+      this.renderer.compile(this.scene, this.camera);
+      this.renderer.setRenderTarget(null);
+      this.post.render(0.016);
+    } catch (e) { console.warn(e); }
+  }
+
+  // map: 'arena' | 'meadow' (verilmezse ayara gore; 'rotate' sirayla)
+  async newArena(onProgress, map = null) {
     this.state = 'loading';
-    await this.buildArena((Math.random() * 1e9) | 0, onProgress);
+    await this.buildArena((Math.random() * 1e9) | 0, onProgress, map);
     this.startMatch(false);
+  }
+
+  // gokyuzu, gunes, sis, ortam isigi ve su: haritanin ortamina gore
+  applyEnvironment(arena) {
+    const scene = this.scene, ws = this.waterSys, c = this.center;
+    const meadow = arena.env === 'meadow';
+    if (meadow) {
+      // ?nowater: su cizimi kapali (yalnizca olcum icin; oyun kurallari ayni)
+      if (new URLSearchParams(location.search).has('nowater')) ws.disable(); else ws.setup({ water: MEADOW_WATER, sky: MEADOW_SKY, y: arena.water.y, flow: arena.water.flow, depth: arena.water.depth, worldSize: [WORLD.X * VS, WORLD.Z * VS] }, this.settings.quality);
+      if (!this._meadowEnv && !ws.sky) ws.setup({ water: MEADOW_WATER, sky: MEADOW_SKY, y: arena.water.y, flow: null, depth: null, worldSize: [WORLD.X * VS, WORLD.Z * VS] }, this.settings.quality), ws.disable();
+      if (!this._meadowEnv) {
+        const cubes = ws.skyCubes();
+        const pmrem = new THREE.PMREMGenerator(this.renderer);
+        const env = pmrem.fromCubemap(cubes.env).texture;
+        pmrem.dispose();
+        cubes.env.dispose();
+        this._meadowEnv = { ...cubes, envMap: env };
+      }
+      const E = this._meadowEnv;
+      scene.background = E.background;
+      scene.environment = E.envMap;
+      scene.environmentIntensity = 1.0;
+      this.sky.mesh.visible = false;
+      this.sunDir.set(E.sunDirection[0], E.sunDirection[1], E.sunDirection[2]).normalize();
+      const sc = E.sunColor, mx = Math.max(sc[0], sc[1], sc[2], 1e-3);
+      this.sun.color.setRGB(sc[0] / mx, sc[1] / mx, sc[2] / mx, THREE.LinearSRGBColorSpace);
+      this.sun.intensity = Math.PI * mx;
+      const h = E.horizon;
+      scene.fog.color.setRGB(h[0] * 0.8, h[1] * 0.84, h[2] * 0.9, THREE.LinearSRGBColorSpace);
+      scene.fog.density = 0.0048;
+      this.hemi.intensity = 0;
+      this.hills.visible = true;
+    } else {
+      ws.disable();
+      scene.background = null;
+      scene.environment = this.envSunset;
+      scene.environmentIntensity = ARENA_ENV.envIntensity;
+      this.sky.mesh.visible = true;
+      this.sunDir.copy(this.arenaSunDir);
+      this.sun.color.set(ARENA_ENV.sun);
+      this.sun.intensity = ARENA_ENV.sunIntensity;
+      scene.fog.color.set(ARENA_ENV.fog);
+      scene.fog.density = ARENA_ENV.fogDensity;
+      this.hemi.intensity = ARENA_ENV.hemi;
+      this.hills.visible = false;
+    }
+    this.sun.position.copy(c).addScaledVector(this.sunDir, 90);
+    this.sun.target.position.copy(c);
+    this.viewmodel.scene.environment = scene.environment;
+    for (const P of [this.fx.add, this.fx.smoke]) {
+      P.uniforms.uFogDensity.value = scene.fog.density;
+      P.uniforms.uFogColor.value.copy(scene.fog.color).convertSRGBToLinear();
+    }
+    if (this.audio) this.audio.setUnderwater(false);
   }
 
   botTarget() { return Math.max(0, Math.min(BOT_DEFS.length, this.settings.bots ?? MATCH.botCount)); }
@@ -312,6 +400,7 @@ export class Game {
     this.sun.shadow.mapSize.set(q.shadow, q.shadow);
     if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
     this.post.setQuality(name);
+    if (this.waterSys.active) this.waterSys.setQuality(name);
     this.fx.pm = q.particleMul; this.fx.dm = q.debrisMul;
     this.fx.debris.mesh.castShadow = q.debrisShadow;
     this.resize();
@@ -358,11 +447,11 @@ export class Game {
     } else {
       this.fx.robotGib(vp.x, vp.y, vp.z, victim.color, 0, 0, 0);
       if (audio) audio.play('playerDeath', 0, 0, 0, 1, true);
-      if (hud) hud.death(killer ? killer.name : '', label, !killer || killer === victim);
+      if (hud) hud.death(killer ? killer.name : '', label, !killer || killer === victim, weaponId);
     }
     if (hud) {
       const involves = victim.isPlayer || (killer && killer.isPlayer);
-      if (!killer || killer === victim) hud.feed(null, victim, weaponId === 'crush' ? t('crushedFeed') : t('blewUp'), involves);
+      if (!killer || killer === victim) hud.feed(null, victim, weaponId === 'crush' ? t('crushedFeed') : weaponId === 'drown' ? t('drownedFeed') : t('blewUp'), involves);
       else hud.feed(killer, victim, label, involves);
     }
     if (killer && killer.isPlayer && killer !== victim) {
@@ -383,6 +472,42 @@ export class Game {
       }
     }
     if (killer && killer.frags >= MATCH.fragLimit && this.state === 'playing') this.endMatch();
+  }
+
+  // su olaylari: suya dusme (sicrama), yuzeyde hareket (halka), sudan cikis
+  waterEvents(a, dt) {
+    const ws = this.waterSys;
+    if (!ws.active) return;
+    const m = a.mover, p = m.pos, ev = m.events, L = this.world.waterY;
+    if (ev.splash > 0) {
+      const pw = Math.min(2.2, ev.splash / 8);
+      this.fx.splash(p.x, L, p.z, pw);
+      ws.ripple(p.x, p.z, 0.7, 0.06 * pw);
+      if (this.audio) this.audio.play('splash', p.x, L, p.z, Math.min(1.5, 0.45 + pw * 0.5), a.isPlayer);
+    }
+    if (ev.waterJump) {
+      this.fx.splash(p.x, L, p.z, 0.35);
+      if (this.audio) this.audio.play('wade', p.x, L, p.z, 1.2, a.isPlayer);
+    }
+    if (m.inWater && p.y + m.h > L) {
+      const sp = Math.hypot(m.vel.x, m.vel.z);
+      a.rippleT = (a.rippleT || 0) - dt * (0.5 + sp * 0.6);
+      if (a.rippleT <= 0) { a.rippleT = 0.55; ws.ripple(p.x, p.z, 0.35, 0.012 + Math.min(0.03, sp * 0.005)); }
+    }
+  }
+
+  // bogulma hasari: hirilti + kabarcik
+  onDrown(actor, dmg) {
+    const p = actor.mover.pos;
+    this.fx.bubbles(p.x, p.y + actor.mover.eyeHeight, p.z, 1.4);
+    if (this.audio) this.audio.play('gurgle', p.x, p.y + 1.5, p.z, 1, actor.isPlayer);
+  }
+
+  // sudan bas cikti: uzun kaldiysa nefes nefese
+  onSurface(actor, underT) {
+    if (underT < 5 || !actor.alive) return;
+    const p = actor.mover.pos;
+    if (this.audio) this.audio.play('gasp', p.x, p.y + 1.6, p.z, Math.min(1.3, 0.5 + underT / 12), actor.isPlayer);
   }
 
   onPickup(actor, item) {
@@ -465,6 +590,7 @@ export class Game {
         if (a.alive) {
           a.tickStats(dt);
           this.checkPads(a);
+          this.waterEvents(a, dt);
           if (a.mover.pos.y < -4) a.takeDamage(999, null, 'world', null, false);
         } else {
           a.respawnTimer -= dt;
@@ -497,6 +623,12 @@ export class Game {
       this.attractCamera(dt);
     }
     this.camera.updateMatrixWorld();
+    if (this.waterSys.active) {
+      const med = this.waterSys.update(paused ? 0 : dt, this.camera);
+      if (this.audio) this.audio.setUnderwater(this.waterSys.underwater);
+      // tamamen su altindayken AO gereksiz (su ici sisin ustune golge dusurmesin)
+      if (this.post && this.post.n8) this.post.n8.enabled = !(med && med.mode === 'water');
+    }
     // nisangahtaki hedef (ad etiketi icin)
     this.aimTarget = null;
     if (st === 'playing' && this.player.alive && (this.frame & 3) === 0) {
@@ -513,7 +645,7 @@ export class Game {
     this.viewmodel.root.visible = st === 'playing' && p.alive;
     if (st === 'playing' && p.alive) {
       this.viewmodel.update(dt, {
-        weapon: ws.current, switching: ws.pending >= 0 ? 1 : 0, speed: Math.hypot(m.vel.x, m.vel.z), onGround: m.onGround,
+        weapon: ws.current, switching: ws.pending >= 0 || m.eyesUnder ? 1 : 0, speed: Math.hypot(m.vel.x, m.vel.z), onGround: m.onGround,
         mdx: p.mdx, mdy: p.mdy, landed: m.events.landed ? m.landSpeed : 0, zoom: p.zoom, ammo: ws.ammo[ws.current],
       }, this.camera);
     }
@@ -613,9 +745,11 @@ export class Game {
     const t = a.t * 0.045;
     const c = this.center;
     // yuksekten genis yorunge: catilarin (11.5 m) ve antenin ustunde, tum arena gorunsun
-    const r = 25 + Math.sin(a.t * 0.11) * 2;
-    this.camera.position.set(c.x + Math.cos(t) * r, 19 + Math.sin(a.t * 0.07) * 1.5, c.z + Math.sin(t) * r);
-    _v.set(c.x + Math.cos(t + 0.6) * 4, 2.5, c.z + Math.sin(t + 0.6) * 4);
+    // (cayirda buyuk mesenin tacindan disarida, golu ve dereyi gorecek kadar genis)
+    const O = this.mapId === 'meadow' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
+    const r = O.r + Math.sin(a.t * 0.11) * 2;
+    this.camera.position.set(c.x + Math.cos(t) * r, O.y + Math.sin(a.t * 0.07) * 1.5, c.z + Math.sin(t) * r);
+    _v.set(c.x + Math.cos(t + 0.6) * O.tr, O.ty, c.z + Math.sin(t + 0.6) * O.tr);
     this.camera.lookAt(_v);
     this.setFov(this.settings.fov || 100);
   }

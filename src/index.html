@@ -32,6 +32,7 @@
   <div id="center-msg"></div>
   <div id="sub-msg"></div>
   <div id="powerup"></div>
+  <div id="air" class="hidden"><span class="lbl" id="airLbl">AIR</span><div class="bar"><div id="airBar"></div></div></div>
   <div id="fps"></div>
 </div>
 <div id="resumeHint" class="hidden" data-i18n="resumeHint"></div>
@@ -54,6 +55,7 @@
     <div id="menuButtons" class="hidden">
       <button id="btnPlay" class="primary">PLAY</button>
       <button id="btnLeave" class="hidden" data-i18n="leave">LEAVE MATCH</button>
+      <div id="mapPick"><span class="lbl" data-i18n="map">MAP</span><div class="seg"><button data-map="meadow" data-i18n="mapMeadow">MEADOW</button><button data-map="arena" data-i18n="mapArena">ARENA</button><button data-map="rotate" data-i18n="mapRotate">ROTATE</button></div></div>
       <button id="btnSettings" data-i18n="settings">SETTINGS</button>
       <button id="btnControls" data-i18n="controls">CONTROLS</button>
       <button id="btnNewMap" data-i18n="newArena">NEW ARENA</button>
@@ -74,11 +76,12 @@
     <div id="panelControls" class="panel hidden">
       <div class="keys">
         <div><b>WASD</b> <span data-i18n="kMove"></span></div><div><b data-i18n="kSpace"></b> <span data-i18n="kJump"></span></div>
-        <div><b>Shift</b> <span data-i18n="kDash"></span></div><div><b>Ctrl / C</b> <span data-i18n="kCrouch"></span></div>
+        <div><b>Shift</b> <span data-i18n="kDash"></span></div><div><b>C</b> <span data-i18n="kCrouch"></span></div>
         <div><b data-i18n="kLmb"></b> <span data-i18n="kFire"></span></div><div><b data-i18n="kRmb"></b> <span data-i18n="kZoom"></span></div>
         <div><b data-i18n="kWheel"></b> <span data-i18n="kWeapon"></span></div><div><b>Q</b> <span data-i18n="kPrev"></span></div>
         <div><b>Tab</b> <span data-i18n="kTab"></span></div><div><b>Esc</b> <span data-i18n="kEsc"></span></div>
         <div><b>F3</b> <span data-i18n="kF3"></span></div><div><b data-i18n="kRj"></b> <span data-i18n="kRjText"></span></div>
+        <div class="wide"><b data-i18n="kWater"></b> <span data-i18n="kWaterText"></span></div>
       </div>
       <button id="btnBack2" data-i18n="back">BACK</button>
     </div>

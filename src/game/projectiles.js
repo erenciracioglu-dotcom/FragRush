@@ -81,9 +81,10 @@ export class Projectiles {
       if (!m) m = makeRocketMesh();
       this.game.scene.add(m);
       p.mesh = m;
+      p.lightObj = m;
       p.light = this.game.fx.lights.attach(m, 0xff8a3a, 5, 8, 2);
     } else if (W.id === 'plasma') {
-      if (Math.random() < 0.25) p.light = this.game.fx.lights.attach(new THREE.Vector3().copy(p.pos), 0x40e8ff, 3, 5, 1);
+      if (Math.random() < 0.25) { p.lightObj = new THREE.Vector3().copy(p.pos); p.light = this.game.fx.lights.attach(p.lightObj, 0x40e8ff, 3, 5, 1); }
     }
     // namlu duvara dayaliysa hemen patlat
     const w = this.game.world;
@@ -98,7 +99,9 @@ export class Projectiles {
 
   _release(p) {
     if (p.mesh) { this.game.scene.remove(p.mesh); this.rocketPool.push(p.mesh); p.mesh = null; }
-    if (p.light) { this.game.fx.lights.release(p.light); p.light = null; }
+    // isik yuvasi bu arada bir patlamaya verilmis olabilir: yalniz hala bizimse birak
+    if (p.light && p.light.follow === p.lightObj) this.game.fx.lights.release(p.light);
+    p.light = null;
   }
 
   update(dt) {
@@ -126,16 +129,27 @@ export class Projectiles {
         this._release(p); list.splice(i, 1);
         continue;
       }
+      const py0 = p.pos.y;
       p.pos.addScaledVector(p.vel, dt);
       p.vis.multiplyScalar(Math.exp(-dt * 10));
+      // su yuzeyini gecti: sicrama + halka
+      const L = w.waterY;
+      const under = p.pos.y < L;
+      if ((py0 >= L) !== under && game.waterSys.active) {
+        const k = (L - py0) / (p.pos.y - py0 || 1e-6) - 1;   // gecis noktasi: bu karenin hareketi boyunca
+        const sx = p.pos.x + p.vel.x * dt * k, sz = p.pos.z + p.vel.z * dt * k;
+        fx.splash(sx, L, sz, p.W.id === 'rocket' ? 0.7 : 0.25);
+        game.waterSys.ripple(sx, sz, 0.35, p.W.id === 'rocket' ? 0.06 : 0.025);
+      }
       const vx = p.pos.x + p.vis.x, vy = p.pos.y + p.vis.y, vz = p.pos.z + p.vis.z;
       if (p.W.id === 'rocket') {
         p.mesh.position.set(vx, vy, vz);
         _q.setFromUnitVectors(_up, _neg.copy(_dir).negate());
         p.mesh.quaternion.copy(_q);
-        // duman izi + alev
+        // duman izi + alev (su altinda kabarcik izi)
         p.trailT += dt;
-        while (p.trailT > 0.012) {
+        if (under) { while (p.trailT > 0.03) { p.trailT -= 0.03; fx.bubbles(vx - _dir.x * 0.3, vy - _dir.y * 0.3, vz - _dir.z * 0.3, 0.12); } }
+        while (!under && p.trailT > 0.012) {
           p.trailT -= 0.012;
           const g = 0.16 + Math.random() * 0.08;
           S0[0] = g; S0[1] = g; S0[2] = g * 1.02; S0[3] = 0.5;
@@ -143,7 +157,7 @@ export class Projectiles {
           fx.smoke.emit(vx - _dir.x * 0.3, vy - _dir.y * 0.3, vz - _dir.z * 0.3, (Math.random() - 0.5) * 0.6, 0.25 + Math.random() * 0.3, (Math.random() - 0.5) * 0.6,
             1.4 + Math.random() * 1.2, 0.12, 0.7 + Math.random() * 0.4, S0, S1, -0.25, 1.0, 0, Math.random() * 6, (Math.random() - 0.5));
         }
-        fx.add.emit(vx - _dir.x * 0.26, vy - _dir.y * 0.26, vz - _dir.z * 0.26, -_dir.x * 4, -_dir.y * 4, -_dir.z * 4, 0.05, 0.22, 0.08, C_FIRE0, C_FIRE1, 0, 0, 0);
+        if (!under) fx.add.emit(vx - _dir.x * 0.26, vy - _dir.y * 0.26, vz - _dir.z * 0.26, -_dir.x * 4, -_dir.y * 4, -_dir.z * 4, 0.05, 0.22, 0.08, C_FIRE0, C_FIRE1, 0, 0, 0);
       } else {
         if (pc < this.maxPlasma) {
           _m.makeTranslation(vx, vy, vz);
@@ -151,7 +165,7 @@ export class Projectiles {
         }
         fx.add.emit(vx, vy, vz, 0, 0, 0, 0.035, 0.42, 0.3, C_PL0, C_PL1, 0, 0, 0);
         if (Math.random() < 0.5) fx.add.emit(vx, vy, vz, (Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5), 0.25, 0.05, 0.01, C_SP0, C_SP1, 0, 1, 0);
-        if (p.light) p.light.follow.copy(p.pos);
+        if (p.light && p.light.follow === p.lightObj) p.lightObj.copy(p.pos);
       }
     }
     this.plasmaMesh.count = pc;
@@ -170,15 +184,23 @@ export class Projectiles {
     const ox = x + nx * 0.15, oy = y + ny * 0.15, oz = z + nz * 0.15;
     splashDamage(game, ox, oy, oz, W, p.owner, quad, direct);
     const qm = quad > 1 ? 1.45 : 1;
+    // su altinda: ates topu yerine water.js patlamasi (kubbe, su sutunu, flas, gaz kabarcigi)
+    const ws = game.waterSys;
+    const deep = ws.active && ws.isWater(ox, oy, oz) && oy < game.world.waterY - 0.45;
     if (W.id === 'rocket') {
       const dm = quad > 1 ? DOOMSDAY.rocketScale : 1;
       game.destruction.blast(x - nx * 0.2, y - ny * 0.2, z - nz * 0.2, W.voxR * dm, W.voxP * (quad > 1 ? 2 : 1), p.owner, 10 * (quad > 1 ? 2.5 : 1), quad > 1 ? 900 : 320);
-      game.fx.explosion(ox, oy, oz, 3.0 * (quad > 1 ? 2.4 : 1), quad > 1 ? 0xff5a2a : 0xff7a1a, quad > 1 ? 1.6 : 1, nx, ny, nz);
-      if (game.audio) game.audio.play('explosion', ox, oy, oz, quad > 1 ? 1.8 : 1);
+      const wet = ws.active && ws.explode(ox, oy, oz, quad > 1 ? 2.6 : 1);
+      if (!deep) game.fx.explosion(ox, oy, oz, 3.0 * (quad > 1 ? 2.4 : 1), quad > 1 ? 0xff5a2a : 0xff7a1a, quad > 1 ? 1.6 : 1, nx, ny, nz);
+      else { game.fx.bubbles(ox, oy, oz, 4); game.fx.addShake(0.4 * (quad > 1 ? 2 : 1), ox, oy, oz); }
+      if (game.audio) {
+        game.audio.play('explosion', ox, oy, oz, (quad > 1 ? 1.8 : 1) * (deep ? 0.6 : 1));
+        if (wet) game.audio.play('splash', ox, game.world.waterY, oz, 1.5);
+      }
     } else {
       game.destruction.blast(x - nx * 0.1, y - ny * 0.1, z - nz * 0.1, W.voxR * qm, W.voxP * qm, p.owner, 5, 40);
-      game.fx.plasmaHit(ox, oy, oz, nx, ny, nz);
-      if (game.audio) game.audio.play('plasmaHit', ox, oy, oz, 1);
+      if (!deep) game.fx.plasmaHit(ox, oy, oz, nx, ny, nz); else game.fx.bubbles(ox, oy, oz, 0.8);
+      if (game.audio) game.audio.play('plasmaHit', ox, oy, oz, deep ? 0.5 : 1);
     }
     game.noise(p.owner, { x: ox, y: oy, z: oz }, 30);
   }

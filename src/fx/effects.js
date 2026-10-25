@@ -168,6 +168,38 @@ export class Effects {
     this.addShake(0.5 * big * Math.min(1.5, r / 3), x, y, z);
   }
 
+  // suya giris / su yuzeyine isabet: yukari sicrayan damlaciklar + alcak sis
+  splash(x, y, z, power = 1) {
+    const n = Math.round((6 + 14 * power) * this.pm);
+    const k = Math.sqrt(power);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.35 * k;
+      const s = rnd(0.6, 2.2) * k;
+      T0[0] = 0.85; T0[1] = 0.92; T0[2] = 0.95; T0[3] = 0.75;
+      T1[0] = 0.7; T1[1] = 0.78; T1[2] = 0.82; T1[3] = 0;
+      this.smoke.emit(x + Math.cos(a) * r, y + 0.03, z + Math.sin(a) * r, Math.cos(a) * s, rnd(2.5, 6.5) * k, Math.sin(a) * s,
+        rnd(0.45, 0.9), 0.05 * k, 0.12 * k, T0, T1, 14, 0.4, 0.015, Math.random() * 6, 0);
+    }
+    const nm = Math.round(4 * power * this.pm) + 1;
+    for (let i = 0; i < nm; i++) {
+      const a = Math.random() * Math.PI * 2;
+      T0[0] = 0.8; T0[1] = 0.86; T0[2] = 0.88; T0[3] = 0.35;
+      T1[0] = 0.75; T1[1] = 0.8; T1[2] = 0.82; T1[3] = 0;
+      this.smoke.emit(x, y + 0.1, z, Math.cos(a) * 1.2 * k, 0.5, Math.sin(a) * 1.2 * k, rnd(0.8, 1.4), 0.25 * k, 0.9 * k, T0, T1, 0, 2.5, 0, Math.random() * 6, rnd(-0.5, 0.5));
+    }
+  }
+
+  // su altinda kabarcik (bogulma, su altindaki patlama artigi)
+  bubbles(x, y, z, amount = 1) {
+    const n = Math.round(8 * amount * this.pm) + 2;
+    for (let i = 0; i < n; i++) {
+      T0[0] = 0.7; T0[1] = 0.85; T0[2] = 0.9; T0[3] = 0.55;
+      T1[0] = 0.6; T1[1] = 0.75; T1[2] = 0.8; T1[3] = 0;
+      this.smoke.emit(x + rnd(-0.2, 0.2), y + rnd(-0.1, 0.2), z + rnd(-0.2, 0.2), rnd(-0.3, 0.3), rnd(0.8, 1.6), rnd(-0.3, 0.3),
+        rnd(0.8, 1.5), 0.03, 0.06, T0, T1, -3, 1.5, 0, 0, 0);
+    }
+  }
+
   plasmaHit(x, y, z, nx, ny, nz) {
     for (let i = 0; i < 10 * this.pm; i++) {
       randDir(_d);

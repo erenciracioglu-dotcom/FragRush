@@ -1,8 +1,9 @@
 # FragRush — Break, Blast, Bury
 
 **A fast, fully destructible arena shooter that runs in your browser.**
-Jump in, no accounts, no setup: fight bots in a neon-lit voxel arena where almost every wall,
-column and bridge can be blown apart, and collapsing buildings bury whoever stands below.
+Jump in, no accounts, no setup: fight bots in a neon-lit voxel arena or a sunny meadow of
+treehouses, a creek and a lake, where almost every wall, tree and bridge can be blown apart and
+whatever collapses buries whoever stands below.
 
 **▶ Play now: https://erenciracioglu-dotcom.github.io/FragRush/**
 
@@ -21,9 +22,9 @@ last.
 | Key | Action |
 |---|---|
 | WASD | move |
-| Space | jump (hold to bunny hop) |
+| Space | jump (hold to bunny hop); in deep water: swim up, hold at the surface to tread water |
 | Shift | dash |
-| Ctrl / C | crouch, slide while running |
+| C | crouch, slide while running; in deep water: dive |
 | Left click | fire |
 | Right click | zoom (railgun) |
 | 1-5 / wheel / Q | select weapon / previous weapon |
@@ -35,6 +36,51 @@ last.
 **Rocket jump:** fire a rocket at your feet and jump at the same moment.
 
 First to 25 frags (or the leader after 10 minutes) wins, then a fresh arena is generated.
+
+Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to be on Ctrl too).
+
+## Maps
+
+Pick the map on the main menu: **MEADOW**, **ARENA** or **ROTATE** (alternates after every match,
+starting with the meadow). *NEW ARENA* rebuilds the chosen map with a new layout seed.
+URL override for testing: `?map=meadow` or `?map=arena`.
+
+- **Arena**: the original neon sunset arena: central tower, four forts, bridges, corner yards.
+- **Meadow**: a sunny afternoon in a valley ringed by cliffs. A great oak in the middle carries a
+  wide treehouse deck and, at the very top, the lookout where the Doomsday Orb appears (four jump
+  pads, or a rocket jump). Three more treehouses (lookout, creek house, lake house) hang on big
+  trees and are joined to the oak by plank bridges; every treehouse has a spiral staircase and a
+  jump pad. A creek springs from a cave in the west cliff and winds into a small lake; there is a
+  dock, a diving board from the lake house, footbridges, a hunter's stand, boulders, logs and
+  bushes. Everything is voxels and breaks: cut a trunk and the crown (and whoever is in the
+  treehouse) comes down. Only the cliff core and the bedrock are indestructible.
+
+| | |
+|---|---|
+| ![Meadow](media/meadow.jpg) | ![Creek](media/meadow_creek.jpg) |
+| ![Waterline](media/meadow_waterline.jpg) | ![Underwater](media/meadow_underwater.jpg) |
+
+### Water (meadow)
+
+Every empty voxel below the water level is water: the creek, the lake, and any crater you blast
+down to that depth. The water you see and the water you move through are the same.
+
+- **Creek** (about 0.5 m deep): you wade, slower the deeper you are (about 60 % of running speed),
+  jumps and dashes are weaker. You can still shoot.
+- **Lake** (up to about 3 m): you swim at about 40 % of running speed, in the direction you look.
+  You slowly sink unless you hold **Space**; holding Space at the surface keeps your head above
+  water. **C** dives. Swim into the shore near the surface to climb out (banks up to 1 m), or walk
+  out on the shallow beaches.
+- **Head under water: no shooting.** The weapon is lowered and the crosshair dims.
+- **Air:** 12 seconds (the AIR meter appears under the crosshair). After that you take damage every
+  second (10, 15, 20, ... ignores armor). Drowning is a **self frag (−1)**. Surfacing refills the
+  air at once.
+- The **Mega Health** lies at the bottom of the lake: dive for it, but you can't shoot down there.
+- Rockets that explode in or near the water raise a water column with rings, a flash and a gas
+  bubble seen from below; bullets and projectiles splash where they cross the surface. Underwater
+  the sound is muffled. Surfacing leaves drops and a draining film on the lens.
+- Bots wade the creek, avoid deep water, never fire while submerged and swim back to the nearest
+  shore if they end up in the lake. They ignore the Mega Health on the lake bottom.
 
 ### Weapons
 
@@ -62,7 +108,7 @@ blasts throw you around but don't hurt you.
 
 ### Settings
 
-Language (English / Türkçe), mouse sensitivity, field of view, graphics quality
+Map (main menu), language (English / Türkçe), mouse sensitivity, field of view, graphics quality
 (Ultra / High / Medium / Low), bot count (0-11, can be changed mid-match), bot difficulty
 (7 levels from Rookie to Nightmare), volume, invert mouse, FPS overlay.
 Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**.
@@ -119,7 +165,16 @@ Measured on an RTX 5080 Laptop at 2560×1362, Ultra:
   game renders on the dedicated one, so keep the integrated GPU's driver up to date as well.
   "dGPU only" (MUX) mode takes the integrated GPU out of that path.
 
-Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`).
+Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`), add `&map=meadow`
+for the meadow.
+
+The meadow is heavier than the arena (more triangles in trees and grassy slopes, plus water). On the
+test laptop's **integrated** GPU (Intel Graphics 0x7D67, Chrome/ANGLE D3D11, Low quality, 1104×561,
+25 s bot-following benchmark with large blasts): arena ~207 FPS (GPU 4.2 ms/frame), meadow ~134 FPS
+(GPU 6.4 ms/frame). Measured at fixed views with GPU timer queries, the water (per-frame wave/foam
+updates + drawing) costs about 0.9 ms per frame at Low on that GPU, and drawing it about 1.1 ms at
+High (1578×802). The underwater and lens passes run only when the camera is at or below the
+waterline or the lens is wet, and ambient occlusion is switched off while fully underwater.
 
 ## How it works
 
@@ -141,23 +196,33 @@ Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`)
   target selection, strafing, jumping, dashing, rocket dodging, jump pads. When stuck they drill
   through walls.
 - **Audio**: fully synthesized with WebAudio at runtime (no sound files), 3D positioned with reverb.
+- **Water (meadow)**: [water.js](src/vendor/water.js) (our own WebGL2 water library, vendored as
+  one file) drawn inside the Three.js post-processing chain with raw WebGL calls: the surface is
+  drawn after AO with refraction from a half-resolution copy of the scene, a creek flow map and
+  interactive ripples; an underwater pass (only when the camera is at or below the waterline)
+  applies water absorption, scattering, caustics and the explosion flash to the scene from the depth
+  buffer; a lens pass adds drops and the waterline. water.js's physical sky is converted once into a
+  Three.js cube map for the background and the lighting environment, so the sky, the reflections in
+  the water and the lighting of the voxels match.
 
 ```
 src/            source (src/config.js: all tunables in one place)
-  world/        voxel world, materials, mesher (+ worker), arena generator, voxel shader
-  game/         game loop, movement, weapons, bots, destruction, items, navigation
-  fx/           sky, post-processing, particles, debris, lights
+  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow), levels, voxel shader
+  game/         game loop, movement (incl. swimming), weapons, bots, destruction, items, navigation
+  fx/           sky, post-processing, water bridge, environments, particles, debris, lights
+  vendor/       water.js
   audio/ ui/    sound synthesis, HUD
 docs/           built single-file game (served by GitHub Pages)
 serve.mjs       dependency-free local server
 build.mjs       build script
-test/           headless tests (movement, world, flows, screenshots)
+test/           headless tests (movement, world, water, meadow, flows, screenshots)
 tools/          benchmark scripts
 ```
 
 ## Status
 
-Proof of concept, built with Claude. Bots only, no multiplayer (yet). Weapon models and robots are
+Proof of concept, built with Claude. Bots only, no multiplayer (yet). Water does not flow: blasting
+a lake bank does not drain the lake, and a deep crater anywhere fills with water from the water table. Weapon models and robots are
 simple procedural boxes. Very large structures (over 160k voxels) are treated as fixed and don't fall.
 Sound starts after the first click (browser rule).
 
@@ -175,6 +240,16 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   zıplama, tavşan zıplaması, atılma. 25 parçalamaya ulaşan (ya da 10 dakika sonunda önde olan)
   kazanır, ardından yeni bir arena kurulur.
 - **Dil:** oyun İngilizce açılır; *SETTINGS → Language* ile Türkçeye geçilir (seçim hatırlanır).
+- **Haritalar:** ana menüde **ÇAYIR**, **ARENA** ya da **SIRAYLA** (her maçtan sonra değişir).
+  Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı gözetleme
+  yeri olan büyük bir meşe ve ağaç evi, köprülerle bağlı üç ağaç evi daha, uçurumdaki mağaradan
+  çıkıp küçük bir göle akan dere, iskele, atlama tahtası, avcı kulübesi. Ağacı kesersen tacı (ve
+  ağaç evindeki) aşağı iner.
+- **Su:** derede yavaşlarsın ama ateş edebilirsin. Gölde yüzersin: Boşluk yukarı (yüzeyde basılı
+  tutunca başın suyun üstünde kalır), **C** dalış; tuşa basmazsan yavaşça batarsın. **Başın su
+  altındayken ateş edemezsin.** 12 saniye nefesin var; sonra her saniye artan hasar alırsın (zırhı
+  deler) ve boğulursan **kendini parçalamış sayılırsın (−1)**. Mega can gölün dibinde.
+- **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).
 - **KIYAMET küresi:** merkez kulenin çatısında çıkar. 15 saniye boyunca her isabet öldürür,
   roket patlamaları 5 kat büyür. Kendi patlaman sana hasar vermez.

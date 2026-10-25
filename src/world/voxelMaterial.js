@@ -19,6 +19,12 @@ P([M.BEDROCK], 9);
 P([M.PAD], 10);
 P([M.CRYSTAL], 11);
 P([M.RUBBLE, M.SAND, M.MOSS], 12);
+P([M.GRASS], 13);
+P([M.DIRT], 14);
+P([M.BARK], 15);
+P([M.LEAVES], 16);
+P([M.ROCK, M.CLIFF], 17);
+P([M.FLOWER], 18);
 
 export const voxelUniforms = {
   uTime: { value: 0 },
@@ -101,7 +107,7 @@ float vxMetal = 0.0;`)
 
   // voxel basina parlaklik / ton sapmasi
   float rough = (pat > 4.5 && pat < 6.5) || pat > 11.5 ? 1.0 : 0.0; // tugla/tahta/moloz daha parcali
-  float varAmt = pat > 11.5 ? 0.4 : (rough > 0.5 ? 0.22 : 0.11);
+  float varAmt = pat > 12.5 ? 0.26 : pat > 11.5 ? 0.4 : (rough > 0.5 ? 0.22 : 0.11);
   float var = 1.0 + (h - 0.5) * varAmt * mix(0.4, 1.0, detail);
   vec3 tint = vec3(1.0 + (h2 - 0.5) * 0.07, 1.0, 1.0 - (h2 - 0.5) * 0.07);
   // voxel kenar pahi
@@ -174,6 +180,57 @@ float vxMetal = 0.0;`)
     // kristal
     float sp = pow(h, 12.0);
     vxEmissive = base * (uMatEmis[mid] + sp * 0.6) * uEmissiveScale * 0.5;
+  } else if (pat > 12.5) {
+    // dogal malzemeler: voxel alti (4x4) benek, cimen yanlarinda toprak, kabuk oluklari, cicekler
+    vec2 sc = floor(t * 4.0);
+    float s = vxHash(vec3(sc, cell.y * 0.37 + cell.x * 0.11 + 5.0));
+    float s2 = vxHash(vec3(sc + 31.7, cell.z * 0.21 + 2.0));
+    bool top = vObjNormal.y > 0.5;
+    float k = mix(1.0, 0.82 + 0.36 * s, detail);
+    if (pat < 13.5 || pat > 17.5) {
+      // cimen / cicek: ust yuz yesil + sari-yesil lekeler; yan yuzde ustte yesil sacak, altta toprak
+      if (top) {
+        base *= k;
+        base = mix(base, base * vec3(1.3, 1.18, 0.55), step(0.84, s2) * 0.7 * detail);
+        if (pat > 17.5) {
+          // cicek benekleri: her hucre ayri renk (kirmizi, sari, beyaz, mor)
+          float f = step(0.7, s);
+          float hue = s2;
+          vec3 pc = hue < 0.25 ? vec3(0.75, 0.06, 0.05) : hue < 0.5 ? vec3(0.85, 0.62, 0.05) : hue < 0.75 ? vec3(0.8, 0.8, 0.78) : vec3(0.42, 0.16, 0.7);
+          base = mix(base, pc, f * mix(0.6, 1.0, detail));
+          vxRough = mix(vxRough, 0.6, f);
+        }
+      } else if (vertical > 0.5) {
+        float fy = fract(t.y);
+        float edge = 0.5 + 0.3 * vxHash(vec3(floor(t * vec2(4.0, 1.0)), 9.0));
+        vec3 dirt = vec3(0.14, 0.072, 0.03) * (0.85 + 0.3 * s);
+        base = mix(dirt, base * k, step(edge, fy));
+      } else base = vec3(0.12, 0.065, 0.028);
+    } else if (pat < 14.5) {
+      // toprak: kahve + cakil benekleri
+      base *= k * (1.0 - 0.25 * step(0.9, s2));
+    } else if (pat < 15.5) {
+      // kabuk: dikey oluklar; kesik yuzde yillik halkalar
+      if (vertical > 0.5) {
+        float gx = t.x * 1.6 + vxHash(vec3(floor(t.x), cell.y * 0.0, cell.z * 0.0 + 3.0)) * 0.7;
+        float groove = vxLine(gx, 0.12, aa * 1.6);
+        base *= (1.0 - groove * 0.45 * detail) * (0.9 + 0.2 * s);
+      } else {
+        float r = length(fract(t / 8.0) - 0.5) * 8.0;
+        base = mix(base * 1.9, base * 1.4, 0.5 + 0.5 * sin(r * 5.0)) * vec3(1.15, 1.05, 0.85);
+      }
+    } else if (pat < 16.5) {
+      // yaprak: koyu/acik yaprak kumeleri, gunes alan ust yuz biraz sarimsi
+      float leaf = vxHash(vec3(floor(t * 2.0), cell.y + 13.0));
+      base *= mix(1.0, 0.62 + 0.62 * leaf, detail) * (0.92 + 0.16 * s);
+      if (top) base *= vec3(1.12, 1.1, 0.8);
+      vxRough = 0.75 + 0.2 * leaf;
+    } else {
+      // kaya / ucurum: gri, catlak benekleri, yan yuzde yatay katmanlar, ustte liken
+      base *= k * (1.0 - 0.3 * step(0.93, s));
+      if (vertical > 0.5) base *= mix(1.0, 0.86 + 0.2 * vxHash(vec3(0.0, floor(q.y / 3.0), floor((q.x + q.z) / 24.0))), detail);
+      if (top) base = mix(base, base * vec3(1.05, 1.25, 0.7), step(0.8, s2) * 0.5 * detail);
+    }
   }
   // hasar catlaklari
   if (vDmg > 0.5) {

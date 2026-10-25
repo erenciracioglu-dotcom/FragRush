@@ -4,7 +4,8 @@ const D = {
   // menu
   tagline: ['Break · Blast · Bury', 'Break · Blast · Bury'],
   play: ['PLAY', 'OYNA'], resume: ['RESUME', 'DEVAM ET'], settings: ['SETTINGS', 'AYARLAR'], controls: ['CONTROLS', 'KONTROLLER'],
-  newArena: ['NEW ARENA', 'YENİ ARENA'], leave: ['LEAVE MATCH', 'MAÇTAN ÇIK'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
+  newArena: ['NEW ARENA', 'YENİ ARENA'],
+  map: ['MAP', 'HARİTA'], mapArena: ['ARENA', 'ARENA'], mapMeadow: ['MEADOW', 'ÇAYIR'], mapRotate: ['ROTATE', 'SIRAYLA'], leave: ['LEAVE MATCH', 'MAÇTAN ÇIK'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
   menuHint: ['Left click fire · Esc menu · F3 FPS', 'Sol tık ateş · Esc menü · F3 FPS'],
   build: ['build', 'derleme'],
   igpuWarn: ['Running on integrated graphics (lower FPS). If the picture freezes every few seconds, <b>update your graphics driver</b>: older Intel drivers have this bug. If this computer has a dedicated GPU, set your browser to <b>High performance</b> (Windows: Settings → System → Display → Graphics), then close and reopen the browser.',
@@ -19,7 +20,9 @@ const D = {
   sVol: ['Volume', 'Ses'], sInvert: ['Invert mouse', 'Fareyi ters çevir'], sFps: ['Show FPS', 'FPS göster'],
   // kontroller
   kMove: ['move', 'hareket'], kSpace: ['Space', 'Boşluk'], kJump: ['jump (hold: bunny hop)', 'zıpla (basılı tut: tavşan zıplaması)'],
-  kDash: ['dash', 'atılma (dash)'], kCrouch: ['crouch · slide while running', 'eğil · koşarken kayma'],
+  kDash: ['dash', 'atılma (dash)'], kCrouch: ['crouch · slide while running · dive in water', 'eğil · koşarken kayma · suda dal'],
+  kWater: ['Water:', 'Su:'], kWaterText: ['creek slows you · in the lake hold Space to stay at the surface, C to dive · you cannot fire with your head underwater and you drown if you stay under too long',
+    'dere yavaşlatır · gölde yüzeyde kalmak için Boşluk, dalmak için C · başın su altındayken ateş edemezsin, çok uzun kalırsan boğulursun'],
   kLmb: ['Left click', 'Sol tık'], kFire: ['fire', 'ateş'], kRmb: ['Right click', 'Sağ tık'], kZoom: ['aim / zoom', 'nişan / yakınlaştırma'],
   kWheel: ['1-5 / wheel', '1-5 / tekerlek'], kWeapon: ['weapon', 'silah'], kPrev: ['previous weapon', 'önceki silah'],
   kTab: ['scoreboard', 'skor tablosu'], kEsc: ['menu', 'menü'], kF3: ['FPS meter', 'FPS göstergesi'],
@@ -39,6 +42,7 @@ const D = {
     '{0} FPS  ·  en kötü {1} ms  ·  {2}k üçgen  ·  {3} çizim  ·  {4}\nenkaz {5}  ·  parçacık {6}  ·  düşen {7}  ·  ölçek {8}%'],
   // silahlar
   'w.pulse': ['Pulse Rifle', 'Darbe Tüfeği'], 'w.shotgun': ['Shotgun', 'Saçmalı'], 'w.plasma': ['Plasma Gun', 'Plazma'], 'w.rocket': ['Rocket Launcher', 'Roketatar'], 'w.rail': ['Railgun', 'Raylı Tüfek'],
+  'k.drown': ['DROWNED', 'BOĞULDU'],
   'k.pulse': ['PULSE', 'DARBE'], 'k.shotgun': ['SHOTGUN', 'SAÇMA'], 'k.plasma': ['PLASMA', 'PLAZMA'], 'k.rocket': ['ROCKET', 'ROKET'], 'k.rail': ['RAIL', 'RAY'], 'k.crush': ['RUBBLE', 'ENKAZ'], 'k.world': ['WORLD', 'DÜNYA'],
   // esyalar
   'i.health': ['+25 HEALTH', '+25 CAN'], 'i.mega': ['MEGA HEALTH', 'MEGA CAN'], 'i.armor': ['+50 ARMOR', '+50 ZIRH'], 'i.ammo': ['AMMO', 'CEPHANE'], 'i.quad': ['DOOMSDAY MODE', 'KIYAMET MODU'],
@@ -47,6 +51,9 @@ const D = {
   quadYouSub: ['every hit kills · 5x rocket blast · 15 s', 'her isabet öldürür · 5 kat roket patlaması · 15 sn'], careful: ['watch out!', 'dikkat!'],
   // olum / oldurme
   crushedFeed: ['got buried in rubble', 'enkaz altında kaldı'], blewUp: ['blew themself up', 'kendini havaya uçurdu'],
+  drownedFeed: ['drowned', 'boğuldu'], youDrowned: ['YOU DROWNED', 'BOĞULDUN'], selfFragNote: ['self frag · −1', 'kendini parçaladın · −1'],
+  air: ['AIR', 'HAVA'], drowning: ['DROWNING!', 'BOĞULUYORSUN!'], noFireWater: ["can't fire underwater", 'su altında ateş edilemez'],
+  quadWhereMeadow: ['in the lookout at the top of the great oak', 'büyük meşenin tepesindeki gözetleme yerinde'],
   multi2: ['DOUBLE FRAG!', 'ÇİFTE PARÇALAMA!'], multi3: ['TRIPLE DESTRUCTION!', 'ÜÇLÜ YIKIM!'], multi4: ['MASSACRE!', 'KATLİAM!'], multi5: ['DOOMSDAY!', 'KIYAMET!'],
   buried: ['BURIED IN RUBBLE!', 'ENKAZ ALTINDA KALDI!'], headshot: ['HEADSHOT!', 'KAFADAN!'], fragged: ['FRAGGED', 'PARÇALADIN'],
   streak5: ['UNSTOPPABLE!', 'DURDURULAMAZ!'], streak10: ['DEMOLITION MACHINE!', 'YIKIM MAKİNESİ!'], streak15: ['LEGENDARY!', 'EFSANE!'],

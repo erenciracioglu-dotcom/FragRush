@@ -91,9 +91,10 @@ export const QUALITY = {
 };
 
 export class PostFX {
-  constructor(renderer, scene, camera, quality = 'ultra', viewmodel = null) {
+  constructor(renderer, scene, camera, quality = 'ultra', viewmodel = null, water = null) {
     this.renderer = renderer; this.scene = scene; this.camera = camera;
     this.viewmodel = viewmodel;
+    this.water = water;   // WaterSystem (su olan haritada): yuzey, su ici ve lens gecisleri
     this.q = QUALITY[quality] || QUALITY.ultra;
     this.qualityName = quality;
     this.width = 1; this.height = 1;
@@ -123,6 +124,9 @@ export class PostFX {
       composer.addPass(n8);
       this.n8 = n8;
     }
+    // su: AO'dan sonra (AO su yuzeyine/dibe yansimasin), temizlemeden once
+    const wp = this.water ? this.water.createPasses(composer) : null;
+    if (wp) { composer.addPass(wp.surface); composer.addPass(wp.medium); }
     this.sanitize = new SanitizeEffect();
     this.sanitizePass = new EffectPass(this.camera, this.sanitize);
     composer.addPass(this.sanitizePass);
@@ -134,6 +138,8 @@ export class PostFX {
       vm.skipShadowMapUpdate = true;
       composer.addPass(vm);
     }
+    // lense sicrayan su silah modelini de bozsun
+    if (wp) composer.addPass(wp.lens);
     this.bloom = new BloomEffect({
       mipmapBlur: true, luminanceThreshold: 0.92, luminanceSmoothing: 0.25, intensity: 1.15, radius: 0.72,
     });
@@ -161,6 +167,13 @@ export class PostFX {
   setQuality(name) {
     if (!QUALITY[name] || name === this.qualityName) return;
     this.q = QUALITY[name]; this.qualityName = name;
+    this.build();
+  }
+
+  // su sistemi degisince (harita degisimi) zinciri yeniden kur
+  setWater(water) {
+    if (water === this.water) return;
+    this.water = water;
     this.build();
   }
 

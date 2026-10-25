@@ -61,7 +61,8 @@ export class Bot extends Actor {
     this.aimDelta = 1;
     this.firing = false;
     this.favorite = [1, 2, 3, 4][(Math.random() * 4) | 0];
-    this.cmd = { fwd: 0, side: 0, yaw: 0, jump: false, crouch: false, dash: false };
+    this.cmd = { fwd: 0, side: 0, yaw: 0, pitch: 0, jump: false, crouch: false, dash: false };
+    this.shore = null; this.shoreT = 0;
     this.burstT = 0; this.pauseT = 0;
     this.dt = 0.016;
   }
@@ -246,6 +247,8 @@ export class Bot extends Actor {
 
   steer(dt) {
     const p = this.mover.pos, m = this.mover, sk = this.skill;
+    if (m.swimming) { this._swimOut(dt); return; }
+    this.shore = null;
     let mx = 0, mz = 0, jump = false, dash = false;
     if (this.mode === 'engage' && this.target && !this.path) {
       const t = this.target.mover.pos;
@@ -321,9 +324,42 @@ export class Bot extends Actor {
   _blocked(mx, mz) {
     const l = Math.hypot(mx, mz);
     if (l < 1e-3) return false;
-    const p = this.mover.pos;
+    const p = this.mover.pos, w = this.game.world;
     const ax = p.x + mx / l * 0.9, az = p.z + mz / l * 0.9;
-    return this.game.world.solidAtWorld(ax, p.y + 0.8, az) || this.game.world.solidAtWorld(ax, p.y + 1.5, az);
+    if (w.solidAtWorld(ax, p.y + 0.8, az) || w.solidAtWorld(ax, p.y + 1.5, az)) return true;
+    // derin suya bilerek girme (yuzerken ates edemez, bogulabilir)
+    if (w.waterY > -1e9 && !this.mover.swimming) {
+      const bx = p.x + mx / l * 1.3, bz = p.z + mz / l * 1.3;
+      let ground = -1e9;
+      for (let y = p.y + 0.3, k = 0; k < 20; k++, y -= 0.25) if (w.solidAtWorld(bx, y, bz)) { ground = y; break; }
+      if (w.waterY - ground > 0.9) return true;
+    }
+    return false;
+  }
+
+  // suya dustu: en yakin kiyi dugumune yuz, yuzeyde kal (Bosluk), kiyiya tirman
+  _swimOut(dt) {
+    const p = this.mover.pos, nav = this.game.nav;
+    this.shoreT -= dt;
+    if (!this.shore || this.shoreT <= 0) {
+      this.shoreT = 1;
+      const wy = this.game.world.waterY;
+      let id = nav.nearestShore(p.x, p.z, wy - 1.0, wy + 0.95, 16);
+      if (id < 0) id = nav.nearest(p.x, wy, p.z, 16);
+      this.shore = id >= 0 ? nav.nodePos(id, { x: 0, y: 0, z: 0 }) : null;
+      this.path = null;
+    }
+    let mx = 0, mz = 0;
+    if (this.shore) {
+      const dx = this.shore.x - p.x, dz = this.shore.z - p.z, d = Math.hypot(dx, dz) || 1;
+      mx = dx / d; mz = dz / d;
+    }
+    const fy = this.yaw;
+    const fx = -Math.sin(fy), fz = -Math.cos(fy), rx = Math.cos(fy), rz = -Math.sin(fy);
+    const c = this.cmd;
+    c.fwd = mx * fx + mz * fz; c.side = mx * rx + mz * rz; c.yaw = fy; c.pitch = 0;
+    c.jump = true; c.crouch = false; c.dash = false;
+    this.moveDirX = mx; this.moveDirZ = mz;
   }
 
   aim(dt) {
@@ -355,6 +391,10 @@ export class Bot extends Actor {
         tx = p.x + this.moveDirX * 5; ty = _eye.y; tz = p.z + this.moveDirZ * 5; has = true;
       }
     }
+    if (this.mover.swimming && this.shore) {
+      // yuzerken kiyiya bak (ileri yuzup kiyiya tirmanabilsin)
+      tx = this.shore.x; ty = _eye.y; tz = this.shore.z; has = true; precise = false;
+    }
     if (this.stuckBlast) {
       // onumuzdeki engeli plazmayla oy
       tx = p.x + (this.moveDirX || -Math.sin(this.yaw)) * 2; ty = p.y + 0.9; tz = p.z + (this.moveDirZ || -Math.cos(this.yaw)) * 2; has = true;
@@ -384,7 +424,7 @@ export class Bot extends Actor {
 
   tryFire(dt) {
     const ws = this.weapons, game = this.game;
-    if (!ws.canFire()) return;
+    if (!ws.canFire() || this.mover.eyesUnder) return;
     const W = ws.def;
     let ok = false;
     if (this.stuckBlast) {

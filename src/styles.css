@@ -67,6 +67,15 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 #center-msg.show { opacity: 1; transition: none; }
 #sub-msg { position: absolute; left: 0; right: 0; top: calc(30% + 46px); text-align: center; font-size: 18px; color: var(--acc2); letter-spacing: 2px; opacity: 0; transition: opacity 0.4s; text-shadow: 0 1px 0 #000; }
 #sub-msg.show { opacity: 1; transition: none; }
+#air { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: 260px; text-align: center; }
+#air .lbl { font-size: 12px; letter-spacing: 4px; color: #bfefff; text-shadow: 0 1px 2px #000; }
+#air .bar { height: 6px; margin-top: 4px; background: rgba(255,255,255,0.14); box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
+#air .bar div { height: 100%; width: 100%; background: #6fe3ff; box-shadow: 0 0 8px #6fe3ff; transition: width 0.1s linear; }
+#air.low .bar div { background: #ffb13b; box-shadow: 0 0 8px #ffb13b; }
+#air.out .lbl { color: var(--red); font-weight: 700; animation: pulse 0.35s infinite alternate; }
+#air.out .bar div { background: var(--red); }
+#crosshair.nofire i { background: rgba(160, 220, 255, 0.35); }
+#crosshair.nofire b { background: #6fe3ff; box-shadow: none; }
 #powerup { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); font-size: 18px; letter-spacing: 3px; color: #ff4cf0; text-shadow: 0 0 14px #ff4cf0; }
 #fps { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: pre; text-align: center; }
 
@@ -95,6 +104,12 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 #menu button:hover { background: rgba(255,122,26,0.2); border-left-color: var(--acc); padding-left: 28px; }
 #menu button.primary { background: var(--acc); color: #120a04; font-weight: 700; border-left-color: #fff; }
 #menu button.primary:hover { background: #ff9442; }
+#mapPick { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+#mapPick .lbl { font-size: 12px; letter-spacing: 4px; color: var(--dim); min-width: 52px; }
+#mapPick .seg { display: flex; flex: 1; gap: 4px; }
+#menu #mapPick button { flex: 1; margin: 0; padding: 10px 4px; font-size: 14px; letter-spacing: 3px; text-align: center; clip-path: none; border-left: none; border-bottom: 3px solid transparent; }
+#menu #mapPick button:hover { padding-left: 4px; border-bottom-color: rgba(255,255,255,0.4); }
+#menu #mapPick button.on { background: rgba(34,228,255,0.16); border-bottom-color: var(--acc2); color: #fff; }
 .panel label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 15px; letter-spacing: 1px; color: var(--ink); }
 .panel input[type=range] { flex: 1; accent-color: var(--acc); }
 .panel span { width: 44px; text-align: right; color: var(--acc2); font-variant-numeric: tabular-nums; }

@@ -42,6 +42,7 @@ export class NavGrid {
     this.ny = new Int16Array(nc * L);        // dugum yuksekligi (voxel, ayak seviyesi)
     this.edge = new Int8Array(nc * L * 8);   // hedef kat indeksi ya da -1
     this.etype = new Uint8Array(nc * L * 8);
+    this.wet = new Uint8Array(nc * L);       // dugum sigda (su ayak bileginden yukarida)
     this.pads = new Map();                   // node -> [{to, cost}]
     this.dirtyCells = new Set();
     // A* tamponlari
@@ -90,8 +91,11 @@ export class NavGrid {
     const vx = cx * CELL + 2, vz = cz * CELL + 2;
     let n = 0;
     const base = c * L;
+    // derin su (ayak 1 m'den derinde: yuzulur) gezinme agina girmez
+    const wv = w.waterY > -1e9 ? Math.round(w.waterY / VS) : -1e9;
     for (let y = 1; y < w.sy - CLEAR && n < L; y++) {
       if (!w.solid(vx, y - 1, vz) || w.solid(vx, y, vz)) continue;
+      if (wv - y > 4) continue;
       // dikey ve yatay acik alan (3x3 voxel)
       let ok = true;
       for (let k = 0; k < CLEAR && ok; k++) {
@@ -101,6 +105,7 @@ export class NavGrid {
       }
       if (!ok) continue;
       this.ny[base + n] = y;
+      this.wet[base + n] = wv - y > 0 ? 1 : 0;
       n++;
       y += CLEAR - 1;
     }
@@ -198,6 +203,27 @@ export class NavGrid {
     return best;
   }
 
+  // sudan cikilabilecek en yakin dugum: yuksekligi [yMin, yMax] (m) icinde, yatayda en yakin
+  // (ustteki kopru/guverte dugumleri haric). Bulunamazsa -1.
+  nearestShore(x, z, yMin, yMax, radius = 14) {
+    const cx0 = Math.floor(x / (CELL * VS)), cz0 = Math.floor(z / (CELL * VS));
+    const v0 = yMin / VS, v1 = yMax / VS;
+    let best = -1, bestD = 1e9;
+    for (let dz = -radius; dz <= radius; dz++) for (let dx = -radius; dx <= radius; dx++) {
+      const cx = cx0 + dx, cz = cz0 + dz;
+      if (cx < 0 || cz < 0 || cx >= this.gx || cz >= this.gz) continue;
+      const c = cx + cz * this.gx;
+      for (let k = 0; k < this.cnt[c]; k++) {
+        const ny = this.ny[c * L + k];
+        if (ny < v0 || ny > v1) continue;
+        const d = Math.hypot((cx * CELL + 2) * VS - x, (cz * CELL + 2) * VS - z);
+        if (d < 0.6 || d >= bestD) continue;
+        bestD = d; best = c * L + k;
+      }
+    }
+    return best;
+  }
+
   nodePos(id, out) {
     const c = (id / L) | 0;
     const cx = c % this.gx, cz = (c / this.gx) | 0;
@@ -247,7 +273,7 @@ export class NavGrid {
         const nid = c2 * L + k2;
         if (closed[nid] === sid) continue;
         const t = this.etype[cur * 8 + d];
-        const cost = (d < 4 ? 1 : 1.414) + (t === EDGE_JUMP ? 1.5 : 0) + (t === EDGE_DROP ? 0.4 : 0);
+        const cost = (d < 4 ? 1 : 1.414) + (t === EDGE_JUMP ? 1.5 : 0) + (t === EDGE_DROP ? 0.4 : 0) + (this.wet[nid] ? 1.2 : 0);
         const ng = gc + cost;
         if (stamp[nid] !== sid || ng < g[nid]) {
           stamp[nid] = sid; g[nid] = ng; parent[nid] = cur;

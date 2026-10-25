@@ -1,6 +1,6 @@
 // Quake tarzi hareket + voxel carpismasi (oyuncu ve botlar ortak kullanir).
 import * as THREE from 'three';
-import { VS, MOVE, GRAVITY } from '../config.js';
+import { VS, MOVE, GRAVITY, WATER } from '../config.js';
 
 const EPS = 1e-4;
 const STEPS = [VS, VS * 2, MOVE.stepHeight];
@@ -21,8 +21,14 @@ export class Mover {
     this.slideTime = 0;
     this.padLock = 0;
     this.speedMul = 1;
-    this.events = { jumped: false, landed: false, dashed: false, slid: false, stepUp: 0 };
+    this.events = { jumped: false, landed: false, dashed: false, slid: false, stepUp: 0, splash: 0, waterJump: false };
     this._wasCrouchCmd = false;
+    // su durumu (dunyanin su seviyesine gore): ayak derinligi, yuzme, gozler su altinda
+    this.waterDepth = 0;
+    this.inWater = false;
+    this.swimming = false;
+    this.eyesUnder = false;
+    this.waterJumpT = 0;
   }
 
   reset(x, y, z) {
@@ -30,6 +36,20 @@ export class Mover {
     this.crouching = false; this.h = MOVE.height;
     this.onGround = false; this.groundTime = 1; this.stepSmooth = 0;
     this.dashCd = 0; this.slideTime = 0; this.padLock = 0;
+    this.waterJumpT = 0;
+    this._water();
+  }
+
+  // su durumunu konuma gore guncelle (su seviyesinin altindaki her bos voxel sudur)
+  _water() {
+    const wy = this.world.waterY ?? -Infinity;
+    const p = this.pos;
+    const d = wy - p.y;
+    this.waterDepth = d;
+    this.inWater = d > 0.02;
+    this.swimming = d > WATER.swimDepth && this.waterJumpT <= 0;
+    this.eyesUnder = wy > p.y + this.eyeHeight;
+    return wy;
   }
 
   collides(x, y, z, h = this.h) {
@@ -39,19 +59,35 @@ export class Mover {
 
   get eyeHeight() { return this.crouching ? MOVE.crouchEye : MOVE.eye; }
 
-  // cmd: {fwd, side, yaw, jump, crouch, dash}
+  // cmd: {fwd, side, yaw, pitch?, jump, crouch, dash}
   simulate(dt, cmd) {
     const ev = this.events;
     ev.jumped = ev.landed = ev.dashed = ev.slid = false; ev.stepUp = 0;
+    ev.splash = 0; ev.waterJump = false;
     const vel = this.vel, p = this.pos;
     this.dashCd = Math.max(0, this.dashCd - dt);
     this.padLock = Math.max(0, this.padLock - dt);
     this.slideTime = Math.max(0, this.slideTime - dt);
+    this.waterJumpT = Math.max(0, this.waterJumpT - dt);
 
     // gomulme kurtarma (moloz ustune dustuyse)
     if (this.collides(p.x, p.y, p.z)) {
       for (let k = 1; k <= 12; k++) { if (!this.collides(p.x, p.y + k * VS, p.z)) { p.y += k * VS; break; } }
     }
+
+    // derin su: yuzme (ayri fizik)
+    const wasIn = this.inWater, vy0 = vel.y;
+    const wy = this._water();
+    if (this.swimming) {
+      this._swim(dt, cmd, wy);
+      this._water();
+      if (!wasIn && this.inWater && vy0 < -2.5) ev.splash = -vy0;
+      return;
+    }
+    // siglik: batan orana gore yavaslama
+    const sub = this.inWater ? Math.min(1, this.waterDepth / MOVE.height) : 0;
+    const wade = this.inWater ? Math.max(WATER.wadeMin, 1 - sub * WATER.wadeSlow) : 1;
+    if (this.inWater) { const k = Math.exp(-dt * sub * 3); vel.x *= k; vel.z *= k; }
 
     // egilme / kayma
     const crouchEdge = cmd.crouch && !this._wasCrouchCmd;
@@ -59,7 +95,7 @@ export class Mover {
     if (cmd.crouch) {
       if (!this.crouching) { this.crouching = true; this.h = MOVE.crouchHeight; if (!this.onGround) p.y += MOVE.height - MOVE.crouchHeight - 0.05; }
       const sp = Math.hypot(vel.x, vel.z);
-      if (crouchEdge && this.onGround && sp > MOVE.runSpeed * 0.8) {
+      if (crouchEdge && this.onGround && sp > MOVE.runSpeed * 0.8 && this.waterDepth < 0.15) {
         const boost = Math.min(17, sp * 1.18) / sp;
         vel.x *= boost; vel.z *= boost;
         this.slideTime = 0.85; ev.slid = true;
@@ -85,11 +121,11 @@ export class Mover {
     const wl = Math.hypot(wx, wz);
     if (wl > 1e-6) { wx /= wl; wz /= wl; }
     const baseSpeed = this.crouching && this.slideTime <= 0 ? MOVE.crouchSpeed : MOVE.runSpeed;
-    const wishSpeed = wl > 1e-6 ? baseSpeed * this.speedMul : 0;
+    const wishSpeed = wl > 1e-6 ? baseSpeed * this.speedMul * wade : 0;
 
     // ziplama (basili tutunca otomatik tavsan ziplamasi)
     if (cmd.jump && (this.onGround || this.groundTime < 0.09) && vel.y <= 0.5 && this.padLock <= 0) {
-      vel.y = MOVE.jumpVel;
+      vel.y = MOVE.jumpVel * (1 - 0.35 * sub);
       this.onGround = false; this.groundTime = 1;
       ev.jumped = true;
       if (this.crouching && this.slideTime > 0) this.slideTime = 0;
@@ -110,13 +146,13 @@ export class Mover {
       this._airControl(wx, wz, wishSpeed, dt, cmd);
     }
 
-    // atilma
+    // atilma (suda daha kisa)
     if (cmd.dash && this.dashCd <= 0) {
       let dx = wx, dz = wz;
       if (wl < 1e-6) { dx = -sy; dz = -cy; }
-      const sp = Math.max(MOVE.dashSpeed, Math.hypot(vel.x, vel.z) * 1.05);
+      const sp = Math.max(MOVE.dashSpeed * wade, Math.hypot(vel.x, vel.z) * 1.05);
       vel.x = dx * sp; vel.z = dz * sp;
-      vel.y = this.onGround ? Math.max(vel.y, MOVE.dashUp) : Math.max(vel.y, 1.2);
+      vel.y = this.onGround ? Math.max(vel.y, MOVE.dashUp * wade) : Math.max(vel.y, 1.2);
       this.dashCd = MOVE.dashCooldown;
       ev.dashed = true;
     }
@@ -153,6 +189,79 @@ export class Mover {
     // kamera basamak yumusatmasi
     this.stepSmooth *= Math.exp(-dt * 16);
     if (Math.abs(this.stepSmooth) < 1e-4) this.stepSmooth = 0;
+    this._water();
+    if (!wasIn && this.inWater && vy0 < -2.5) ev.splash = -vy0;
+  }
+
+  // Quake tarzi yuzme: bakilan yone yuzulur, Bosluk yukari (yuzeyde basi suyun ustunde tutar),
+  // C asagi; hic tus yoksa yavasca batilir. Kaldirma batan oranla artar, su direnci hizi keser.
+  _swim(dt, cmd, wy) {
+    const vel = this.vel, p = this.pos;
+    this._wasCrouchCmd = cmd.crouch;
+    this.slideTime = 0;
+    if (this.crouching && !this.collides(p.x, p.y, p.z, MOVE.height)) { this.crouching = false; this.h = MOVE.height; }
+    const sy = Math.sin(cmd.yaw), cy = Math.cos(cmd.yaw);
+    const pitch = cmd.pitch || 0, cp = Math.cos(pitch), spt = Math.sin(pitch);
+    let wx = -sy * cp * cmd.fwd + cy * cmd.side;
+    let wz = -cy * cp * cmd.fwd - sy * cmd.side;
+    let wv = spt * cmd.fwd;
+    const wl = Math.hypot(wx, wv, wz);
+    if (wl > 1) { wx /= wl; wv /= wl; wz /= wl; }
+    const S = WATER.swimSpeed * this.speedMul;
+    const frac = Math.max(0, Math.min(1, (wy - p.y) / this.h));
+    const k = 1 - Math.exp(-dt * WATER.swimAccel);
+    vel.x += (wx * S - vel.x) * k;
+    vel.z += (wz * S - vel.z) * k;
+    let ay = -GRAVITY + GRAVITY * WATER.buoyancy * frac;
+    let kick = (wv * S - vel.y) * WATER.dragY;
+    if (kick > 0) { const t = Math.max(0, Math.min(1, (frac - 0.62) / 0.33)); kick *= t * t * (3 - 2 * t); }
+    ay += kick;
+    if (cmd.jump) ay += GRAVITY * WATER.thrustUp;
+    if (cmd.crouch) ay -= GRAVITY * WATER.thrustDown;
+    vel.y += ay * dt;
+    const sp = Math.hypot(vel.x, vel.y, vel.z);
+    if (sp > 1e-3) { const q = 1 / (1 + WATER.dragQ * sp * dt); vel.x *= q; vel.y *= q; vel.z *= q; }
+    // kiyiya dogru yuzerken yuzeye yakinsa sudan cik
+    if (cmd.fwd > 0) this._waterJump(wy, -sy, -cy);
+
+    const prevGround = this.onGround;
+    this.onGround = false;
+    const dist = Math.hypot(vel.x, vel.y, vel.z) * dt;
+    const n = Math.min(16, Math.max(1, Math.ceil(dist / (VS * 0.45))));
+    const sdt = dt / n;
+    // yuzerken sig dibe ve basamaklara cikilabilir (yoksa kiyi sigliginda govde dibe takilir)
+    for (let i = 0; i < n; i++) {
+      this._moveX(vel.x * sdt, true);
+      this._moveZ(vel.z * sdt, true);
+      this._moveY(vel.y * sdt, true);
+    }
+    if (this.onGround) this.groundTime = 0; else this.groundTime += dt;
+    this.stepSmooth *= Math.exp(-dt * 16);
+    if (Math.abs(this.stepSmooth) < 1e-4) this.stepSmooth = 0;
+  }
+
+  // Quake'in "water jump"u: yuzeye yakin yuzerken onumuzde kiyi varsa ve ustu bossa ustune firla
+  _waterJump(wy, fx, fz) {
+    const p = this.pos, w = this.world;
+    if (this.waterJumpT > 0 || p.y + this.eyeHeight < wy - 0.7) return false;
+    const reach = this.r + 0.35;
+    const ax = p.x + fx * reach, az = p.z + fz * reach;
+    if (!w.solidAtWorld(ax, p.y + 0.9, az) && !w.solidAtWorld(ax, wy - 0.1, az)) return false;
+    // inilecek yer: govdenin bir boy ilerisindeki kolonun ustu
+    const lx = p.x + fx * (this.r * 2 + 0.15), lz = p.z + fz * (this.r * 2 + 0.15);
+    const vx = Math.floor(lx / VS), vz = Math.floor(lz / VS);
+    let top = -1;
+    for (let y = Math.floor((p.y + 0.5) / VS); y * VS <= wy + WATER.ledge + 1e-3; y++) {
+      if (!w.solid(vx, y, vz)) { top = y * VS; break; }
+    }
+    if (top < 0 || top > wy + WATER.ledge + 1e-3) return false;
+    if (this.collides(lx, top + EPS, lz, MOVE.height)) return false;
+    this.vel.y = Math.sqrt(2 * GRAVITY * Math.max(0.2, top - p.y + 0.3));
+    this.vel.x = fx * 3.2; this.vel.z = fz * 3.2;
+    this.waterJumpT = 0.7;
+    this.swimming = false;
+    this.events.waterJump = true;
+    return true;
   }
 
   _accel(wx, wz, wishSpeed, accel, dt) {

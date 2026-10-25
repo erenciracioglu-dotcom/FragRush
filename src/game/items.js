@@ -57,14 +57,20 @@ export class Items {
       const T = ITEM_TYPES[d.type];
       const mesh = makeMesh(d.type);
       game.scene.add(mesh);
-      const it = { type: d.type, pos: new THREE.Vector3(d.x, d.y, d.z), active: !T.initial, timer: T.initial || 0, mesh, phase: Math.random() * 6, fallV: 0 };
+      const it = { type: d.type, pos: new THREE.Vector3(d.x, d.y, d.z), active: !T.initial, timer: T.initial || 0, mesh, phase: Math.random() * 6, fallV: 0, noBots: !!d.noBots };
       mesh.position.set(d.x, d.y + 0.65, d.z);
       mesh.visible = it.active;
       return it;
     });
   }
 
-  dispose() { for (const it of this.list) this.game.scene.remove(it.mesh); this.list = []; }
+  dispose() {
+    for (const it of this.list) {
+      this.game.scene.remove(it.mesh);
+      it.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    }
+    this.list = [];
+  }
 
   reset() {
     for (const it of this.list) { const T = ITEM_TYPES[it.type]; it.active = !T.initial; it.timer = T.initial || 0; it.mesh.visible = it.active; }
@@ -77,7 +83,7 @@ export class Items {
         it.timer -= dt;
         if (it.timer <= 0) {
           it.active = true; it.mesh.visible = true;
-          if (it.type === 'quad') { game.announce(t('quadSpawn'), t('quadWhere')); if (game.audio) game.audio.play('quadSpawn', it.pos.x, it.pos.y, it.pos.z, 1, true); }
+          if (it.type === 'quad') { game.announce(t('quadSpawn'), t(game.arena.quadWhere || 'quadWhere')); if (game.audio) game.audio.play('quadSpawn', it.pos.x, it.pos.y, it.pos.z, 1, true); }
           game.fx.padBurst(it.pos.x, it.pos.y, it.pos.z);
         }
         continue;
@@ -116,7 +122,7 @@ export class Items {
   nearest(pos, types, maxDist) {
     let best = null, bd = maxDist;
     for (const it of this.list) {
-      if (!it.active || !types.includes(it.type)) continue;
+      if (!it.active || it.noBots || !types.includes(it.type)) continue;
       const d = Math.hypot(it.pos.x - pos.x, it.pos.y - pos.y, it.pos.z - pos.z);
       if (d < bd) { bd = d; best = it; }
     }
@@ -128,7 +134,7 @@ export class Items {
     const p = bot.mover.pos;
     let best = null, bs = 0;
     for (const it of this.list) {
-      if (!it.active) continue;
+      if (!it.active || it.noBots) continue;
       const d = Math.hypot(it.pos.x - p.x, (it.pos.y - p.y) * 2, it.pos.z - p.z);
       let v = ITEM_TYPES[it.type].value;
       if (it.type === 'health' && bot.health >= 100) v = 0;

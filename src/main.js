@@ -9,7 +9,7 @@ import { t, setLang, onLangChange } from './i18n.js';
 
 /* global __BUILD_TIME__ */
 const params = new URLSearchParams(location.search);
-const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'low', bots: 7, difficulty: 2, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false };
+const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'low', bots: 7, difficulty: 2, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false, map: 'rotate' };
 function loadSettings() {
   let s = {};
   try { s = JSON.parse(localStorage.getItem('fragrush.settings') || localStorage.getItem('enkaz.settings') || '{}'); } catch (e) { s = {}; }
@@ -23,6 +23,7 @@ const settings = loadSettings();
 if (params.get('q')) settings.quality = params.get('q');
 if (params.has('bots')) settings.bots = Number(params.get('bots'));
 if (params.get('lang')) settings.lang = params.get('lang');
+if (params.get('map')) settings.map = params.get('map');
 setLang(settings.lang);
 settings.seed = params.has('seed') ? Number(params.get('seed')) : 0;
 const testMode = params.has('test');
@@ -51,7 +52,20 @@ function showMenu(v) {
   if (v) showPanel(null);
   btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play');
   $('btnLeave').classList.toggle('hidden', game.state !== 'paused');
+  mapPick.classList.toggle('hidden', game.state === 'paused');
+  syncMapPick();
 }
+// harita secimi (ana menude): secilen harita hemen kurulur; SIRAYLA her mactan sonra degistirir
+const mapPick = $('mapPick');
+function syncMapPick() { for (const b of mapPick.querySelectorAll('button[data-map]')) b.classList.toggle('on', b.dataset.map === settings.map); }
+mapPick.addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-map]');
+  if (!b || game.state !== 'menu') return;
+  settings.map = b.dataset.map;
+  saveSettings(settings);
+  syncMapPick();
+  if (settings.map !== 'rotate' && settings.map !== game.mapId) await rebuildArena(settings.map);
+});
 // tarayici dahili ekran kartinda calisiyorsa (cift kartli dizustulerde sik) kisa bir uyari goster
 let gpuIntegrated = null;
 function checkGpu() {
@@ -156,14 +170,15 @@ if (localServer) setInterval(() => { fetch('/__ping', { cache: 'no-store' }).cat
 $('btnControls').addEventListener('click', () => showPanel('controls'));
 $('btnBack1').addEventListener('click', () => { saveSettings(settings); showPanel(null); });
 $('btnBack2').addEventListener('click', () => showPanel(null));
-$('btnNewMap').addEventListener('click', async () => {
+async function rebuildArena(map = null) {
   buttons.classList.add('hidden');
   $('loading').classList.remove('hidden');
   hud.show(false);
-  await game.newArena(progress);
+  await game.newArena(progress, map);
   $('loading').classList.add('hidden');
   showMenu(true);
-});
+}
+$('btnNewMap').addEventListener('click', () => rebuildArena());
 
 // ayar paneli
 function bindRange(id, key, fmt, apply) {
