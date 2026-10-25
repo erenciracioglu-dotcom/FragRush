@@ -51,6 +51,8 @@ export class Game {
   }
 
   async init(onProgress = () => {}) {
+    const T0 = performance.now(); this.ldt = {}; const mk = (k) => { this.ldt[k] = Math.round(performance.now() - T0); };
+    this._mk = mk;
     const canvas = this.canvas;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true });
     renderer.shadowMap.enabled = true;
@@ -97,6 +99,7 @@ export class Game {
     this.hills = createHills(center);
     scene.add(this.hills);
 
+    mk('setup');
     this.world = new VoxelWorld(WORLD.X, WORLD.Y, WORLD.Z);
     const nWorkers = Math.max(2, Math.min(6, (navigator.hardwareConcurrency || 4) - 2));
     this.workers = new MeshWorkers(nWorkers);
@@ -113,17 +116,22 @@ export class Game {
     this.items = null;
     this.waterSys = new WaterSystem(this);
 
+    mk('systems');
     await this.buildArena(this.settings.seed || ((Math.random() * 1e9) | 0), onProgress);
+    mk('arena');
 
     this.post = new PostFX(renderer, scene, camera, this.settings.quality, this.viewmodel, this.waterSys.active ? this.waterSys : null);
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    mk('post');
     this.createBots();
     this.startMatch(false);
+    mk('bots');
     // shader isindirma: tum malzemeleri bir kez derle
     onProgress(0.97, t('ldShaders'));
     await nextFrame();
     this.warmup();
+    mk('warmup');
     onProgress(1, t('ldReady'));
     this.ready = true;
   }
@@ -172,7 +180,10 @@ export class Game {
     if (this.items) this.items.dispose();
     for (const L of this.staticLights) this.scene.remove(L.light);
     this.staticLights = [];
+    const mk = this._mk || (() => {});
+    mk('b0');
     this.arena = LEVELS[this.mapId].generate(this.world, seed);
+    mk('gen');
     this.world.waterY = this.arena.water ? this.arena.water.y : -Infinity;
     this.applyEnvironment(this.arena);
     this.world.dirtyList = []; this.world.chunkDirty.fill(0);
@@ -206,11 +217,13 @@ export class Game {
       await nextFrame();
     }
     this.chunks.allocPerFrame = 3;
+    mk('mesh');
     onProgress(0.92, t('ldNav'));
     await nextFrame();
     this.nav.pads.clear();
     this.nav.buildAll();
     for (const p of this.arena.pads) this.nav.addPad(p.x, p.y, p.z, p.tx, p.ty, p.tz);
+    mk('nav');
     this.items = new Items(this, this.arena.items);
     this.pads = this.arena.pads;
     this._attractCam = null;
