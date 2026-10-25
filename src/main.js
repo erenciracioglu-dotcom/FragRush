@@ -6,6 +6,7 @@ import { Audio } from './audio/sfx.js';
 import { MeshBasicMaterial as THREE_Basic, MeshStandardMaterial as THREE_Std } from 'three';
 import { voxelUniforms } from './world/voxelMaterial.js';
 import { t, setLang, onLangChange } from './i18n.js';
+import { portal } from './portal.js';
 
 /* global __BUILD_TIME__ */
 const params = new URLSearchParams(location.search);
@@ -20,6 +21,8 @@ function loadSettings() {
 function saveSettings(s) { try { localStorage.setItem('fragrush.settings', JSON.stringify(s)); } catch (e) { /* yok */ } }
 
 const settings = loadSettings();
+// oyuncu dili kendisi secmis mi (secmediyse portalin bildirdigi dil kullanilir)
+const langSaved = (() => { try { return !!JSON.parse(localStorage.getItem('fragrush.settings') || '{}').lang; } catch (e) { return false; } })();
 if (params.get('q')) settings.quality = params.get('q');
 if (params.has('bots')) settings.bots = Number(params.get('bots'));
 if (params.get('lang')) settings.lang = params.get('lang');
@@ -38,6 +41,20 @@ audio.setVolume(settings.volume);
 hud.showFps = !!settings.showFps;
 const game = new Game(canvas, settings, { hud, audio, input });
 window.__enkaz = { game, ready: false, input };
+
+// ---- portal (CrazyGames) ----
+// SDK oyunu hicbir zaman bekletmez: yuklenemezse oyun aynen calisir.
+let gameLoaded = false;
+const portalReady = portal.init().then(() => {
+  if (!portal.ready) return;
+  if (!gameLoaded) portal.loadingStart();
+  audio.setMuted(portal.muted);
+  portal.onMuteChange((m) => audio.setMuted(m));
+  if (!langSaved && !params.get('lang')) {
+    const lang = /^tr/i.test(portal.locale()) ? 'tr' : 'en';
+    if (lang !== settings.lang) { settings.lang = lang; setLang(lang); const sl = document.getElementById('setLang'); if (sl) sl.value = lang; }
+  }
+});
 
 const menu = $('menu'), btnPlay = $('btnPlay');
 const panels = { settings: $('panelSettings'), controls: $('panelControls') };
@@ -91,7 +108,8 @@ btnPlay.addEventListener('click', async () => {
   else if (game.state !== 'playing') return;
   showMenu(false);
   resumeHint(false);
-  if (settings.fullscreen !== false && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+  // portalda tam ekrani portal saglar (oyun ici tam ekran istegi yasak)
+  if (!portal.on && settings.fullscreen !== false && !document.fullscreenElement && document.documentElement.requestFullscreen) {
     try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) { /* olmadi */ }
   }
   lockKeys();
@@ -164,7 +182,7 @@ $('btnLeave').addEventListener('click', () => {
 $('btnQuit').addEventListener('click', () => { try { window.close(); } catch (e) { /* yok */ } setTimeout(() => { $('menuHint').textContent = t('closeHint'); }, 300); });
 // sunucuya canlilik sinyali (oyun kapaninca sunucu kendini kapatir)
 // yalniz yerel sunucuda (serve.mjs): canlilik sinyali ve hata gunlugu. GitHub Pages gibi statik sunucuda kapali.
-const localServer = location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+const localServer = !portal.on && location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
 if (!localServer) $('btnQuit').classList.add('hidden');
 if (localServer) setInterval(() => { fetch('/__ping', { cache: 'no-store' }).catch(() => {}); }, 5000);
 $('btnControls').addEventListener('click', () => showPanel('controls'));
@@ -226,6 +244,7 @@ function frame(now, manual = false, fixedDt = 0, doRender = true) {
     if (input.pressed('F3')) { hud.showFps = !hud.showFps; settings.showFps = hud.showFps; chkF.checked = hud.showFps; }
     game.update(dt);
     if (doRender) game.render(dt);
+    if (portal.on) portal.setPlaying(game.state === 'playing' && menu.classList.contains('hidden'));
   } catch (e) {
     if (manual) throw e;
     const m = (e && e.stack) || String(e);
@@ -251,6 +270,8 @@ if (canLog && !testMode) setInterval(() => {
 game.init(progress).then(() => {
   // ses baglami simdi (menude, kimse oynamiyorken) kurulsun; OYNA tiklamasi yalniz baslatir
   audio.prepare();
+  gameLoaded = true;
+  portalReady.then(() => portal.loadingStop());
   window.__enkaz.ready = true;
   checkGpu(); setHint();
   $('loading').classList.add('hidden');

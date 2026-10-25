@@ -2,6 +2,7 @@
   "name": "fragrush",
   "version": "0.1.0",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "description": "FragRush - fast, fully destructible voxel arena FPS in the browser",
   "scripts": {

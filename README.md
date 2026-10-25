@@ -272,4 +272,15 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
 
 ## License
 
-[MIT](LICENSE)
+- **Code:** [PolyForm Noncommercial 1.0.0](LICENSE). You may read, run, learn from, modify and share
+  the code for **noncommercial** purposes. Commercial use, including re-hosting the game on ad-supported
+  sites or portals, is not permitted. For a commercial license, open an issue or contact the author.
+- **Name, screenshots and other media** (`media/`, the "FragRush" name): all rights reserved.
+- **Third-party libraries** (three.js, postprocessing, n8ao) keep their own licenses, see
+  [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Versions published before 26 October 2026 were released under the MIT License; that grant still
+  applies to those earlier versions only.
+
+**Türkçe:** Kod PolyForm Noncommercial 1.0.0 lisanslıdır: ticari olmayan amaçla okunabilir, çalıştırılabilir,
+değiştirilip paylaşılabilir; reklamlı sitelerde veya portallarda yeniden yayın dahil ticari kullanım yasaktır.
+Ad, ekran görüntüleri ve diğer medya için tüm hakları saklıdır.

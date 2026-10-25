@@ -23,7 +23,7 @@ export class Audio {
     try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { return; }
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = this.volume;
+    this.master.gain.value = this.muted ? 0 : this.volume;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.2;
     // su alti: tum sesler bogulur (alcak geciren suzgec master ile kompresor arasinda)
@@ -54,7 +54,9 @@ export class Audio {
     this.enabled = true;
   }
 
-  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
+  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = this.muted ? 0 : v; }
+  // portal (CrazyGames) sesi kapattiginda: oyun ici ses ayari bunu geri acamaz
+  setMuted(m) { this.muted = !!m; this.setVolume(this.volume); }
 
   setUnderwater(on) {
     if (!this.ctx || on === this.underwater) return;
@@ -148,7 +150,7 @@ export class Audio {
   }
 
   play(name, x = 0, y = 0, z = 0, vol = 1, local = false) {
-    if (!this.enabled || !this.ctx || this.volume <= 0) return;
+    if (!this.enabled || !this.ctx || this.volume <= 0 || this.muted) return;
     // ayni sesin cok sik tekrarini sinirla
     const now = this.ctx.currentTime;
     const key = name + (local ? 'L' : '');
