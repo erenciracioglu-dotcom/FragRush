@@ -103,7 +103,8 @@ onLangChange(() => { setHint(); btnPlay.textContent = game.state === 'paused' ? 
 btnPlay.addEventListener('click', async () => {
   audio.init();
   audio.setVolume(settings.volume);
-  if (game.state === 'menu') game.startMatch(true);
+  const fresh = game.state === 'menu';
+  if (fresh) game.startMatch(true);
   else if (game.state === 'paused') game.state = 'playing';
   else if (game.state !== 'playing') return;
   showMenu(false);
@@ -114,7 +115,25 @@ btnPlay.addEventListener('click', async () => {
   }
   lockKeys();
   input.lock();
+  if (fresh) showKeyCard();
 });
+
+// ---- ilk mac: kisa tus karti (yalniz ilk kez; H ile gizlenir, 12 sn sonra kendiliginden kaybolur) ----
+const keyCard = $('keyCard');
+let keyCardTimer = 0;
+function hideKeyCard() {
+  if (keyCard.classList.contains('hidden')) return;
+  keyCard.classList.add('fade');
+  clearTimeout(keyCardTimer);
+  setTimeout(() => keyCard.classList.add('hidden'), 650);
+}
+function showKeyCard() {
+  let seen = false;
+  try { seen = localStorage.getItem('fragrush.keycard') === '1'; localStorage.setItem('fragrush.keycard', '1'); } catch (e) { /* yok */ }
+  if (seen || testMode) return;
+  keyCard.classList.remove('hidden', 'fade');
+  keyCardTimer = setTimeout(hideKeyCard, 12000);
+}
 
 // ---- Esc / Enter ile menu ----
 // Tam ekranda Esc tusunu sayfaya al (tarayici Esc'yi yutmasin; tam ekrandan cikmak icin Esc basili tutulur)
@@ -126,6 +145,7 @@ function resumeHint(v) { resumeEl.classList.toggle('hidden', !v); }
 let lastPauseT = 0;
 function pauseGame() {
   if (game.state !== 'playing') return;
+  hideKeyCard();
   game.state = 'paused'; lastPauseT = performance.now();
   resumeHint(false); showMenu(true); input.unlock();
 }
@@ -149,6 +169,13 @@ canvas.addEventListener('click', () => {
   else if (game.state === 'paused' && menu.classList.contains('hidden')) resumeGame();
 });
 window.addEventListener('keydown', (e) => {
+  if (!e.repeat && e.code === 'KeyH') hideKeyCard();
+  // P: Esc'ye ek duraklatma tusu (Esc portalda tam ekrandan da cikarir)
+  if (!e.repeat && e.code === 'KeyP' && $('loading').classList.contains('hidden')) {
+    const panelP = Object.keys(panels).find((k) => !panels[k].classList.contains('hidden'));
+    if (game.state === 'playing') { e.preventDefault(); pauseGame(); return; }
+    if (game.state === 'paused' && !panelP) { e.preventDefault(); resumeGame(); return; }
+  }
   if (e.repeat || (e.code !== 'Escape' && e.code !== 'Enter' && e.code !== 'NumpadEnter')) return;
   if (game.state === 'loading' || game.state === 'matchEnd' || !$('loading').classList.contains('hidden')) return;
   const menuOpen = !menu.classList.contains('hidden');
@@ -213,7 +240,17 @@ bindRange('setBots', 'bots', (v) => String(v), () => { if (game.state !== 'loadi
 const selL = $('setLang'); selL.value = settings.lang;
 selL.addEventListener('change', () => { settings.lang = selL.value; setLang(settings.lang); saveSettings(settings); });
 const selQ = $('setQuality'); selQ.value = settings.quality;
-selQ.addEventListener('change', () => { game.setQuality(selQ.value); saveSettings(settings); });
+selQ.addEventListener('change', () => { settings.qualityChosen = true; game.setQuality(selQ.value); saveSettings(settings); });
+// oyuncu kaliteyi kendisi secmediyse: harici ekran kartinda daha yuksek kaliteyle basla
+function autoQuality() {
+  if (settings.qualityChosen || params.get('q') || testMode || params.has('bench')) return;
+  let r = '';
+  try { const gl = game.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : ''); } catch (e) { return; }
+  let q = 'low';
+  if (/RTX|Radeon RX ?[5-9]d{3}|Arc(TM) A[57]|Apple M[1-9] (Pro|Max|Ultra)/i.test(r)) q = 'high';
+  else if (/GTX|Radeon RX|Radeon Pro|Arc(TM)|Apple Md/i.test(r)) q = 'medium';
+  if (q !== settings.quality) { game.setQuality(q); selQ.value = q; }
+}
 const selD = $('setDiff'); selD.value = String(settings.difficulty);
 selD.addEventListener('change', () => { settings.difficulty = Number(selD.value); for (const b of game.bots) b.setSkill(settings.difficulty); saveSettings(settings); });
 const chkI = $('setInvert'); chkI.checked = !!settings.invert; chkI.addEventListener('change', () => { settings.invert = chkI.checked; saveSettings(settings); });
@@ -273,7 +310,7 @@ game.init(progress).then(() => {
   gameLoaded = true;
   portalReady.then(() => portal.loadingStop());
   window.__enkaz.ready = true;
-  checkGpu(); setHint();
+  checkGpu(); setHint(); autoQuality();
   $('loading').classList.add('hidden');
   showMenu(true);
   if (testMode) {

@@ -29,7 +29,7 @@ last.
 | Right click | zoom (railgun) |
 | 1-5 / wheel / Q | select weapon / previous weapon |
 | Tab | scoreboard |
-| Esc | menu (pause; *Leave match* returns to the main menu); in menus: back, on the main menu: resume |
+| Esc / P | menu (pause; *Leave match* returns to the main menu); in menus: back, on the main menu: resume |
 | Enter | play / resume |
 | F3 | FPS and performance overlay |
 
@@ -119,8 +119,10 @@ Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**
 
 - A desktop browser with **WebGL 2**. Chrome or Edge recommended (tested in Chrome).
 - Mouse and keyboard. Mobile is not supported.
-- A dedicated GPU is recommended. The game starts on **Low** quality; raise it in Settings if
-  your GPU has headroom (press F3 to see FPS).
+- A dedicated GPU is recommended. Unless you pick a quality yourself, the game starts on **Low**
+  on integrated graphics, **Medium** on older dedicated GPUs and **High** on RTX / Radeon RX 5000+
+  class GPUs; change it in Settings (press F3 to see FPS).
+- The first match shows a short controls card (H hides it; it appears only once).
 - No install, no downloads. The online version counts anonymous visits with
   [GoatCounter](https://www.goatcounter.com) (no cookies, no personal data); local copies don't.
 - No other network use after the page has loaded (everything, including all sound,
