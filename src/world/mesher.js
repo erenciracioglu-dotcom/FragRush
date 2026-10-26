@@ -1,7 +1,7 @@
 // Greedy voxel mesher + kose ortam golgelemesi (AO). Worker ve ana is parcaciginda kullanilir.
 // Girdi: padli malzeme/hasar dizileri, index = (x+1) + (nx+2)*((z+1) + (nz+2)*(y+1))
 
-const NMAT = 32;
+const NMAT = 64;   // malzeme kimligi 8 bit; palet materials.js MAT_COUNT kadar dolu
 const COLOR_LUT = new Uint8Array(NMAT * 8 * 3);
 const MATP = new Uint8Array(NMAT * 3);
 const TOUGH = new Uint8Array(NMAT);

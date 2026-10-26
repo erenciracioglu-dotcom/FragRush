@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { VS, DOOMSDAY } from '../config.js';
 import { WEAPONS } from './weapons.js';
+import { M } from '../world/materials.js';
 
 const _hit = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
 const _d = new THREE.Vector3();
@@ -52,7 +53,10 @@ export function fire(game, actor, origin, dir, muzzle) {
 function traceBullet(game, shooter, o, d, W, quad, muzzle, tracer) {
   const w = game.world;
   const wHit = w.raycast(o.x, o.y, o.z, d.x, d.y, d.z, W.range, _hit);
-  const wd = wHit ? _hit.dist : W.range;
+  const wd0 = wHit ? _hit.dist : W.range;
+  // lav yuzeyi mermiyi durdurur
+  const lt = game.lavaSys.cross(o.x, o.y, o.z, d.x, d.y, d.z, wd0);
+  const wd = lt >= 0 ? lt : wd0;
   let best = null, bestT = wd, bestHead = false;
   for (const a of game.actors) {
     if (a === shooter || !a.alive) continue;
@@ -66,6 +70,8 @@ function traceBullet(game, shooter, o, d, W, quad, muzzle, tracer) {
     best.takeDamage(dmg, shooter, W.id, d, bestHead);
     if (W.knock) best.mover.impulse(d.x * W.knock * 0.35, Math.max(0, d.y) * W.knock * 0.2 + 0.15 * W.knock, d.z * W.knock * 0.35);
     game.fx.robotHit(ex, ey, ez, d.x, d.y, d.z, best.color, W.pellets > 1 ? 0.5 : 1);
+  } else if (lt >= 0) {
+    game.fx.impact(ex, ey + 0.02, ez, 0, 1, 0, M.MAGMA, W.pellets > 1 ? 0.4 : 0.8);
   } else if (wHit) {
     game.destruction.chip(_hit, W.voxR, W.voxP * (quad > 1 ? 2 : 1), shooter);
     game.fx.impact(ex - d.x * 0.02, ey - d.y * 0.02, ez - d.z * 0.02, _hit.nx, _hit.ny, _hit.nz, _hit.mat, W.pellets > 1 ? 0.45 : 1);
@@ -110,6 +116,8 @@ function railShot(game, shooter, o, d, W, quad, muzzle) {
   }
   const ex = o.x + d.x * end, ey = o.y + d.y * end, ez = o.z + d.z * end;
   waterCross(game, o, d, end, 0.6);
+  const lt = game.lavaSys.cross(o.x, o.y, o.z, d.x, d.y, d.z, end);
+  if (lt >= 0) game.lavaSys.splash(o.x + d.x * lt, o.z + d.z * lt, 0.5);
   game.fx.rail(muzzle.x, muzzle.y, muzzle.z, ex, ey, ez, W.color);
   if (firstWall >= 0) {
     const fx0 = o.x + d.x * firstWall, fy0 = o.y + d.y * firstWall, fz0 = o.z + d.z * firstWall;

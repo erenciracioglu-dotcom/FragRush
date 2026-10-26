@@ -25,6 +25,19 @@ P([M.BARK], 15);
 P([M.LEAVES], 16);
 P([M.ROCK, M.CLIFF], 17);
 P([M.FLOWER], 18);
+// volkan haritasi
+P([M.ASH], 19);
+P([M.BASALT], 20);
+P([M.SCORIA], 21);
+P([M.OBSIDIAN], 22);
+P([M.MAGMA], 23);
+P([M.FIRE], 24);
+P([M.VCLIFF], 25);
+P([M.BASALT_BRICK], 5);
+
+// lav isigi haritasi yokken baglanan bos doku
+const blankTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+blankTex.needsUpdate = true;
 
 export const voxelUniforms = {
   uTime: { value: 0 },
@@ -32,10 +45,14 @@ export const voxelUniforms = {
   uVS: { value: VS },
   uAOStrength: { value: 1.0 },
   uDetail: { value: 1.0 },
-  uMatRough: { value: Array.from(MAT_ROUGH) },
-  uMatMetal: { value: Array.from(MAT_METAL) },
-  uMatEmis: { value: Array.from(MAT_EMISSIVE) },
-  uMatPattern: { value: Array.from(PATTERN) },
+  // malzeme basina (puruzluluk, metallik, emissive, desen): tek vec4 dizisi (az uniform yuvasi)
+  uMatP: { value: Array.from({ length: MAT_COUNT }, (_, i) => new THREE.Vector4(MAT_ROUGH[i], MAT_METAL[i], MAT_EMISSIVE[i], PATTERN[i])) },
+  // lavin cevresine vurdugu turuncu isik (volkan haritasi): ustten gorunus yakinlik haritasi + lav seviyesi
+  uLavaOn: { value: 0 },
+  uLavaY: { value: -1000 },
+  uLavaGlowI: { value: 0 },
+  uLavaInv: { value: new THREE.Vector2(1, 1) },
+  uLavaGlow: { value: blankTex },
 };
 
 export function createVoxelMaterial({ rotated = false } = {}) {
@@ -49,12 +66,14 @@ flat varying float vMatId;
 flat varying float vDmg;
 varying float vAO;
 varying vec3 vObjPos;
+varying vec3 vWPos;
 flat varying vec3 vObjNormal;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 vMatId = aMat.x * 255.0;
 vDmg = aMat.y * 255.0 / 36.0;
 vAO = aMat.w;
 vObjPos = position;
+vWPos = (modelMatrix * vec4(position, 1.0)).xyz;
 vObjNormal = normal;`);
 
     shader.fragmentShader = shader.fragmentShader
@@ -64,14 +83,17 @@ uniform float uEmissiveScale;
 uniform float uVS;
 uniform float uAOStrength;
 uniform float uDetail;
-uniform float uMatRough[${MAT_COUNT}];
-uniform float uMatMetal[${MAT_COUNT}];
-uniform float uMatEmis[${MAT_COUNT}];
-uniform float uMatPattern[${MAT_COUNT}];
+uniform vec4 uMatP[${MAT_COUNT}];
+uniform float uLavaOn;
+uniform float uLavaY;
+uniform float uLavaGlowI;
+uniform vec2 uLavaInv;
+uniform sampler2D uLavaGlow;
 flat varying float vMatId;
 flat varying float vDmg;
 varying float vAO;
 varying vec3 vObjPos;
+varying vec3 vWPos;
 flat varying vec3 vObjNormal;
 float vxHash(vec3 p) {
   p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -88,7 +110,8 @@ float vxMetal = 0.0;`)
       .replace('#include <color_fragment>', `
 {
   int mid = int(vMatId + 0.5);
-  float pat = uMatPattern[mid];
+  vec4 mp = uMatP[mid];
+  float pat = mp.w;
   vec3 base = vColor.rgb;
   base = base * base * (base * 0.305306011 + 0.682171111) + 0.012522878 * base; // sRGB -> lineer
   vec3 q = vObjPos / uVS;
@@ -117,8 +140,8 @@ float vxMetal = 0.0;`)
   float edgeK = mix(0.1, 0.24, clamp(vDmg / 3.0 + rough * 0.5, 0.0, 1.0));
   float bevel = mix(1.0, 1.0 - edgeK + edgeK * smoothstep(0.0, 0.1, e), detail);
   float p = 1.0;
-  vxRough = uMatRough[mid];
-  vxMetal = uMatMetal[mid];
+  vxRough = mp.x;
+  vxMetal = mp.y;
   if (pat > 0.5 && pat < 1.5) {
     // beton panel: 2m x 1.5m derz
     float seam = max(vxLine(t.x / 8.0, 0.012, aa / 8.0), vxLine(t.y / 6.0, 0.016, aa / 6.0));
@@ -165,7 +188,7 @@ float vxMetal = 0.0;`)
   } else if (pat > 7.5 && pat < 8.5) {
     // neon nabzi
     float pulse = 0.82 + 0.18 * sin(uTime * 3.0 + h * 6.2831 + q.y * 0.3);
-    vxEmissive = base * uMatEmis[mid] * uEmissiveScale * pulse;
+    vxEmissive = base * mp.z * uEmissiveScale * pulse;
   } else if (pat > 8.5 && pat < 9.5) {
     // ana kaya: koyu teknoloji izgarasi
     float grid = max(vxLine(t.x / 8.0, 0.01, aa / 8.0), vxLine(t.y / 8.0, 0.01, aa / 8.0));
@@ -179,7 +202,86 @@ float vxMetal = 0.0;`)
   } else if (pat > 10.5 && pat < 11.5) {
     // kristal
     float sp = pow(h, 12.0);
-    vxEmissive = base * (uMatEmis[mid] + sp * 0.6) * uEmissiveScale * 0.5;
+    vxEmissive = base * (mp.z + sp * 0.6) * uEmissiveScale * 0.5;
+  } else if (pat > 18.5) {
+    // volkanik: kul (19), bazalt (20), curuf (21), obsidyen (22), magma kaya (23), mangal atesi (24),
+    // volkanik ucurum (25)
+    vec2 sc = floor(t * 4.0);
+    float s = vxHash(vec3(sc, cell.y * 0.37 + cell.x * 0.11 + 5.0));
+    float s2 = vxHash(vec3(sc + 31.7, cell.z * 0.21 + 2.0));
+    bool top = vObjNormal.y > 0.5;
+    float k = mix(1.0, 0.8 + 0.4 * s, detail);
+    if (pat < 19.5) {
+      // kul: koyu gri benekli; ustte acik kul lekeleri ve seyrek sonmemis kor, yanda koyu alt katman
+      base *= k;
+      if (top) {
+        base = mix(base, base * vec3(1.4, 1.34, 1.3), step(0.8, s2) * 0.6 * detail);
+        float ember = step(0.9985, s) * step(0.6, h2) * detail;
+        float fl = 0.45 + 0.55 * sin(uTime * (1.5 + s2 * 3.0) + h * 40.0);
+        vxEmissive += vec3(1.0, 0.24, 0.035) * ember * max(fl, 0.0) * 1.4;
+      } else if (vertical > 0.5) {
+        float fy = fract(t.y);
+        float edge = 0.55 + 0.3 * vxHash(vec3(floor(t * vec2(4.0, 1.0)), 9.0));
+        base = mix(base * vec3(0.66, 0.62, 0.64), base, step(edge, fy));
+      }
+    } else if (pat < 20.5) {
+      // bazalt: yan yuzde dikey sutun derzleri ve yatay kiriklar, ustte kaydirilmis cokgen hucreler
+      if (vertical > 0.5) {
+        float cid = floor(t.x / 4.0);
+        float colW = 3.0 + floor(vxHash(vec3(cid, 0.0, 7.0)) * 2.0);
+        float seam = vxLine(t.x / colW, 0.035, aa / colW);
+        float band = vxLine(t.y / 9.0 + vxHash(vec3(floor(t.x / colW), 3.0, 1.0)), 0.025, aa / 9.0);
+        base *= (1.0 - max(seam, band * 0.6) * 0.5 * detail) * (0.9 + 0.2 * vxHash(vec3(floor(t.x / colW), 1.0, 5.0)));
+      } else {
+        vec2 g = t / 3.0;
+        g.x += 0.5 * mod(floor(g.y), 2.0);
+        vec2 fg = fract(g);
+        float ed = min(min(fg.x, 1.0 - fg.x), min(fg.y, 1.0 - fg.y));
+        base *= 1.0 - (1.0 - smoothstep(0.0, 0.07 + aa, ed)) * 0.5 * detail;
+        base *= 0.88 + 0.24 * vxHash(vec3(floor(g), 2.0));
+      }
+      base *= k;
+      vxRough = clamp(vxRough + (s - 0.5) * 0.2, 0.5, 1.0);
+    } else if (pat < 21.5) {
+      // curuf: kirmizimsi kahve, koyu gozenekler, pas tonlu lekeler
+      base *= k;
+      base *= 1.0 - 0.65 * step(0.8, s) * detail;
+      base = mix(base, base * vec3(1.4, 1.0, 0.8), step(0.86, s2) * 0.6 * detail);
+    } else if (pat < 22.5) {
+      // obsidyen: cam gibi siyah; voxel basina parlaklik, mor/yesil hare ve dalgali kirik izleri
+      float f = vxHash(cell + 3.1);
+      base *= 0.8 + 0.4 * f;
+      base = mix(base, base * vec3(0.75, 1.15, 1.6), step(0.68, f) * 0.6);
+      vxRough = 0.035 + 0.2 * h2;
+      float wav = vxLine((t.x + t.y * 0.6) * 0.7 + sin(t.y * 1.3 + h * 6.0) * 0.4, 0.035, aa);
+      base *= 1.0 - wav * 0.25 * detail;
+    } else if (pat < 23.5) {
+      // magma kaya: koyu kabuk + akkor catlaklar (yavas nabiz); renk = catlagin parlamasi
+      vec3 crust = vec3(0.04, 0.018, 0.012) * (0.8 + 0.4 * s);
+      vec2 w = t * 0.5;
+      w += vec2(vxHash(vec3(floor(w), 11.0)), vxHash(vec3(floor(w), 13.0))) * 0.35;
+      float c1 = vxLine(w.x + 0.3 * sin(w.y * 2.3 + h * 6.0), 0.06, aa);
+      float c2 = vxLine(w.y + 0.3 * sin(w.x * 1.7 + h2 * 6.0), 0.06, aa);
+      float crack = max(c1, c2) * mix(0.55, 1.0, detail);
+      float pulse = 0.7 + 0.3 * sin(uTime * 1.3 + h * 6.2831 + q.x * 0.2 + q.z * 0.15);
+      vxEmissive += base * (crack * mp.z * uEmissiveScale * 0.6 + 0.05) * pulse;
+      base = mix(crust, base * 0.35, crack);
+      vxRough = 0.9;
+    } else if (pat < 24.5) {
+      // mangal atesi: titreyen alev
+      float fl = 0.72 + 0.28 * sin(uTime * 13.0 + h * 20.0) * sin(uTime * 7.3 + q.y);
+      vxEmissive = base * mp.z * uEmissiveScale * fl;
+    } else {
+      // volkanik ucurum: koyu kaya, yanda katmanlar ve egik koyu akinti izleri, ustte kul serpintisi
+      base *= k * (1.0 - 0.3 * step(0.93, s));
+      if (vertical > 0.5) {
+        base *= mix(1.0, 0.8 + 0.28 * vxHash(vec3(0.0, floor(q.y / 3.0), floor((q.x + q.z) / 24.0))), detail);
+        float sx = (q.x + q.z) / 5.0;
+        float streak = vxLine(sx + vxHash(vec3(floor(sx), 0.0, 3.0)), 0.07, aa / 5.0);
+        base *= 1.0 - streak * 0.3 * detail;
+      }
+      if (top) base = mix(base, base * vec3(1.35, 1.3, 1.3), step(0.82, s2) * 0.5 * detail);
+    }
   } else if (pat > 12.5) {
     // dogal malzemeler: voxel alti (4x4) benek, cimen yanlarinda toprak, kabuk oluklari, cicekler
     vec2 sc = floor(t * 4.0);
@@ -237,7 +339,22 @@ float vxMetal = 0.0;`)
     float cr = vxHash(floor(q * 2.0 - vObjNormal * 0.25));
     p *= 1.0 - step(0.82, cr) * min(vDmg, 6.0) * 0.07;
   }
-  diffuseColor.rgb *= base * tint * var * bevel * p;
+  vec3 alb = base * tint * var * bevel * p;
+  diffuseColor.rgb *= alb;
+  // lav isigi: yakindaki lavin (ustten yakinlik haritasi) asagidan ve yandan vurdugu turuncu isik.
+  // Yukseldikce soner; asagi ve yana bakan yuzler daha cok alir.
+  if (uLavaOn > 0.5) {
+    float lg = texture2D(uLavaGlow, vWPos.xz * uLavaInv).r;
+    float hh = vWPos.y - uLavaY;
+    if (lg > 0.002 && hh > -0.3) {
+      float fall = exp(-max(hh, 0.0) * 0.8);
+      float face = vObjNormal.y < -0.5 ? 1.3 : (vObjNormal.y > 0.5 ? 0.45 : 1.0);
+      float fl = 0.86 + 0.14 * sin(uTime * 1.7 + vWPos.x * 0.6 + vWPos.z * 0.45);
+      float le = lg * fall * face * fl * uLavaGlowI;
+      le = le / (1.0 + le * 0.12);   // kiyida yumusak doyma (AgX acik ten rengine kacmasin)
+      vxEmissive += alb * vec3(1.0, 0.24, 0.035) * le;
+    }
+  }
 }
 `)
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vxRough;')

@@ -43,6 +43,7 @@ export class Actor {
     this.quad = 0; this.protect = 0;
     this.respawnTimer = 0;
     this.lastAttacker = null; this.lastHurtTime = -100;
+    this.lastAttackTime = -100;   // baskasindan son hasar (lava itme parcalamasi icin; kendi roketi sayilmaz)
     this.lastFireTime = -100;
     this.decayTimer = 0;
     this.killer = null;
@@ -110,7 +111,7 @@ export class Actor {
     this.armor -= absorbed;
     const real = dmg - absorbed;
     this.health -= real;
-    if (attacker && attacker !== this) this.lastAttacker = attacker;
+    if (attacker && attacker !== this) { this.lastAttacker = attacker; this.lastAttackTime = this.game.time; }
     this.lastHurtTime = this.game.time;
     this.game.onDamage(this, attacker, dmg, dir, head, weaponId);
     if (this.health <= 0) this.die(attacker, weaponId, head);

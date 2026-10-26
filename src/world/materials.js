@@ -35,6 +35,15 @@ export const M = {
   ROCK: 29,
   CLIFF: 30,
   FLOWER: 31,
+  // volkan haritasi (karanlik, lavli cayir)
+  ASH: 32,
+  BASALT: 33,
+  SCORIA: 34,
+  OBSIDIAN: 35,
+  MAGMA: 36,
+  VCLIFF: 37,
+  FIRE: 38,
+  BASALT_BRICK: 39,
 };
 
 // [id, ad, renk, puruzluluk, metallik, emissive, tough, ses]
@@ -70,9 +79,21 @@ const DEFS = [
   [M.ROCK, 'kaya', 0x7d7a72, 0.85, 0.0, 0, 175, 'stone'],
   [M.CLIFF, 'ucurum', 0x6e685e, 0.9, 0.0, 0, 255, 'stone'],
   [M.FLOWER, 'cicek', 0x5d8c34, 0.9, 0.0, 0, 40, 'dirt'],
+  [M.ASH, 'kul', 0x57514e, 1.0, 0.0, 0, 38, 'dirt'],
+  [M.BASALT, 'bazalt', 0x41444c, 0.78, 0.0, 0, 160, 'stone'],
+  [M.SCORIA, 'curuf', 0x5a3b31, 1.0, 0.0, 0, 64, 'stone'],
+  [M.OBSIDIAN, 'obsidyen', 0x1a1520, 0.1, 0.3, 0, 110, 'glass'],
+  // magma kaya: renk catlaklarin parlamasi (kabuk golgelendiricide koyu); kirilinca parlayan enkaz
+  [M.MAGMA, 'magma kaya', 0xff5a16, 0.85, 0.0, 0.9, 150, 'stone'],
+  [M.VCLIFF, 'volkanik ucurum', 0x37322f, 0.88, 0.0, 0, 255, 'stone'],
+  [M.FIRE, 'mangal atesi', 0xff8a2a, 0.3, 0.0, 1.0, 40, 'glass'],
+  [M.BASALT_BRICK, 'bazalt tas', 0x4d4745, 0.9, 0.0, 0, 125, 'stone'],
 ];
 
-export const MAT_COUNT = 32;
+export const MAT_COUNT = 40;
+
+// isigi bir statik isiga bagli malzemeler: yikilinca isik soner (lamba, mangal atesi)
+export const LAMP_MATS = new Set([M.LAMP, M.FIRE]);
 export const MAT_NAME = new Array(MAT_COUNT).fill('');
 export const MAT_COLOR = new Uint32Array(MAT_COUNT);     // sRGB 0xRRGGBB
 export const MAT_ROUGH = new Float32Array(MAT_COUNT).fill(1);

@@ -58,6 +58,7 @@ export class Debris {
   update(dt) {
     const w = this.world, inv = 1 / VS;
     const solid = (x, y, z) => w.solid(Math.floor(x * inv), Math.floor(y * inv), Math.floor(z * inv));
+    const lavaMask = w.lavaMask, lavaY = w.lavaY;
     let i = 0;
     while (i < this.count) {
       let l = this.life[i] + dt;
@@ -70,6 +71,14 @@ export class Debris {
       // icine gomulduyse (dunya degisti) yok et
       if (solid(x, y, z) && solid(x, y + VS, z)) { this._kill(i); continue; }
       let nx = x + vx * dt, ny = y + vy * dt, nz = z + vz * dt;
+      // lava dusen parca erir (kucuk kor)
+      if (lavaMask && ny < lavaY) {
+        const X = Math.floor(nx * inv), Z = Math.floor(nz * inv);
+        if (X >= 0 && Z >= 0 && X < w.sx && Z < w.sz && lavaMask[X + w.sx * Z] && !solid(nx, ny, nz)) {
+          if (this.onLava) this.onLava(nx, lavaY, nz);
+          this._kill(i); continue;
+        }
+      }
       let ground = false;
       if (solid(x, ny - hs, z)) {
         if (vy < 0) {

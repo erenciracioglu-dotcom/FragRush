@@ -162,6 +162,50 @@ export class Audio {
     if (f) f.call(this, x, y, z, vol, local);
   }
 
+  // surekli lav ugultusu (volkan haritasi). k: 0..1 yakinlik (LavaSystem.ambience); 0 sessizlestirir.
+  // Dugumler ilk ihtiyacta kurulur; harita degisince stopLavaAmbience() hepsini durdurur.
+  setLavaAmbience(k) {
+    if (!this.ctx || !this.enabled) return;
+    if (typeof document !== 'undefined' && document.hidden) k = 0;
+    let A = this.lavaAmb;
+    if (!A) {
+      if (k <= 0.001) return;
+      const ctx = this.ctx;
+      const src = ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 150; lp.Q.value = 1.1;
+      const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass'; lp2.frequency.value = 260; lp2.Q.value = 0.5;
+      const body = ctx.createGain(); body.gain.value = 2.5;
+      const hiss = ctx.createBiquadFilter(); hiss.type = 'bandpass'; hiss.frequency.value = 2400; hiss.Q.value = 0.7;
+      const gHiss = ctx.createGain(); gHiss.gain.value = 0.08;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      // yavas dalgalanma: ugultu nefes alir gibi kabarip soner
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.13;
+      const lfoG = ctx.createGain(); lfoG.gain.value = 0.9;
+      lfo.connect(lfoG); lfoG.connect(body.gain);
+      src.connect(lp); lp.connect(lp2); lp2.connect(body); body.connect(g);
+      src.connect(hiss); hiss.connect(gHiss); gHiss.connect(g);
+      g.connect(this.master);
+      src.start(); lfo.start();
+      A = this.lavaAmb = { src, lfo, g, k: 0 };
+      if (!this._visHook && typeof document !== 'undefined') {
+        this._visHook = true;
+        // sekme gizlenince oyun dongusu durur; ugultu asili kalmasin
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.setLavaAmbience(0); });
+      }
+    }
+    if (Math.abs(k - A.k) < 0.01) return;
+    A.k = k;
+    A.g.gain.setTargetAtTime(Math.max(0.0001, k * 0.1), this.ctx.currentTime, 0.35);
+  }
+
+  stopLavaAmbience() {
+    const A = this.lavaAmb;
+    if (!A) return;
+    this.lavaAmb = null;
+    try { A.src.stop(); A.lfo.stop(); } catch (e) { /* zaten durmus */ }
+    A.g.disconnect();
+  }
+
   // ---- tarifler ----
   _tone(type, f0, f1, dur, peak, out, t, attack = 0.002) {
     const o = this.ctx.createOscillator(); o.type = type;
@@ -243,6 +287,33 @@ export class Audio {
   s_plunge(x, y, z, v) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.3 * v, 0.3); this._noise('lowpass', 900, 120, 0.8, 0.6, 0.9, o, t, 0.01); for (let i = 0; i < 5; i++) this._tone('sine', 350 + Math.random() * 300, 700, 0.06, 0.15, o, t + 0.05 + Math.random() * 0.4); }); }
   s_gurgle(x, y, z, v, local) { this._voice(0.9, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.38 * v, 0.3); for (let i = 0; i < 9; i++) this._tone('sine', 180 + Math.random() * 260, 420 + Math.random() * 300, 0.07, 0.35, o, t + i * 0.07 + Math.random() * 0.03); this._noise('lowpass', 400, 120, 1, 0.5, 0.4, o, t, 0.02); }); }
   s_gasp(x, y, z, v, local) { this._voice(0.9, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.4 * v, 0.3); this._noise('bandpass', 1800, 900, 2.2, 0.5, 0.9, o, t, 0.06); this._noise('bandpass', 1100, 1500, 2.5, 0.35, 0.6, o, t + 0.45, 0.04); }); }
+  // lav sesleri: yanma cizirtisi, kabarcik patlamasi, lava carpan mermi
+  s_sizzle(x, y, z, v, local) {
+    this._voice(1.6, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.7 * v, 0.8);
+      this._noise('highpass', 5200, 2600, 0.7, 1.3, 0.9, o, t, 0.01);
+      this._noise('bandpass', 1800, 700, 1.2, 0.9, 0.6, o, t + 0.02, 0.02);
+      this._tone('sine', 120, 40, 0.6, 0.7, o, t);
+      for (let i = 0; i < 8; i++) this._noise('bandpass', 2500 + Math.random() * 3000, 1500, 5, 0.03, 0.4, o, t + 0.05 + Math.random() * 1.0);
+    });
+  }
+  s_lavaPop(x, y, z, v, local) {
+    this._voice(0.5, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.45 * v, 0.6);
+      const f = 70 + Math.random() * 60;
+      this._tone('sine', f * 2.2, f, 0.18, 0.7, o, t, 0.005);
+      this._noise('lowpass', 900, 200, 1, 0.16, 0.5, o, t + 0.01);
+      this._noise('highpass', 4000, 3000, 0.7, 0.25, 0.12, o, t + 0.05, 0.02);
+    });
+  }
+  s_lavaHit(x, y, z, v, local) {
+    this._voice(1.0, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.55 * v, 1);
+      this._tone('sine', 110, 38, 0.4, 0.9, o, t);
+      this._noise('lowpass', 1600, 160, 0.9, 0.5, 0.8, o, t);
+      this._noise('highpass', 4800, 2500, 0.7, 0.7, 0.45, o, t + 0.05, 0.02);
+    });
+  }
   s_botDeath(x, y, z, v, local) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 1); this._tone('square', 900, 90, 0.5, 0.3, o, t); this._noise('bandpass', 1500, 300, 1, 0.4, 0.8, o, t); }); }
   s_playerDeath(x, y, z, v) { this._voice(1.2, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.45 * v, 1); this._tone('sawtooth', 300, 40, 1.0, 0.35, o, t); this._noise('lowpass', 1200, 80, 0.8, 0.9, 0.6, o, t); }); }
 }

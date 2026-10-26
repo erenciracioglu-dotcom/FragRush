@@ -1,6 +1,6 @@
 // Bot yapay zekasi: algi, hedef secimi, A* ile gezinme, siper patlatma, nisan + atis.
 import * as THREE from 'three';
-import { VS } from '../config.js';
+import { VS, MOVE, GRAVITY } from '../config.js';
 import { Actor } from './actor.js';
 import { BotModel } from './botModel.js';
 import { WEAPONS } from './weapons.js';
@@ -309,6 +309,54 @@ export class Bot extends Actor {
     if (this.stuckT > 2.6 && this.weapons.ammo[2] > 0) this.stuckBlast = true;
     if (this.stuckT > 5) { this.stuckT = 0; this.path = null; this.goal = null; this.goalItem = null; }
     if (this.detourT > 0) { this.detourT -= dt; mx = this.detourX; mz = this.detourZ; }
+    // lav korumasi: yalniz istenen yona degil, govdenin hizina da bakar (9.6 m/s'de kayma ~1 m; kiyi
+    // egiminden asagi kosan bot havalanip lava ucuyordu). Zemin izlenir: basamak, inis, ucurumdan dusus.
+    //  - hiz lava goturuyorsa fren: hizin tersine iste (yerde ~200 m/s2, havada ~17 m/s2)
+    //  - istenen yon lava goturuyorsa yan yonleri dene, olmazsa dur
+    //  - ziplama / atilma: inis yeri lavsa yapma (ziplayan bot ~6 m, atilan ~6 m gider)
+    if (this.game.lavaSys.active) {
+      const v = m.vel, s = Math.hypot(v.x, v.z);
+      const ws = MOVE.runSpeed * m.speedMul;
+      if (m.padLock > 0) this.padFlightT = 1.8;
+      this.padFlightT = m.onGround ? 0 : Math.max(0, (this.padFlightT || 0) - dt);
+      let brake = false;
+      if (!m.onGround) {
+        // havada: inis lavdaysa fren. Darbeyle firlatildiysa ilk anlarda sersem (lava itme oyunun parcasi),
+        // ped ucusunda yorungeye karisma.
+        if (s > 0.5 && this.padFlightT <= 0 && this.game.time - this.lastHurtTime > 0.45 &&
+          this._trajLava(p.x, p.y, p.z, v.x, v.y, v.z, 0.3)) brake = true;
+      } else if (s > 0.8 && this._runLava(p.x, p.y, p.z, v.x / s, v.z / s, 0.45 + s * 0.1, s)) brake = true;
+      if (brake) {
+        mx = -v.x / Math.max(s, 1e-3); mz = -v.z / Math.max(s, 1e-3);
+        jump = false; dash = false;
+        this.detourT = 0;
+      } else if (mx !== 0 || mz !== 0) {
+        const l = Math.hypot(mx, mz), ux = mx / l, uz = mz / l;
+        const look = 0.7 + Math.max(s, ws * 0.5) * 0.09, rs = Math.max(s, ws * 0.6);
+        if (this._runLava(p.x, p.y, p.z, ux, uz, look, rs)) {
+          let found = false;
+          for (const [ax, az] of [[-uz, ux], [uz, -ux], [-ux, -uz]]) {
+            if (!this._runLava(p.x, p.y, p.z, ax, az, look, rs)) { mx = ax * l; mz = az * l; found = true; break; }
+          }
+          if (!found) { mx = 0; mz = 0; }
+          jump = false; dash = false;
+          this.detourT = 0;
+        }
+      }
+      if (jump && m.onGround) {
+        const l = Math.hypot(mx, mz) || 1;
+        if (this._trajLava(p.x, p.y, p.z, v.x, MOVE.jumpVel, v.z, 0.4) ||
+          this._trajLava(p.x, p.y, p.z, mx / l * ws, MOVE.jumpVel, mz / l * ws, 0.4)) jump = false;
+      }
+      if (dash) {
+        let dx = mx, dz = mz, l = Math.hypot(dx, dz);
+        if (l < 1e-6) { dx = -Math.sin(this.yaw); dz = -Math.cos(this.yaw); l = 1; }
+        // ziplarken atilma: ~17.5 m/s yatay + ziplama hizi (en uzun ucus)
+        const sp = Math.max(MOVE.dashSpeed, s * 1.05);
+        const vy0 = jump ? MOVE.jumpVel : m.onGround ? MOVE.dashUp : 1.2;
+        if (this._trajLava(p.x, p.y, p.z, dx / l * sp, vy0, dz / l * sp, 1.2)) dash = false;
+      }
+    }
     // yuze gore ileri/yan
     const fy = this.yaw;
     const fx = -Math.sin(fy), fz = -Math.cos(fy), rx = Math.cos(fy), rz = -Math.sin(fy);
@@ -327,12 +375,62 @@ export class Bot extends Actor {
     const p = this.mover.pos, w = this.game.world;
     const ax = p.x + mx / l * 0.9, az = p.z + mz / l * 0.9;
     if (w.solidAtWorld(ax, p.y + 0.8, az) || w.solidAtWorld(ax, p.y + 1.5, az)) return true;
+    // lava dogru yurume
+    if (this.game.lavaSys.active && this._runLava(p.x, p.y, p.z, mx / l, mz / l, 1.3, MOVE.runSpeed * this.mover.speedMul * 0.6)) return true;
     // derin suya bilerek girme (yuzerken ates edemez, bogulabilir)
     if (w.waterY > -1e9 && !this.mover.swimming) {
       const bx = p.x + mx / l * 1.3, bz = p.z + mz / l * 1.3;
       let ground = -1e9;
       for (let y = p.y + 0.3, k = 0; k < 20; k++, y -= 0.25) if (w.solidAtWorld(bx, y, bz)) { ground = y; break; }
       if (w.waterY - ground > 0.9) return true;
+    }
+    return false;
+  }
+
+  // (x,y,z)'den (ux,uz) yonunde dist metre yerde kosulursa lava girer mi. Zemin izlenir: adim yuksekligi kadar
+  // cikar, ~0.7 m'ye kadar iner; zemin daha cok dusuyorsa o noktadan speed hiziyla dusus yorungesine bakar.
+  // Duvar ya da alcak tavan o yonde ilerlemeyi keser (lav degil).
+  _runLava(x, y, z, ux, uz, dist, speed, depth = 0) {
+    const ls = this.game.lavaSys, w = this.game.world;
+    const n = Math.max(1, Math.ceil(dist / VS)), st = dist / n;
+    for (let i = 1; i <= n; i++) {
+      const px = x + ux * st * i, pz = z + uz * st * i;
+      const X = Math.floor(px / VS), Z = Math.floor(pz / VS);
+      // en yuksek cikilabilir zemin voxeli: ustu y + adim yuksekligini gecmeyen
+      const top = Math.floor((y + MOVE.stepHeight) / VS) - 1, bot = Math.floor((y - 0.7) / VS);
+      let gy = -1;
+      for (let vy = top; vy >= bot; vy--) if (w.solid(X, vy, Z)) { gy = vy + 1; break; }
+      // ucurum / krater kenari: dusus, inince egimden kayma da (en cok iki kademe)
+      if (gy < 0) return this._trajLava(px, y, pz, ux * speed, 0, uz * speed, depth < 2 ? 0.3 : 0, depth + 1);
+      if (w.solid(X, gy, Z) || w.solid(X, gy + 2, Z) || w.solid(X, gy + 5, Z)) return false;
+      y = gy * VS;
+      if (y <= ls.level + 0.08 && ls.isLava(px, Math.min(y + 0.05, ls.level - 0.05), pz)) return true;
+    }
+    return false;
+  }
+
+  // (x,y,z)'den (vx,vy,vz) hiziyla serbest ucus: lava duserse true. Duvara carparsa onunde dikey duser.
+  // margin > 0: inis noktasindan hiz yonunde margin + kayma kadar zemin de taranir.
+  _trajLava(x, y, z, vx, vy, vz, margin = 0, depth = 0) {
+    const ls = this.game.lavaSys, w = this.game.world;
+    const sh = Math.hypot(vx, vz);
+    for (let t = 0; t < 2.2;) {
+      const dt = Math.min(0.035, 0.22 / Math.max(1, sh, Math.abs(vy)));
+      t += dt;
+      vy = Math.max(-MOVE.maxFallSpeed, vy - GRAVITY * dt);
+      const nx = x + vx * dt, ny = y + vy * dt, nz = z + vz * dt;
+      if (ny <= ls.level + 0.08 && ls.isLava(nx, Math.min(ny + 0.05, ls.level - 0.05), nz)) return true;
+      if (w.solidAtWorld(nx, ny, nz)) {
+        const ty = (Math.floor(ny / VS) + 1) * VS;
+        if (vy > 0 || ty > y + 1e-3) {
+          // duvar / tavan: yatay hiz biter, buradan asagi dusus
+          for (let yy = y; yy > ls.level - 0.3; yy -= VS) if (w.solidAtWorld(x, yy, z)) return false;
+          return ls.isLava(x, ls.level - 0.05, z);
+        }
+        if (margin > 0 && sh > 0.5) return this._runLava(nx, ty, nz, vx / sh, vz / sh, margin + sh * 0.06, sh, depth);
+        return false;
+      }
+      x = nx; y = ny; z = nz;
     }
     return false;
   }

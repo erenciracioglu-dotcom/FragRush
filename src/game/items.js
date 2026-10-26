@@ -57,7 +57,7 @@ export class Items {
       const T = ITEM_TYPES[d.type];
       const mesh = makeMesh(d.type);
       game.scene.add(mesh);
-      const it = { type: d.type, pos: new THREE.Vector3(d.x, d.y, d.z), active: !T.initial, timer: T.initial || 0, mesh, phase: Math.random() * 6, fallV: 0, noBots: !!d.noBots };
+      const it = { type: d.type, pos: new THREE.Vector3(d.x, d.y, d.z), home: new THREE.Vector3(d.x, d.y, d.z), active: !T.initial, timer: T.initial || 0, mesh, phase: Math.random() * 6, fallV: 0, noBots: !!d.noBots };
       mesh.position.set(d.x, d.y + 0.65, d.z);
       mesh.visible = it.active;
       return it;
@@ -93,6 +93,13 @@ export class Items {
       if (!below) {
         it.fallV += 22 * dt;
         it.pos.y -= it.fallV * dt;
+        // lava dustu: yanar; suresi dolunca ilk yerinde yeniden belirir
+        if (game.lavaSys && game.lavaSys.isLava(it.pos.x, it.pos.y, it.pos.z)) {
+          game.lavaSys.splash(it.pos.x, it.pos.z, 0.6);
+          it.active = false; it.mesh.visible = false; it.timer = ITEM_TYPES[it.type].respawn;
+          it.pos.copy(it.home); it.fallV = 0;
+          continue;
+        }
         if (it.pos.y < 0.5) it.pos.y = 0.5;
         if (w.solidAtWorld(it.pos.x, it.pos.y - 0.05, it.pos.z)) { it.pos.y = (Math.floor((it.pos.y - 0.05) / VS) + 1) * VS; it.fallV = 0; }
       } else if (w.solidAtWorld(it.pos.x, it.pos.y + 0.1, it.pos.z)) {

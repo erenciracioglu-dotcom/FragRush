@@ -181,8 +181,8 @@ export class HUD {
   }
 
   death(killerName, weaponLabel, self, weaponId) {
-    const drown = weaponId === 'drown';
-    this.el.deathTitle.textContent = drown ? t('youDrowned') : self ? t('selfKill') : t('youDied');
-    this.el.deathBy.textContent = drown ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
+    const drown = weaponId === 'drown', lava = weaponId === 'lava';
+    this.el.deathTitle.textContent = drown ? t('youDrowned') : lava ? t('youBurned') : self ? t('selfKill') : t('youDied');
+    this.el.deathBy.textContent = drown || (lava && self) ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
   }
 }

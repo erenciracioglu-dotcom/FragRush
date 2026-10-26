@@ -5,10 +5,11 @@ import { VoxelWorld } from '../world/voxelWorld.js';
 import { LEVELS, resolveLevel } from '../world/levels.js';
 import { MeshWorkers, ChunkManager } from '../world/chunkManager.js';
 import { createVoxelMaterial, voxelUniforms } from '../world/voxelMaterial.js';
-import { M } from '../world/materials.js';
+import { M, LAMP_MATS } from '../world/materials.js';
 import { createSky, createEnvironment } from '../fx/sky.js';
 import { WaterSystem } from '../fx/water.js';
 import { MEADOW_SKY, MEADOW_WATER, createHills } from '../fx/environments.js';
+import { LavaSystem, VOLCANO_ENV, VOLCANO_HILLS, createVolcanoSky, createVolcanoEnvironment, volcanoKeyDir } from '../fx/lava.js';
 import { PostFX, QUALITY } from '../fx/post.js';
 import { Effects } from '../fx/effects.js';
 import { Destruction } from './destruction.js';
@@ -25,10 +26,12 @@ import { WEAPONS } from './weapons.js';
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 
-const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown']);
+const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava']);
+// lava dusen biri son bu kadar saniye icinde vurulduysa (itildiyse) parcalama vurana yazilir
+const LAVA_PUSH_CREDIT = 4;
 // statik nokta isiklari her haritada bu kadar (sayi degisirse tum malzemeler yeniden derlenir)
 const STATIC_LIGHTS = 10;
-const ARENA_ENV = { fog: 0x5d5a74, fogDensity: 0.0088, sun: 0xffdcb8, sunIntensity: 3.2, hemi: 0.38, envIntensity: 0.9 };
+const ARENA_ENV = { fog: 0x5d5a74, fogDensity: 0.0088, sun: 0xffdcb8, sunIntensity: 3.2, hemi: 0.38, hemiSky: 0x8a9ad8, hemiGround: 0x3a3030, envIntensity: 0.9 };
 
 export class Game {
   constructor(canvas, settings, { hud, audio, input }) {
@@ -94,10 +97,15 @@ export class Game {
     sun.shadow.radius = 2;
     scene.add(sun, sun.target);
     this.sun = sun;
-    this.hemi = new THREE.HemisphereLight(0x8a9ad8, 0x3a3030, ARENA_ENV.hemi);
+    this.hemi = new THREE.HemisphereLight(ARENA_ENV.hemiSky, ARENA_ENV.hemiGround, ARENA_ENV.hemi);
     scene.add(this.hemi);
     this.hills = createHills(center);
     scene.add(this.hills);
+    // volkan haritasi: karanlik gokyuzu + koyu uzak tepeler (yalniz o haritada gorunur)
+    this.volcanoSky = createVolcanoSky();
+    scene.add(this.volcanoSky.mesh);
+    this.volcanoHills = createHills(center, VOLCANO_HILLS);
+    scene.add(this.volcanoHills);
 
     mk('setup');
     this.world = new VoxelWorld(WORLD.X, WORLD.Y, WORLD.Z);
@@ -115,6 +123,10 @@ export class Game {
     this.staticLights = [];
     this.items = null;
     this.waterSys = new WaterSystem(this);
+    this.lavaSys = new LavaSystem(this);
+    this.fx.debris.onLava = this.fx.glowDebris.onLava = (x, y, z) => {
+      if (Math.random() < 0.25) this.fx.add.emit(x, y + 0.05, z, 0, 1.5, 0, 0.5, 0.05, 0.02, [5, 1.2, 0.15, 1], [1, 0.1, 0, 0], 2, 0.5, 0.01);
+    };
 
     mk('systems');
     await this.buildArena(this.settings.seed || ((Math.random() * 1e9) | 0), onProgress);
@@ -201,7 +213,7 @@ export class Game {
       if (L.voxR) {
         const cx = Math.floor(L.x / VS), cy = Math.floor(L.y / VS), cz = Math.floor(L.z / VS);
         for (let y = cy - 2; y <= cy + 4; y++) for (let z = cz - 4; z <= cz + 4; z++) for (let x = cx - 4; x <= cx + 4; x++) {
-          if (w.get(x, y, z) === M.LAMP) lamps.push(w.idx(x, y, z));
+          if (LAMP_MATS.has(w.get(x, y, z))) lamps.push(w.idx(x, y, z));
         }
       }
       this.staticLights.push({ light: pl, def: L, on: true, lamps, base: L.intensity });
@@ -245,7 +257,7 @@ export class Game {
     } catch (e) { console.warn(e); }
   }
 
-  // map: 'arena' | 'meadow' (verilmezse ayara gore; 'rotate' sirayla)
+  // map: 'arena' | 'meadow' | 'volcano' (verilmezse ayara gore; 'rotate' sirayla)
   async newArena(onProgress, map = null) {
     this.state = 'loading';
     await this.buildArena((Math.random() * 1e9) | 0, onProgress, map);
@@ -256,7 +268,30 @@ export class Game {
   applyEnvironment(arena) {
     const scene = this.scene, ws = this.waterSys, c = this.center;
     const meadow = arena.env === 'meadow';
-    if (meadow) {
+    const volcano = arena.env === 'volcano';
+    this.volcanoSky.mesh.visible = false;
+    this.volcanoHills.visible = false;
+    if (volcano) this.lavaSys.setup(arena.lava); else this.lavaSys.disable();
+    if (volcano) {
+      // volkan: karanlik kul gokyuzu, ufuktaki patlamanin alcak turuncu isigi (golge), soguk mor ortam
+      ws.disable();
+      if (!this._volcanoEnv) this._volcanoEnv = createVolcanoEnvironment(this.renderer);
+      scene.background = null;
+      scene.environment = this._volcanoEnv;
+      scene.environmentIntensity = VOLCANO_ENV.envIntensity;
+      this.sky.mesh.visible = false;
+      this.volcanoSky.mesh.visible = true;
+      volcanoKeyDir(this.sunDir);
+      this.sun.color.set(VOLCANO_ENV.key);
+      this.sun.intensity = VOLCANO_ENV.keyIntensity;
+      scene.fog.color.set(VOLCANO_ENV.fog);
+      scene.fog.density = VOLCANO_ENV.fogDensity;
+      this.hemi.color.set(VOLCANO_ENV.hemiSky);
+      this.hemi.groundColor.set(VOLCANO_ENV.hemiGround);
+      this.hemi.intensity = VOLCANO_ENV.hemi;
+      this.hills.visible = false;
+      this.volcanoHills.visible = true;
+    } else if (meadow) {
       // ?nowater: su cizimi kapali (yalnizca olcum icin; oyun kurallari ayni)
       if (new URLSearchParams(location.search).has('nowater')) ws.disable(); else ws.setup({ water: MEADOW_WATER, sky: MEADOW_SKY, y: arena.water.y, flow: arena.water.flow, depth: arena.water.depth, worldSize: [WORLD.X * VS, WORLD.Z * VS] }, this.settings.quality);
       if (!this._meadowEnv && !ws.sky) ws.setup({ water: MEADOW_WATER, sky: MEADOW_SKY, y: arena.water.y, flow: null, depth: null, worldSize: [WORLD.X * VS, WORLD.Z * VS] }, this.settings.quality), ws.disable();
@@ -293,6 +328,8 @@ export class Game {
       this.sun.intensity = ARENA_ENV.sunIntensity;
       scene.fog.color.set(ARENA_ENV.fog);
       scene.fog.density = ARENA_ENV.fogDensity;
+      this.hemi.color.set(ARENA_ENV.hemiSky);
+      this.hemi.groundColor.set(ARENA_ENV.hemiGround);
       this.hemi.intensity = ARENA_ENV.hemi;
       this.hills.visible = false;
     }
@@ -464,7 +501,7 @@ export class Game {
     }
     if (hud) {
       const involves = victim.isPlayer || (killer && killer.isPlayer);
-      if (!killer || killer === victim) hud.feed(null, victim, weaponId === 'crush' ? t('crushedFeed') : weaponId === 'drown' ? t('drownedFeed') : t('blewUp'), involves);
+      if (!killer || killer === victim) hud.feed(null, victim, weaponId === 'crush' ? t('crushedFeed') : weaponId === 'drown' ? t('drownedFeed') : weaponId === 'lava' ? t('lavaFeed') : t('blewUp'), involves);
       else hud.feed(killer, victim, label, involves);
     }
     if (killer && killer.isPlayer && killer !== victim) {
@@ -477,6 +514,7 @@ export class Game {
         const msgs = { 2: t('multi2'), 3: t('multi3'), 4: t('multi4'), 5: t('multi5') };
         if (mk.n >= 2) hud.centerMsg(msgs[Math.min(5, mk.n)], 2.0);
         else if (weaponId === 'crush') hud.centerMsg(t('buried'), 1.8);
+        else if (weaponId === 'lava') hud.centerMsg(t('lavaKill'), 1.8);
         else if (head) hud.centerMsg(t('headshot'), 1.4);
         else hud.centerMsg(t('fragged'), 1.2);
         const st = killer.streak;
@@ -507,6 +545,18 @@ export class Game {
       a.rippleT = (a.rippleT || 0) - dt * (0.5 + sp * 0.6);
       if (a.rippleT <= 0) { a.rippleT = 0.55; ws.ripple(p.x, p.z, 0.35, 0.012 + Math.min(0.03, sp * 0.005)); }
     }
+  }
+
+  // lava dustu: aninda olum (zirh, dogma korumasi fark etmez). Son LAVA_PUSH_CREDIT sn icinde biri vurduysa
+  // (patlamayla ya da mermiyle ittiyse) parcalama onun; yoksa kendini parcalama sayilir (-1).
+  lavaDeath(a) {
+    const p = a.mover.pos;
+    this.lavaSys.burn(p.x, p.y, p.z);
+    if (this.audio) this.audio.play('sizzle', p.x, p.y + 0.5, p.z, 1.3, a.isPlayer);
+    const k = a.lastAttacker;
+    const pusher = k && k !== a && this.time - a.lastAttackTime < LAVA_PUSH_CREDIT && this.actors.includes(k) ? k : null;
+    a.health = 0;
+    a.die(pusher, 'lava', false);
   }
 
   // bogulma hasari: hirilti + kabarcik
@@ -604,6 +654,7 @@ export class Game {
           a.tickStats(dt);
           this.checkPads(a);
           this.waterEvents(a, dt);
+          if (this.lavaSys.active && this.lavaSys.actorInLava(a.mover)) { this.lavaDeath(a); continue; }
           if (a.mover.pos.y < -4) a.takeDamage(999, null, 'world', null, false);
         } else {
           a.respawnTimer -= dt;
@@ -641,6 +692,10 @@ export class Game {
       if (this.audio) this.audio.setUnderwater(this.waterSys.underwater);
       // tamamen su altindayken AO gereksiz (su ici sisin ustune golge dusurmesin)
       if (this.post && this.post.n8) this.post.n8.enabled = !(med && med.mode === 'water');
+    }
+    if (this.lavaSys.active) {
+      this.volcanoSky.uniforms.uTime.value = this.time;
+      this.lavaSys.update(paused ? 0 : dt, this.camera);
     }
     // nisangahtaki hedef (ad etiketi icin)
     this.aimTarget = null;
@@ -696,7 +751,7 @@ export class Game {
     for (const L of this.staticLights) {
       if (!L.on || !L.lamps.length) continue;
       let alive = 0;
-      for (const i of L.lamps) if (w.mat[i] === M.LAMP) alive++;
+      for (const i of L.lamps) if (LAMP_MATS.has(w.mat[i])) alive++;
       if (alive < L.lamps.length * 0.35) {
         L.on = false;
         L.light.intensity = 0;
@@ -759,7 +814,7 @@ export class Game {
     const c = this.center;
     // yuksekten genis yorunge: catilarin (11.5 m) ve antenin ustunde, tum arena gorunsun
     // (cayirda buyuk mesenin tacindan disarida, golu ve dereyi gorecek kadar genis)
-    const O = this.mapId === 'meadow' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
+    const O = this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
     const r = O.r + Math.sin(a.t * 0.11) * 2;
     this.camera.position.set(c.x + Math.cos(t) * r, O.y + Math.sin(a.t * 0.07) * 1.5, c.z + Math.sin(t) * r);
     _v.set(c.x + Math.cos(t + 0.6) * O.tr, O.ty, c.z + Math.sin(t + 0.6) * O.tr);
@@ -769,6 +824,7 @@ export class Game {
 
   render(dt) {
     this.sky.mesh.position.copy(this.camera.position);
+    this.volcanoSky.mesh.position.copy(this.camera.position);
     this.renderer.info.reset();
     this.post.render(dt);
   }

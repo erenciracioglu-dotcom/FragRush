@@ -23,11 +23,12 @@ export const MEADOW_WATER = {
 
 // Uzak tepeler ve orman silueti: ucurumlarin ustunden bakinca dunya bitmis gibi gorunmesin.
 // Sis onlari ufuk rengine bogar; golge yok, carpisma yok.
-export function createHills(center) {
+// pal: { near, far, rock } (verilmezse cayirin yesil/mavi tonlari)
+export function createHills(center, pal = null) {
   const SEG = 160, RINGS = 8;
   const radii = [44, 74, 82, 95, 120, 160, 220, 320];
   const pos = [], col = [], idx = [];
-  const near = new THREE.Color(0x3d5a2c), far = new THREE.Color(0x5b7088), rock = new THREE.Color(0x6b6a64);
+  const near = new THREE.Color(pal ? pal.near : 0x3d5a2c), far = new THREE.Color(pal ? pal.far : 0x5b7088), rock = new THREE.Color(pal ? pal.rock : 0x6b6a64);
   for (let r = 0; r < RINGS; r++) {
     for (let s = 0; s < SEG; s++) {
       const a = s / SEG * Math.PI * 2;

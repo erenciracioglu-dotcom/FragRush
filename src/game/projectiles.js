@@ -141,6 +141,19 @@ export class Projectiles {
         fx.splash(sx, L, sz, p.W.id === 'rocket' ? 0.7 : 0.25);
         game.waterSys.ripple(sx, sz, 0.35, p.W.id === 'rocket' ? 0.06 : 0.025);
       }
+      // lav yuzeyine dustu: yuzeyde patlar, lav sicrar
+      const ls = game.lavaSys;
+      if (ls.active && py0 >= ls.level && p.pos.y < ls.level) {
+        const f = (ls.level - py0) / (p.pos.y - py0);
+        const lx = p.pos.x - p.vel.x * dt * (1 - f), lz = p.pos.z - p.vel.z * dt * (1 - f);
+        if (ls.isLava(lx, ls.level - 0.05, lz)) {
+          ls.splash(lx, lz, p.W.id === 'rocket' ? 1.3 : 0.35);
+          if (game.audio) game.audio.play('lavaHit', lx, ls.level, lz, p.W.id === 'rocket' ? 1.2 : 0.6);
+          this.explode(p, lx, ls.level, lz, 0, 1, 0, null);
+          this._release(p); list.splice(i, 1);
+          continue;
+        }
+      }
       const vx = p.pos.x + p.vis.x, vy = p.pos.y + p.vis.y, vz = p.pos.z + p.vis.z;
       if (p.W.id === 'rocket') {
         p.mesh.position.set(vx, vy, vz);

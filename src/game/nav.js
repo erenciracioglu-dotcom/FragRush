@@ -43,6 +43,7 @@ export class NavGrid {
     this.edge = new Int8Array(nc * L * 8);   // hedef kat indeksi ya da -1
     this.etype = new Uint8Array(nc * L * 8);
     this.wet = new Uint8Array(nc * L);       // dugum sigda (su ayak bileginden yukarida)
+    this.hot = new Uint8Array(nc * L);       // dugum lav kenarinda (yol bulmada pahali)
     this.pads = new Map();                   // node -> [{to, cost}]
     this.dirtyCells = new Set();
     // A* tamponlari
@@ -93,9 +94,12 @@ export class NavGrid {
     const base = c * L;
     // derin su (ayak 1 m'den derinde: yuzulur) gezinme agina girmez
     const wv = w.waterY > -1e9 ? Math.round(w.waterY / VS) : -1e9;
+    // lav: tabani lav seviyesinde ya da altinda kalan (lavin icindeki) dugum yok
+    const lv = w.lavaMask ? Math.round(w.lavaY / VS) : -1e9;
     for (let y = 1; y < w.sy - CLEAR && n < L; y++) {
       if (!w.solid(vx, y - 1, vz) || w.solid(vx, y, vz)) continue;
       if (wv - y > 4) continue;
+      if (y <= lv && w.lavaMask[vx + w.sx * vz]) continue;
       // dikey ve yatay acik alan (3x3 voxel)
       let ok = true;
       for (let k = 0; k < CLEAR && ok; k++) {
@@ -106,10 +110,37 @@ export class NavGrid {
       if (!ok) continue;
       this.ny[base + n] = y;
       this.wet[base + n] = wv - y > 0 ? 1 : 0;
+      this.hot[base + n] = lv > -1e9 && y <= lv + 8 && this._lavaNear(vx, vz, lv, 4) ? 1 : 0;
       n++;
       y += CLEAR - 1;
     }
     this.cnt[c] = n;
+  }
+
+  // (x,z) cevresinde r voxel icinde gercek lav (maskede ve lav seviyesinin hemen alti bos) var mi
+  _lavaNear(x, z, lv, r) {
+    const w = this.world, m = w.lavaMask;
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      const X = x + dx, Z = z + dz;
+      if (X < 0 || Z < 0 || X >= w.sx || Z >= w.sz) continue;
+      if (m[X + w.sx * Z] && !w.solid(X, lv - 1, Z)) return true;
+    }
+    return false;
+  }
+
+  // iki dugum arasindaki hatti lav kesiyor mu: hattin altinda lav seviyesine kadar zemin yoksa
+  _lavaGap(ax, az, bx, bz, yTop) {
+    const w = this.world, m = w.lavaMask;
+    const lv = Math.round(w.lavaY / VS);
+    for (let s = 1; s <= 3; s++) {
+      const t = s / 4;
+      const x = Math.floor(ax + (bx - ax) * t), z = Math.floor(az + (bz - az) * t);
+      if (!m[x + w.sx * z]) continue;
+      let ground = false;
+      for (let y = Math.max(yTop, lv) - 1; y >= lv - 1; y--) if (w.solid(x, y, z)) { ground = true; break; }
+      if (!ground) return true;
+    }
+    return false;
   }
 
   // iki nokta arasinda govde gecebilir mi (yatay hat, yy: taban voxel)
@@ -150,6 +181,7 @@ export class NavGrid {
           const hy = Math.max(y, y2);
           if (type === EDGE_DROP) { if (!this._passable(ax, az, bx, bz, y)) continue; }
           else if (!this._passable(ax, az, bx, bz, hy)) continue;
+          if (this.world.lavaMask && this._lavaGap(ax, az, bx, bz, hy)) continue;
           const cost = Math.abs(dy);
           if (cost < bestCost) { bestCost = cost; best = k2; bestType = type; }
         }
@@ -273,7 +305,7 @@ export class NavGrid {
         const nid = c2 * L + k2;
         if (closed[nid] === sid) continue;
         const t = this.etype[cur * 8 + d];
-        const cost = (d < 4 ? 1 : 1.414) + (t === EDGE_JUMP ? 1.5 : 0) + (t === EDGE_DROP ? 0.4 : 0) + (this.wet[nid] ? 1.2 : 0);
+        const cost = (d < 4 ? 1 : 1.414) + (t === EDGE_JUMP ? 1.5 : 0) + (t === EDGE_DROP ? 0.4 : 0) + (this.wet[nid] ? 1.2 : 0) + (this.hot[nid] ? 3 : 0);
         const ng = gc + cost;
         if (stamp[nid] !== sid || ng < g[nid]) {
           stamp[nid] = sid; g[nid] = ng; parent[nid] = cur;
