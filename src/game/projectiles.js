@@ -154,6 +154,16 @@ export class Projectiles {
           continue;
         }
       }
+      // seviyenin altinda lav hacmine girdi (krater icinden acikta kalan lav duvari): duvarda patlar
+      if (ls.active && p.pos.y < ls.level && ls.isLava(p.pos.x, p.pos.y, p.pos.z)) {
+        const bx = p.pos.x - p.vel.x * dt * 0.5, by = p.pos.y - p.vel.y * dt * 0.5, bz = p.pos.z - p.vel.z * dt * 0.5;
+        const sp = Math.hypot(p.vel.x, p.vel.y, p.vel.z) || 1;
+        ls.splash(bx, bz, p.W.id === 'rocket' ? 1.0 : 0.3, by);
+        if (game.audio) game.audio.play('lavaHit', bx, by, bz, p.W.id === 'rocket' ? 1.2 : 0.6);
+        this.explode(p, bx, by, bz, -p.vel.x / sp, -p.vel.y / sp, -p.vel.z / sp, null);
+        this._release(p); list.splice(i, 1);
+        continue;
+      }
       const vx = p.pos.x + p.vis.x, vy = p.pos.y + p.vis.y, vz = p.pos.z + p.vis.z;
       if (p.W.id === 'rocket') {
         p.mesh.position.set(vx, vy, vz);

@@ -346,8 +346,9 @@ float vxMetal = 0.0;`)
   if (uLavaOn > 0.5) {
     float lg = texture2D(uLavaGlow, vWPos.xz * uLavaInv).r;
     float hh = vWPos.y - uLavaY;
-    if (lg > 0.002 && hh > -0.3) {
-      float fall = exp(-max(hh, 0.0) * 0.8);
+    // seviyenin altindaki yuzler de isinir: patlayip acilan kraterde acikta kalan lav duvarinin isigi
+    if (lg > 0.002) {
+      float fall = hh > 0.0 ? exp(-hh * 0.8) : 0.8;
       float face = vObjNormal.y < -0.5 ? 1.3 : (vObjNormal.y > 0.5 ? 0.45 : 1.0);
       float fl = 0.86 + 0.14 * sin(uTime * 1.7 + vWPos.x * 0.6 + vWPos.z * 0.45);
       float le = lg * fall * face * fl * uLavaGlowI;

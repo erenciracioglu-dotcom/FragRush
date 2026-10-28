@@ -71,7 +71,11 @@ function traceBullet(game, shooter, o, d, W, quad, muzzle, tracer) {
     if (W.knock) best.mover.impulse(d.x * W.knock * 0.35, Math.max(0, d.y) * W.knock * 0.2 + 0.15 * W.knock, d.z * W.knock * 0.35);
     game.fx.robotHit(ex, ey, ez, d.x, d.y, d.z, best.color, W.pellets > 1 ? 0.5 : 1);
   } else if (lt >= 0) {
-    game.fx.impact(ex, ey + 0.02, ez, 0, 1, 0, M.MAGMA, W.pellets > 1 ? 0.4 : 0.8);
+    // lav yuzeyi ya da (seviyenin altinda) acikta kalan lav duvari
+    if (ey < game.lavaSys.level - 0.06) {
+      const hl = Math.hypot(d.x, d.z) || 1;
+      game.fx.impact(ex - d.x * 0.02, ey, ez - d.z * 0.02, -d.x / hl, 0, -d.z / hl, M.MAGMA, W.pellets > 1 ? 0.4 : 0.8);
+    } else game.fx.impact(ex, ey + 0.02, ez, 0, 1, 0, M.MAGMA, W.pellets > 1 ? 0.4 : 0.8);
   } else if (wHit) {
     game.destruction.chip(_hit, W.voxR, W.voxP * (quad > 1 ? 2 : 1), shooter);
     game.fx.impact(ex - d.x * 0.02, ey - d.y * 0.02, ez - d.z * 0.02, _hit.nx, _hit.ny, _hit.nz, _hit.mat, W.pellets > 1 ? 0.45 : 1);
@@ -117,7 +121,7 @@ function railShot(game, shooter, o, d, W, quad, muzzle) {
   const ex = o.x + d.x * end, ey = o.y + d.y * end, ez = o.z + d.z * end;
   waterCross(game, o, d, end, 0.6);
   const lt = game.lavaSys.cross(o.x, o.y, o.z, d.x, d.y, d.z, end);
-  if (lt >= 0) game.lavaSys.splash(o.x + d.x * lt, o.z + d.z * lt, 0.5);
+  if (lt >= 0) game.lavaSys.splash(o.x + d.x * lt, o.z + d.z * lt, 0.5, o.y + d.y * lt);
   game.fx.rail(muzzle.x, muzzle.y, muzzle.z, ex, ey, ez, W.color);
   if (firstWall >= 0) {
     const fx0 = o.x + d.x * firstWall, fy0 = o.y + d.y * firstWall, fz0 = o.z + d.z * firstWall;

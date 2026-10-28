@@ -103,7 +103,8 @@ down to that depth. The water you see and the water you move through are the sam
 
 Every empty voxel below the lava level in the creek, the pond and right next to them is lava: blast
 a crater that deep within about a meter of the lava and it fills with lava; craters further away
-stay dry. The lava you see is the lava that kills.
+stay dry. Blast the ground away beside the lava and it does not drain: it stands at its level as a
+glowing wall of lava at the edge of the crater. The lava you see is the lava that kills.
 
 - **Touching lava kills instantly**, armor or not. Fall in on your own and it counts as a
   **self frag (−1)**.
@@ -111,8 +112,9 @@ stay dry. The lava you see is the lava that kills.
   4 seconds, with a rocket blast or anything else, gets the credit.
 - The lava lights the banks around it, embers rise from it, bubbles pop and you can hear it rumble
   when you get close.
-- Bullets stop at the surface, rockets and plasma bolts explode on it with a splash of lava, rail
-  shots splash through. Items that fall in burn and come back at their spot later; debris melts.
+- Bullets stop at the surface and at lava walls, rockets and plasma bolts explode on them with a
+  splash of lava, rail shots splash through. Items that fall in burn and come back at their spot
+  later; debris melts.
 - Bots keep away from the edge: they don't run, jump or dash toward the lava, brake when their
   momentum would carry them in, and cross on the arches and bridges. They ignore the Mega Health on
   the islet. They can still be blasted in.
@@ -251,7 +253,9 @@ arena averaged 122 FPS (GPU 7.7 ms/frame), the volcano 101 FPS (9.4 ms) and the 
   (creek and pond plus a 1.25 m margin) is lava. Drawing, the kill check, bullets, projectiles,
   items, debris and the bots' navigation all use it. The surface is a flat mesh over that area with
   its own shader (a crust of moving cells with glowing cracks, carried along a flow map, cooler at
-  the banks); a low-resolution proximity map lights nearby voxels from below. The night sky (ash
+  the banks); a low-resolution proximity map lights nearby voxels from below. Where the ground
+  beside it is blasted away, the exposed sides of the lava are drawn as walls, rebuilt as the terrain
+  changes. The night sky (ash
   clouds, the distant volcano with lava streaks and a glowing plume) is a shader, also baked into
   the environment map for reflections. The lava's rumble, bubbles and sizzle are synthesized too.
 
@@ -273,7 +277,8 @@ tools/          benchmark scripts
 
 Proof of concept, built with Claude. Bots only, no multiplayer (yet). Water does not flow: blasting
 a lake bank does not drain the lake, and a deep crater anywhere fills with water from the water table.
-Lava does not flow either: where it can be is fixed when the map is built. Weapon models and robots are
+Lava does not flow either: where it can be is fixed when the map is built, so digging under it leaves
+a standing wall of lava. Weapon models and robots are
 simple procedural boxes. Very large structures (over 160k voxels) are treated as fixed and don't fall.
 Sound starts after the first click (browser rule).
 
@@ -308,8 +313,10 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   deler) ve boğulursan **kendini parçalamış sayılırsın (−1)**. Mega can gölün dibinde.
 - **Lav:** dokunan anında ölür, zırh fark etmez. Kendin düşersen **kendini parçalamış sayılırsın
   (−1)**; son 4 saniyede birini vurup lava ittiysen parçalama senin (**LAVA DÜŞÜRDÜN!**). Lavın bir
-  metre yakınında lav seviyesine kadar inen krater lavla dolar. Mermiler yüzeyde durur, roket ve
-  plazma yüzeyde patlar; lava düşen eşya yanar ve bir süre sonra yerinde yeniden çıkar. Botlar lav
+  metre yakınında lav seviyesine kadar inen krater lavla dolar; lavın yanındaki zemini patlatırsan
+  lav akıp gitmez, kraterin kenarında parlayan bir lav duvarı olarak durur. Mermiler yüzeyde ve lav
+  duvarında durur, roket ve plazma orada patlar; lava düşen eşya yanar ve bir süre sonra yerinde
+  yeniden çıkar. Botlar lav
   kenarından uzak durur, lava doğru koşmaz, zıplamaz, atılmaz; ama patlamayla lava itilebilirler.
 - **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).

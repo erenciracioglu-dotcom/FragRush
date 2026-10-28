@@ -28,27 +28,8 @@ float lvNoise(vec2 p) {
 float lvFbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * lvNoise(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
 `;
 
-// ---------------------------------------------------------------- lav yuzeyi
-const LAVA_VS = /* glsl */`
-varying vec3 vW;
-varying float vDepth;
-void main() {
-  vec4 w = modelMatrix * vec4(position, 1.0);
-  vW = w.xyz;
-  vec4 mv = viewMatrix * w;
-  vDepth = -mv.z;
-  gl_Position = projectionMatrix * mv;
-}`;
-
-const LAVA_FS = /* glsl */`
-uniform float uTime;
-uniform sampler2D uTex;      // RG akis, B sicaklik (kiyiya uzaklik), A lav
-uniform vec2 uInv;
-uniform vec3 uFogColor;
-uniform float uFogDensity;
-varying vec3 vW;
-varying float vDepth;
-${NOISE_GLSL}
+// erimis lav deseni (yuzey ve duvar ortak; kullanan golgelendiricide uTime once tanimli olmali)
+const MOLTEN_GLSL = /* glsl */`
 // hucresel gurultu: x = en yakin hucre merkezine uzaklik, y = iki hucre arasindaki sinira uzaklik
 vec2 lvCells(vec2 x) {
   vec2 n = floor(x), f = fract(x);
@@ -71,6 +52,30 @@ float lvMolten(vec2 uv, float heat) {
   float plate = lvFbm(uv * 2.6) * 0.45;
   return clamp(max(crack, hot * (0.6 + 0.4 * heat)) + plate * heat * 0.55, 0.0, 1.0);
 }
+`;
+
+// ---------------------------------------------------------------- lav yuzeyi
+const LAVA_VS = /* glsl */`
+varying vec3 vW;
+varying float vDepth;
+void main() {
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vW = w.xyz;
+  vec4 mv = viewMatrix * w;
+  vDepth = -mv.z;
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const LAVA_FS = /* glsl */`
+uniform float uTime;
+uniform sampler2D uTex;      // RG akis, B sicaklik (kiyiya uzaklik), A lav
+uniform vec2 uInv;
+uniform vec3 uFogColor;
+uniform float uFogDensity;
+varying vec3 vW;
+varying float vDepth;
+${NOISE_GLSL}
+${MOLTEN_GLSL}
 void main() {
   vec2 p = vW.xz;
   vec4 T = texture2D(uTex, p * uInv);
@@ -95,6 +100,58 @@ void main() {
   // kenara cok yakin ince sicak kizillik (kayaya degdigi cizgi)
   col += vec3(1.4, 0.22, 0.03) * (1.0 - smoothstep(0.0, 0.12, heat)) * 0.6;
   // sis: isik saldigi icin sisi kismen deler
+  float fogF = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
+  col = mix(col, uFogColor, fogF * 0.6);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// ---------------------------------------------------------------- lav duvari
+// Zemin patlayip lav seviyesinin altina inince lav hacminin yani acikta kalir: maske sinirindaki dikey yuzler.
+// Desen duvar boyunca asagi akar (lav selalesi); ust kenar yuzeye dogru daha sicak.
+const WALL_VS = /* glsl */`
+varying vec3 vW;
+varying vec3 vN;
+varying float vDepth;
+void main() {
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vW = w.xyz;
+  vN = normal;
+  vec4 mv = viewMatrix * w;
+  vDepth = -mv.z;
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const WALL_FS = /* glsl */`
+uniform float uTime;
+uniform float uLevel;
+uniform vec3 uFogColor;
+uniform float uFogDensity;
+varying vec3 vW;
+varying vec3 vN;
+varying float vDepth;
+${NOISE_GLSL}
+${MOLTEN_GLSL}
+// iki dik duzlemdeki desenin ortalamasi: sinir capraz gidince yan yana gelen x ve z yuzleri kosede ayni
+// degeri alir, desen kirilmadan devam eder
+float wallM(vec3 w, vec2 off) {
+  float y = w.y * 1.15;
+  return 0.5 * (lvMolten(vec2(w.x, y) - off, 0.55) + lvMolten(vec2(w.z + 17.3, y) - off, 0.55));
+}
+void main() {
+  float t = uTime * 0.16;
+  float ph0 = fract(t), ph1 = fract(t + 0.5);
+  float w0 = 1.0 - abs(2.0 * ph0 - 1.0);
+  vec2 off = vec2(0.0, -2.6);
+  float m = mix(wallM(vW + vec3(3.7, 0.0, 1.3), off * ph1), wallM(vW, off * ph0), w0);
+  vec2 p = vec2(vW.x + vW.z, vW.y * 1.15);
+  // asagi akan koyu kabuk izleri; yuzeye yakin ust kenar biraz daha sicak
+  float streak = lvNoise(vec2((vW.x + vW.z) * 1.6, vW.y * 0.5 + uTime * 0.5));
+  m = clamp(m * (0.55 + 0.45 * streak) + 0.12 * smoothstep(-0.6, 0.0, vW.y - uLevel), 0.0, 1.0);
+  float pulse = 0.85 + 0.15 * sin(uTime * 1.1 + lvNoise(p * 0.3) * 6.2831);
+  vec3 crust = vec3(0.09, 0.02, 0.01) * (0.6 + 0.8 * lvFbm(p * 4.0));
+  vec3 molten = mix(vec3(1.8, 0.28, 0.03), vec3(3.6, 1.2, 0.2), smoothstep(0.62, 1.0, m));
+  // ortalama desen yumusak: esigi yukari al ki koyu kabuk arasinda akkor damarlar kalsin
+  vec3 col = mix(crust, molten * pulse * 0.8, smoothstep(0.38, 0.78, m));
   float fogF = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
   col = mix(col, uFogColor, fogF * 0.6);
   gl_FragColor = vec4(col, 1.0);
@@ -252,6 +309,17 @@ export class LavaSystem {
       },
       vertexShader: LAVA_VS, fragmentShader: LAVA_FS,
     });
+    // acikta kalan lav duvari: yuzeyle ayni zaman / sis degerlerini paylasir
+    const mu = this.material.uniforms;
+    this.wallMaterial = new THREE.ShaderMaterial({
+      uniforms: { uTime: mu.uTime, uFogColor: mu.uFogColor, uFogDensity: mu.uFogDensity, uLevel: { value: 0 } },
+      vertexShader: WALL_VS, fragmentShader: WALL_FS, side: THREE.DoubleSide,
+    });
+    this.wall = null;
+    this.wallPairs = new Int32Array(0);
+    this.wallDirty = false;
+    this.wallT = -1e9;
+    this.levelV = 0;
   }
 
   // def: volcano.js lavaData() ciktisi
@@ -292,6 +360,41 @@ export class LavaSystem {
     voxelUniforms.uLavaGlow.value = this.glowTex;
     world.lavaY = def.y;
     world.lavaMask = def.mask;
+    // lav duvari: maske sinirindaki (kolon, yon) ciftleri bir kez bulunur; duvar, seviyenin altindaki arazi
+    // degistikce (patlama, cokme) yeniden kurulur
+    const pairs = [];
+    const m = def.mask, sx = def.width, sz = def.height;
+    let bx0 = 1e9, bz0 = 1e9, bx1 = -1, bz1 = -1;
+    for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) {
+      if (!m[x + sx * z]) continue;
+      for (let d = 0; d < 4; d++) {
+        const nx = x + WDX[d], nz = z + WDZ[d];
+        if (nx < 0 || nz < 0 || nx >= sx || nz >= sz || m[nx + sx * nz]) continue;
+        pairs.push(x, z, d);
+        bx0 = Math.min(bx0, x); bz0 = Math.min(bz0, z); bx1 = Math.max(bx1, x); bz1 = Math.max(bz1, z);
+      }
+    }
+    this.wallPairs = new Int32Array(pairs);
+    this.wallBox = [bx0 - 1, bz0 - 1, bx1 + 1, bz1 + 1];
+    this.levelV = def.level;
+    if (this._hooked !== world) {
+      this._hooked = world;
+      world.onChange((ax, ay, az, cx, cy, cz) => {
+        if (!this.active || ay >= this.levelV) return;
+        const B = this.wallBox;
+        if (cx < B[0] || ax > B[2] || cz < B[1] || az > B[3]) return;
+        this.wallDirty = true;
+      });
+    }
+    if (!this.wall) {
+      this.wall = new THREE.Mesh(new THREE.BufferGeometry(), this.wallMaterial);
+      this.wall.name = 'lavaWall';
+      this.wall.renderOrder = 1;
+      this.wall.frustumCulled = false;
+      this.game.scene.add(this.wall);
+    }
+    this.wallMaterial.uniforms.uLevel.value = def.y;
+    this.rebuildWalls();
     this.active = true;
   }
 
@@ -300,6 +403,8 @@ export class LavaSystem {
     if (this.game.audio && this.game.audio.stopLavaAmbience) this.game.audio.stopLavaAmbience();
     this.level = -1e9;
     if (this.mesh) this.mesh.visible = false;
+    if (this.wall) this.wall.visible = false;
+    this.wallDirty = false;
     voxelUniforms.uLavaOn.value = 0;
     const w = this.game.world;
     if (w) { w.lavaY = -Infinity; w.lavaMask = null; }
@@ -329,13 +434,52 @@ export class LavaSystem {
     return this.isLava(p.x, Math.min(p.y + 0.05, this.level - 0.05), p.z);
   }
 
-  // dogru parcasi lav yuzeyini kesiyor mu: kesisim parametresi (0..len) ya da -1
+  // dogru parcasi lava giriyor mu: giris parametresi (0..len) ya da -1. Yukaridan yuzeye giriste kesisim
+  // noktasi; seviyenin altinda kalan kisim (krater icinden acikta kalan lav duvarina) adim adim taranir.
   cross(ox, oy, oz, dx, dy, dz, len) {
-    if (!this.active || Math.abs(dy) < 1e-4) return -1;
-    const t = (this.level - oy) / dy;
-    if (t <= 0.02 || t >= len) return -1;
-    const x = ox + dx * t, z = oz + dz * t;
-    return this.isLava(x, this.level - 0.05, z) ? t : -1;
+    if (!this.active) return -1;
+    const L = this.level;
+    let t0 = 0, t1 = len;
+    if (Math.abs(dy) < 1e-6) { if (oy >= L) return -1; }
+    else {
+      const tc = (L - oy) / dy;
+      if (dy < 0) t0 = Math.max(0, tc); else t1 = Math.min(len, tc);
+    }
+    t0 = Math.max(t0, 0.02);
+    if (t1 <= t0) return -1;
+    if (dy < 0 && this.isLava(ox + dx * t0, L - 0.05, oz + dz * t0)) return t0;
+    const step = VS * 0.5;
+    for (let t = t0 + step * 0.5; t < t1; t += step) {
+      if (this.isLava(ox + dx * t, Math.min(oy + dy * t, L - 0.01), oz + dz * t)) return t;
+    }
+    return -1;
+  }
+
+  // lav duvari geometrisi: maske sinirinda, lav voxelinin (maskede, seviyenin altinda, bos) maske disindaki bos
+  // komsuya baktigi yuzler; dikeyde art arda gelenler tek dortgen
+  rebuildWalls() {
+    this.wallDirty = false;
+    this.wallT = this.game.time;
+    const w = this.game.world, P = this.wallPairs, LY = this.levelV;
+    const pos = [], nrm = [];
+    for (let i = 0; i < P.length; i += 3) {
+      const x = P[i], z = P[i + 1], d = P[i + 2];
+      const nx = x + WDX[d], nz = z + WDZ[d];
+      for (let y = 0; y < LY;) {
+        if (w.solid(x, y, z) || w.solid(nx, y, nz)) { y++; continue; }
+        let y1 = y + 1;
+        while (y1 < LY && !w.solid(x, y1, z) && !w.solid(nx, y1, nz)) y1++;
+        wallQuad(pos, nrm, x, z, d, y * VS, y1 * VS);
+        y = y1;
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    const old = this.wall.geometry;
+    this.wall.geometry = g;
+    old.dispose();
+    this.wall.visible = pos.length > 0;
   }
 
   update(dt, camera) {
@@ -346,6 +490,8 @@ export class LavaSystem {
     const fog = game.scene.fog;
     this.material.uniforms.uFogDensity.value = fog.density;
     this.material.uniforms.uFogColor.value.copy(fog.color);   // Three rengi zaten lineer calisma uzayinda tutar
+    // seviyenin altinda arazi degistiyse lav duvarini yenile (en sik 0.15 sn'de bir)
+    if (this.wallDirty && time - this.wallT > 0.15) this.rebuildWalls();
     // ortam ugultusu: durakladiginda sus, yoksa 6 karede bir yakinligi guncelle
     const au = game.audio;
     if (au && au.setLavaAmbience) {
@@ -440,8 +586,9 @@ export class LavaSystem {
   }
 
   // lav yuzeyine carpma (mermi, roket, dusen aktor): sicrayan lav + kor + duman
-  splash(x, z, power = 1) {
-    const game = this.game, fx = game.fx, L = this.level;
+  // y: carpma yuksekligi (lav duvarinda seviyenin altinda); verilmezse yuzey
+  splash(x, z, power = 1, y = null) {
+    const game = this.game, fx = game.fx, L = y === null ? this.level : Math.min(y, this.level);
     const k = Math.sqrt(power);
     const n = Math.round((10 + 26 * power) * fx.pm) + 3;
     for (let i = 0; i < n; i++) {
@@ -471,6 +618,18 @@ export class LavaSystem {
 }
 
 // maskeyi kaplayan dikdortgenler (aç gozlu birlestirme) -> lav seviyesinde yatay duzlem parcalari
+// lav duvari: d yonu (0 +x, 1 -x, 2 +z, 3 -z) kolonun hangi yuzu; (x,z) voxel, y0..y1 metre
+const WDX = [1, -1, 0, 0], WDZ = [0, 0, 1, -1];
+function wallQuad(pos, nrm, x, z, d, y0, y1) {
+  let ax, az, bx, bz;
+  if (d === 0) { ax = bx = (x + 1) * VS; az = z * VS; bz = (z + 1) * VS; }
+  else if (d === 1) { ax = bx = x * VS; az = z * VS; bz = (z + 1) * VS; }
+  else if (d === 2) { az = bz = (z + 1) * VS; ax = x * VS; bx = (x + 1) * VS; }
+  else { az = bz = z * VS; ax = x * VS; bx = (x + 1) * VS; }
+  pos.push(ax, y0, az, bx, y0, bz, bx, y1, bz, ax, y0, az, bx, y1, bz, ax, y1, az);
+  for (let k = 0; k < 6; k++) nrm.push(WDX[d], 0, WDZ[d]);
+}
+
 function maskGeometry(mask, sx, sz, y) {
   const used = new Uint8Array(sx * sz);
   const pos = [], idx = [];
