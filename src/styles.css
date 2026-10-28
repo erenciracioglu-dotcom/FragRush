@@ -27,6 +27,8 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 #hitmarker.show { opacity: 1; transition: none; }
 #hitmarker.kill::before, #hitmarker.kill::after { background: var(--red); box-shadow: 0 0 6px var(--red); }
 #hitmarker.head::before, #hitmarker.head::after { background: #ffd23b; }
+/* buz gibi su: ekran kenarinda kiragi (hud.js opaklik) */
+#frost { position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s linear; background: radial-gradient(ellipse at center, rgba(200,230,255,0) 42%, rgba(185,222,255,0.28) 70%, rgba(228,244,255,0.78) 100%); box-shadow: inset 0 0 140px 30px rgba(214,238,255,0.5); }
 #dmgdir { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 #dmgdir .arc { position: absolute; width: 180px; height: 180px; left: -90px; top: -90px; border-radius: 50%; border: 6px solid transparent; border-top-color: rgba(255, 50, 40, 0.85); filter: drop-shadow(0 0 6px rgba(255,0,0,0.7)); transition: opacity 0.6s; }
 
@@ -107,7 +109,7 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 #mapPick { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
 #mapPick .lbl { font-size: 12px; letter-spacing: 4px; color: var(--dim); min-width: 52px; }
 #mapPick .seg { display: flex; flex: 1; gap: 4px; }
-#menu #mapPick button { flex: 1; margin: 0; padding: 10px 4px; font-size: 14px; letter-spacing: 3px; text-align: center; clip-path: none; border-left: none; border-bottom: 3px solid transparent; }
+#menu #mapPick button { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; padding: 10px 4px; font-size: 13px; letter-spacing: 1px; text-align: center; white-space: nowrap; clip-path: none; border-left: none; border-bottom: 3px solid transparent; }
 #menu #mapPick button:hover { padding-left: 4px; border-bottom-color: rgba(255,255,255,0.4); }
 #menu #mapPick button.on { background: rgba(34,228,255,0.16); border-bottom-color: var(--acc2); color: #fff; }
 .panel label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 15px; letter-spacing: 1px; color: var(--ink); }

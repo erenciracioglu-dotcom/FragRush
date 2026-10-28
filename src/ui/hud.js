@@ -15,7 +15,7 @@ export class HUD {
       fps: $('fps'), cross: $('crosshair'), hit: $('hitmarker'), dmg: $('dmgdir'),
       nt: $('nametag'), ntName: $('ntName'), ntHp: $('ntHp'),
       sb: $('scoreboard'), sbt: $('sbTable'), death: $('death'), deathBy: $('deathBy'), deathTimer: $('deathTimer'), deathTitle: $('deathTitle'),
-      air: $('air'), airLbl: $('airLbl'), airBar: $('airBar'),
+      air: $('air'), airLbl: $('airLbl'), airBar: $('airBar'), frost: $('frost'),
     };
     this.cache = {};
     this.wSpans = WEAPONS.map((W, i) => {
@@ -88,6 +88,9 @@ export class HUD {
       this.set('airc', e.air, out ? 'out' : p.air < 4 ? 'low' : '', 'className');
     }
     if (this.cache.nofire !== under) { this.cache.nofire = under; e.cross.classList.toggle('nofire', under); }
+    // buz gibi su: ekran kenarinda kiragi
+    const frost = game.iceSys && game.iceSys.active && p.alive ? Math.round((p.cold || 0) * 20) / 20 : 0;
+    if (e.frost && this.cache.frost !== frost) { this.cache.frost = frost; e.frost.style.opacity = String(frost); }
     // nisangah acikligi
     const W = WEAPONS[cur];
     const spread = W.pellets > 1 ? W.spread : Math.min(W.spreadMax || 0, (W.spread || 0) + ws.heat);
@@ -181,8 +184,9 @@ export class HUD {
   }
 
   death(killerName, weaponLabel, self, weaponId) {
-    const drown = weaponId === 'drown', lava = weaponId === 'lava';
-    this.el.deathTitle.textContent = drown ? t('youDrowned') : lava ? t('youBurned') : self ? t('selfKill') : t('youDied');
-    this.el.deathBy.textContent = drown || (lava && self) ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
+    const drown = weaponId === 'drown', lava = weaponId === 'lava', cold = weaponId === 'cold', icicle = weaponId === 'icicle';
+    this.el.deathTitle.textContent = drown ? t('youDrowned') : lava ? t('youBurned') : cold ? t('youFroze') : icicle ? t('youIcicle') : self ? t('selfKill') : t('youDied');
+    // ortam olumu: kendin dustuysen -1 notu, biri dusurduyse (buzu kirdiysa, ittiyse) onun adi
+    this.el.deathBy.textContent = (drown || lava || cold || icicle) && self ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
   }
 }

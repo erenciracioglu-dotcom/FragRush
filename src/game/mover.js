@@ -1,9 +1,11 @@
 // Quake tarzi hareket + voxel carpismasi (oyuncu ve botlar ortak kullanir).
 import * as THREE from 'three';
-import { VS, MOVE, GRAVITY, WATER } from '../config.js';
+import { VS, MOVE, GRAVITY, WATER, ICE } from '../config.js';
+import { SLIPPERY } from '../world/materials.js';
 
 const EPS = 1e-4;
 const STEPS = [VS, VS * 2, MOVE.stepHeight];
+const CORNERS = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
 
 export class Mover {
   constructor(world) {
@@ -29,6 +31,8 @@ export class Mover {
     this.swimming = false;
     this.eyesUnder = false;
     this.waterJumpT = 0;
+    // ayagin altindaki malzeme (havadayken 0): buzda kayma, kar / buz ayak sesi
+    this.groundMat = 0;
   }
 
   reset(x, y, z) {
@@ -55,6 +59,20 @@ export class Mover {
   collides(x, y, z, h = this.h) {
     const r = this.r;
     return this.world.boxSolid(x - r, y, z - r, x + r, y + h, z + r);
+  }
+
+  // ayagin altindaki voxelin malzemesi: once govde ortasi, bossa (kenarda duruyorsa) koseler
+  _groundMat() {
+    const w = this.world, p = this.pos, inv = 1 / VS;
+    const y = Math.floor((p.y - 0.05) * inv);
+    let m = w.get(Math.floor(p.x * inv), y, Math.floor(p.z * inv));
+    if (m) return m;
+    const r = this.r * 0.9;
+    for (const [dx, dz] of CORNERS) {
+      m = w.get(Math.floor((p.x + dx * r) * inv), y, Math.floor((p.z + dz * r) * inv));
+      if (m) return m;
+    }
+    return 0;
   }
 
   get eyeHeight() { return this.crouching ? MOVE.crouchEye : MOVE.eye; }
@@ -131,16 +149,18 @@ export class Mover {
       if (this.crouching && this.slideTime > 0) this.slideTime = 0;
     }
 
-    // surtunme
+    // surtunme (gol buzunda cok az: kosan kayarak durur, donusler genis)
+    this.groundMat = this.onGround ? this._groundMat() : 0;
     if (this.onGround && !ev.jumped) {
+      const slip = SLIPPERY[this.groundMat] === 1;
       const sp = Math.hypot(vel.x, vel.z);
       if (sp > 1e-4) {
-        const fr = this.slideTime > 0 ? 0.9 : MOVE.friction;
+        const fr = this.slideTime > 0 ? (slip ? ICE.slideFriction : 0.9) : (slip ? ICE.friction : MOVE.friction);
         const control = Math.max(sp, MOVE.stopSpeed);
         const ns = Math.max(0, sp - control * fr * dt) / sp;
         vel.x *= ns; vel.z *= ns;
       }
-      this._accel(wx, wz, wishSpeed, this.slideTime > 0 ? 1.5 : MOVE.groundAccel, dt);
+      this._accel(wx, wz, wishSpeed, this.slideTime > 0 ? 1.5 : slip ? ICE.accel : MOVE.groundAccel, dt);
     } else {
       this._accel(wx, wz, wishSpeed, MOVE.airAccel, dt);
       this._airControl(wx, wz, wishSpeed, dt, cmd);
@@ -221,8 +241,10 @@ export class Mover {
     vel.y += ay * dt;
     const sp = Math.hypot(vel.x, vel.y, vel.z);
     if (sp > 1e-3) { const q = 1 / (1 + WATER.dragQ * sp * dt); vel.x *= q; vel.y *= q; vel.z *= q; }
-    // kiyiya dogru yuzerken yuzeye yakinsa sudan cik
-    if (cmd.fwd > 0) this._waterJump(wy, -sy, -cy);
+    // kiyiya dogru yuzerken yuzeye yakinsa sudan cik (gidilmek istenen yatay yon: botlar kiyiya yuzerken
+    // dusmana bakabilir, oyuncu yan yan da yuzebilir)
+    const hl = Math.hypot(wx, wz);
+    if (hl > 0.3) this._waterJump(wy, wx / hl, wz / hl);
 
     const prevGround = this.onGround;
     this.onGround = false;
@@ -246,13 +268,17 @@ export class Mover {
     if (this.waterJumpT > 0 || p.y + this.eyeHeight < wy - 0.7) return false;
     const reach = this.r + 0.35;
     const ax = p.x + fx * reach, az = p.z + fz * reach;
-    if (!w.solidAtWorld(ax, p.y + 0.9, az) && !w.solidAtWorld(ax, wy - 0.1, az)) return false;
-    // inilecek yer: govdenin bir boy ilerisindeki kolonun ustu
+    // onde kiyi: bel hizasinda, su yuzeyinin hemen altinda ya da ustunde (yeniden donan buzun once ust
+    // kati donar: kenar suyun ustunde ince bir raf olabilir)
+    if (!w.solidAtWorld(ax, p.y + 0.9, az) && !w.solidAtWorld(ax, wy - 0.1, az) && !w.solidAtWorld(ax, wy + 0.1, az)) return false;
+    // inilecek yer: govdenin bir boy ilerisindeki kolonda tirmanilabilir yukseklikteki en ust kati voxelin
+    // ustu (yukaridan asagi aranir: altinda su olan buz kenari da kiyi sayilir)
     const lx = p.x + fx * (this.r * 2 + 0.15), lz = p.z + fz * (this.r * 2 + 0.15);
     const vx = Math.floor(lx / VS), vz = Math.floor(lz / VS);
     let top = -1;
-    for (let y = Math.floor((p.y + 0.5) / VS); y * VS <= wy + WATER.ledge + 1e-3; y++) {
-      if (!w.solid(vx, y, vz)) { top = y * VS; break; }
+    const yLo = Math.floor((p.y + 0.5) / VS);
+    for (let y = Math.floor((wy + WATER.ledge + 1e-3) / VS) - 1; y >= yLo; y--) {
+      if (w.solid(vx, y, vz)) { top = (y + 1) * VS; break; }
     }
     if (top < 0 || top > wy + WATER.ledge + 1e-3) return false;
     if (this.collides(lx, top + EPS, lz, MOVE.height)) return false;

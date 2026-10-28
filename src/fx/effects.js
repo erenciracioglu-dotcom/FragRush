@@ -19,6 +19,7 @@ function randDir(out) {
 const _d = [0, 0, 0];
 const K_SPARK0 = [6, 3.2, 1.2, 1], K_SPARK1 = [2, 0.5, 0.1, 0];
 const K_FLASH0 = [4, 2.6, 1.4, 1], K_FLASH1 = [1, 0.4, 0.1, 0];
+const K_ICE0 = [2.4, 3.0, 3.6, 1], K_ICE1 = [0.5, 0.75, 1.0, 0];
 const T0 = [0, 0, 0, 0], T1 = [0, 0, 0, 0];
 
 export class Effects {
@@ -75,18 +76,20 @@ export class Effects {
   impact(x, y, z, nx, ny, nz, mat, power = 1) {
     const snd = MAT_SOUND[mat] || 'stone';
     const metal = snd === 'metal';
+    // kar: kivilcim yok, bol toz bulutu; buz: turuncu kivilcim yerine soluk mavi kirintilar
+    const snow = snd === 'snow', ice = snd === 'ice';
     const lc = MAT_LIN[mat] || [0.5, 0.5, 0.5];
-    const nSpark = Math.round((metal ? 9 : 4) * power * this.pm);
+    const nSpark = snow ? 0 : Math.round((metal ? 9 : ice ? 6 : 4) * power * this.pm);
     for (let i = 0; i < nSpark; i++) {
       randDir(_d);
       const s = rnd(3, 11);
       const vx = (_d[0] + nx * 1.4) * s, vy = (_d[1] + ny * 1.4) * s + 1, vz = (_d[2] + nz * 1.4) * s;
-      this.add.emit(x, y, z, vx, vy, vz, rnd(0.15, 0.45), 0.03, 0.012, K_SPARK0, K_SPARK1, 14, 1.5, 0.018);
+      this.add.emit(x, y, z, vx, vy, vz, rnd(0.15, 0.45), 0.03, 0.012, ice ? K_ICE0 : K_SPARK0, ice ? K_ICE1 : K_SPARK1, 14, 1.5, 0.018);
     }
-    const nDust = Math.round(3 * power * this.pm);
+    const nDust = Math.round((snow ? 8 : 3) * power * this.pm);
     for (let i = 0; i < nDust; i++) {
       randDir(_d);
-      const s = rnd(0.4, 1.6);
+      const s = rnd(0.4, 1.6) * (snow ? 1.4 : 1);
       T0[0] = lc[0] * 0.9 + 0.08; T0[1] = lc[1] * 0.9 + 0.08; T0[2] = lc[2] * 0.9 + 0.08; T0[3] = 0.55;
       T1[0] = lc[0] * 0.6 + 0.05; T1[1] = lc[1] * 0.6 + 0.05; T1[2] = lc[2] * 0.6 + 0.05; T1[3] = 0;
       this.smoke.emit(x + nx * 0.1, y + ny * 0.1, z + nz * 0.1, (_d[0] + nx) * s, (_d[1] + ny) * s + 0.3, (_d[2] + nz) * s,

@@ -44,6 +44,15 @@ export const M = {
   VCLIFF: 37,
   FIRE: 38,
   BASALT_BRICK: 39,
+  // buz golu haritasi (karli vadi, donmus gol, buz kalesi)
+  SNOW: 40,
+  ICE: 41,
+  ICE_BRICK: 42,
+  ICICLE: 43,
+  SNOWPINE: 44,
+  CARROT: 45,
+  SROCK: 46,
+  SCLIFF: 47,
 };
 
 // [id, ad, renk, puruzluluk, metallik, emissive, tough, ses]
@@ -88,9 +97,22 @@ const DEFS = [
   [M.VCLIFF, 'volkanik ucurum', 0x37322f, 0.88, 0.0, 0, 255, 'stone'],
   [M.FIRE, 'mangal atesi', 0xff8a2a, 0.3, 0.0, 1.0, 40, 'glass'],
   [M.BASALT_BRICK, 'bazalt tas', 0x4d4745, 0.9, 0.0, 0, 125, 'stone'],
+  // kar: yumusak (roket koca krater acar), ustu parlak; gol buzu: ince, kaygan (mover.js), kirilinca alti su
+  [M.SNOW, 'kar', 0xeef3f8, 0.85, 0.0, 0, 18, 'snow'],
+  [M.ICE, 'gol buzu', 0x9cc9de, 0.07, 0.0, 0, 30, 'ice'],
+  [M.ICE_BRICK, 'buz tugla', 0xb2d6e8, 0.16, 0.0, 0, 120, 'ice'],
+  [M.ICICLE, 'sarkit', 0xd6f0ff, 0.04, 0.0, 0.05, 10, 'ice'],
+  [M.SNOWPINE, 'karli cam', 0x2c4a37, 0.85, 0.0, 0, 12, 'leaf'],
+  [M.CARROT, 'havuc', 0xe0701c, 0.6, 0.0, 0, 20, 'dirt'],
+  [M.SROCK, 'karli kaya', 0x7a7d82, 0.85, 0.0, 0, 175, 'stone'],
+  [M.SCLIFF, 'karli ucurum', 0x6b6e73, 0.88, 0.0, 0, 255, 'stone'],
 ];
 
-export const MAT_COUNT = 40;
+export const MAT_COUNT = 48;
+
+// ustunde durulunca kayilan malzemeler (mover.js): gol ve dere buzu
+export const SLIPPERY = new Uint8Array(MAT_COUNT);
+SLIPPERY[M.ICE] = 1;
 
 // isigi bir statik isiga bagli malzemeler: yikilinca isik soner (lamba, mangal atesi)
 export const LAMP_MATS = new Set([M.LAMP, M.FIRE]);

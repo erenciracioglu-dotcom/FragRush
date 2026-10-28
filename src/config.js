@@ -47,6 +47,27 @@ export const WATER = {
   drownMax: 40,
 };
 
+// Buz golu haritasi: kaygan gol buzu, buz gibi su, buzu alttan kirma, yeniden donma, sarkit.
+export const ICE = {
+  friction: 1.4,         // gol buzunda surtunme (normal zemin 7.5): tus birakilinca kosu hizindan ~6 m kayilir
+  accel: 3.0,            // buzda hizlanma (normal 13): kalkis ve donus genis; ters yone basinca ~2.5 m'de durulur
+  slideFriction: 0.22,   // buzda egilip kayma (normal 0.9)
+  coldDepth: 0.35,       // ayak bu derinlikten fazla sudaysa (m) soguk hasari
+  coldTick: 0.5,         // s: hasar araligi
+  coldFirst: 5,          // ilk hasar (zirhi deler), her tikte coldStep artar
+  coldStep: 1,
+  coldMax: 12,
+  credit: 14,            // s: buzu kirilip suya dusen bu sure icinde donar / bogulursa parcalama kirana
+  creditFall: 3,         // s: suya dusulen yerin buzu en cok bu kadar once kirildiysa kirana yazilir
+  pushTime: 0.9,         // s: buz altinda Bosluk basili tutulunca tavan kirilir
+  refreezeTick: 0.25,    // s: yeniden donma adimi
+  refreezeTop: 0.12,     // ust katin (yuzey) kenardan donma olasiligi / adim
+  refreezeLow: 0.05,     // alt katlarin olasiligi (ustu donmus olmali)
+  icicleMin: 30,         // dusen sarkit hasari: icicleMin + voxel * icicleK (en cok icicleMax)
+  icicleK: 6,
+  icicleMax: 130,
+};
+
 export const PLAYER = {
   maxHealth: 100,
   overHealth: 200,

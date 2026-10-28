@@ -5,6 +5,7 @@ import { Actor } from './actor.js';
 import { WEAPONS } from './weapons.js';
 import { fire } from './combat.js';
 import { t } from '../i18n.js';
+import { M } from '../world/materials.js';
 
 const _eye = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -52,6 +53,7 @@ export class Player extends Actor {
       crouch: input.down('KeyC'),
       dash: input.pressed('ShiftLeft') || input.pressed('ShiftRight'),
     };
+    this.cmd = cmd;   // buz altinda Bosluk ile tavani kirma (fx/ice.js) son komutu okur
     const m = this.mover;
     m.simulate(dt, cmd);
     const ev = m.events;
@@ -72,7 +74,12 @@ export class Player extends Actor {
       if (this.stepAcc > 1.6) { this.stepAcc = 0; if (audio) audio.play(m.eyesUnder ? 'swimUnder' : 'swim', p.x, p.y, p.z, 0.7, true); }
     } else if (m.onGround && hs > 2 && !m.crouching) {
       this.stepAcc += hs * dt;
-      if (this.stepAcc > 2.3) { this.stepAcc = 0; if (audio) audio.play(m.inWater ? 'wade' : 'step', p.x, p.y, p.z, 0.6 + hs / 20, true); }
+      if (this.stepAcc > 2.3) {
+        this.stepAcc = 0;
+        // karda gicirti, buzda sert tikirti
+        const g = m.groundMat, snd = m.inWater ? 'wade' : g === M.SNOW || g === M.SNOWPINE ? 'stepSnow' : g === M.ICE || g === M.ICE_BRICK ? 'stepIce' : 'step';
+        if (audio) audio.play(snd, p.x, p.y, p.z, 0.6 + hs / 20, true);
+      }
     }
 
     // silah secimi

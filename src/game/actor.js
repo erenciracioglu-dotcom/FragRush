@@ -77,6 +77,8 @@ export class Actor {
     this.streak = 0;
     this.lastAttacker = null;
     this.air = WATER.air; this.underT = 0; this.drownT = 0; this.drownDmg = 0;
+    // buz golu (fx/ice.js): buzu kirip suya dusuren, soguk hasari, buz altinda itme
+    this.iceBy = null; this.iceByT = -100; this.coldTick = 0; this.coldDmg = 0; this.cold = 0; this.pushT = 0; this.underIceT = 0;
   }
 
   // isin - aktor kesisimi: {t, head} ya da null
@@ -170,7 +172,9 @@ export class Actor {
           this.drownT = 1;
           this.drownDmg = this.drownDmg ? Math.min(WATER.drownMax, this.drownDmg + WATER.drownStep) : WATER.drownFirst;
           if (this.game.onDrown) this.game.onDrown(this, this.drownDmg);
-          this.takeDamage(this.drownDmg, null, 'drown', null, false, true);
+          // olduren tik: buz golunde buzu altindan kiran (suya dusuren) parcalamayi alir (game.envCredit)
+          const by = this.health - this.drownDmg <= 0 && this.game.envCredit ? this.game.envCredit(this) : null;
+          this.takeDamage(this.drownDmg, by, 'drown', null, false, true);
         }
       }
     } else {

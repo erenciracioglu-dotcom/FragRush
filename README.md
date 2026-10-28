@@ -2,8 +2,9 @@
 
 **A fast, fully destructible arena shooter that runs in your browser.**
 Jump in, no accounts, no setup: fight bots in a neon-lit voxel arena, a sunny meadow of
-treehouses, a creek and a lake, or a dark volcanic valley cut by a creek of lava, where almost every
-wall, tree and bridge can be blown apart and whatever collapses buries whoever stands below.
+treehouses, a creek and a lake, a dark volcanic valley cut by a creek of lava, or a snowy valley
+around a frozen lake with an ice castle, where almost every wall, tree and bridge can be blown apart
+and whatever collapses buries whoever stands below.
 
 **▶ Play now: https://erenciracioglu-dotcom.github.io/FragRush/**
 
@@ -41,9 +42,10 @@ Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to 
 
 ## Maps
 
-Pick the map on the main menu: **MEADOW**, **VOLCANO**, **ARENA** or **ROTATE** (changes after every
-match: meadow, volcano, arena, ...). *NEW ARENA* rebuilds the chosen map with a new layout seed.
-URL override for testing: `?map=meadow`, `?map=volcano` or `?map=arena`.
+Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **ARENA** or **ROTATE**
+(changes after every match: meadow, volcano, frozen lake, arena, ...). *NEW ARENA* rebuilds the chosen
+map with a new layout seed. URL override for testing: `?map=meadow`, `?map=volcano`, `?map=frozen` or
+`?map=arena`.
 
 - **Arena**: the original neon sunset arena: central tower, four forts, bridges, corner yards.
 - **Meadow**: a sunny afternoon in a valley ringed by cliffs. A great oak in the middle carries a
@@ -76,6 +78,21 @@ URL override for testing: `?map=meadow`, `?map=volcano` or `?map=arena`.
 |---|---|
 | ![Volcano](media/volcano.jpg) | ![Lava creek](media/volcano_creek.jpg) |
 | ![Lava pond](media/volcano_pond.jpg) | ![From the bridge](media/volcano_bridge.jpg) |
+
+- **Frozen Lake**: a snowy valley on an overcast winter afternoon, snow falling, the lake in the
+  middle frozen over. On an island in the lake stands an ice castle: a low crenellated wall with four
+  gates and four turrets with braziers on top, and in the middle an ice-brick keep with a spiral
+  staircase around it, up to the lookout where the Doomsday Orb appears (four jump pads on the shore,
+  or a rocket jump). A wooden footbridge runs from the south gate to the shore. Around the lake: two
+  log cabins with smoking chimneys, a hunter's stand on stilts, a pier with a fishing hole cut in the
+  ice (the Mega Health lies on the lake bottom below it), snowy pines, boulders, fallen logs,
+  snowdrifts and snowmen. A frozen creek comes out of a cave in the west cliff. Icicles hang from the
+  eaves, the turrets and the lookout. Everything breaks except the cliff core and the bedrock.
+
+| | |
+|---|---|
+| ![Frozen Lake](media/frozen.jpg) | ![Ice castle](media/frozen_castle.jpg) |
+| ![Broken ice](media/frozen_hole.jpg) | ![Snowman](media/frozen_snowman.jpg) |
 
 ### Water (meadow)
 
@@ -118,6 +135,29 @@ glowing wall of lava at the edge of the crater. The lava you see is the lava tha
 - Bots keep away from the edge: they don't run, jump or dash toward the lava, brake when their
   momentum would carry them in, and cross on the arches and bridges. They ignore the Mega Health on
   the islet. They can still be blasted in.
+
+### Ice (frozen lake)
+
+The lake is covered by ice half a meter thick, and the water under it is freezing. As on the meadow,
+every empty voxel below the waterline is water.
+
+- **The ice breaks**: rockets and plasma punch holes in it, bullets chip it. It is **slippery**: you
+  pick up speed slowly and slide a long way before you stop.
+- **Freezing water** takes health every half second (5, 6, 7, ... up to 12, ignores armor) and the
+  screen frosts over. Get out fast.
+- **Break the ice under someone and the frag is yours** ("THROUGH THE ICE!"): if they fall through
+  ice you broke in the last 3 seconds and freeze or drown within 14 seconds, you get the credit. Fall
+  in on your own and it counts as a **self frag (−1)**.
+- **The ice is a ceiling**: under it you can't come up for air. Find a hole, or hold **Space** under
+  the ice for about a second to break through from below.
+- **Broken ice freezes over again** from the edges inward, surface first: a rocket hole can be walked
+  on again after about 15 seconds and is solid in under a minute. Floes cut loose float. The fishing
+  hole at the end of the pier never freezes.
+- **Icicles**: shoot one at the root and it breaks off; it hurts whoever stands below (bigger ones
+  hurt more) and the damage is yours ("ICICLE DROP!").
+- **Snowmen** hide armor, health or ammo inside: blast one open to find out. Bots don't know.
+- Bots walk across the ice and path around the holes. If they fall in, they swim for the nearest
+  edge; trapped under the ice, they break through from below.
 
 ### Weapons
 
@@ -204,8 +244,8 @@ Measured on an RTX 5080 Laptop at 2560×1362, Ultra:
   game renders on the dedicated one, so keep the integrated GPU's driver up to date as well.
   "dGPU only" (MUX) mode takes the integrated GPU out of that path.
 
-Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`), add `&map=meadow`
-or `&map=volcano` for the other maps.
+Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`), add `&map=meadow`,
+`&map=volcano` or `&map=frozen` for the other maps.
 
 The meadow is heavier than the arena (more triangles in trees and grassy slopes, plus water). On the
 test laptop's **integrated** GPU (Intel Graphics 0x7D67, Chrome/ANGLE D3D11, Low quality, 1104×561,
@@ -216,9 +256,12 @@ High (1578×802). The underwater and lens passes run only when the camera is at 
 waterline or the lens is wet, and ambient occlusion is switched off while fully underwater.
 
 The volcano sits between the two: it has no trees but adds the lava surface, its glow on the voxels
-and embers. Run back to back on the same integrated GPU at Low in a larger window (1563×831), the
-arena averaged 122 FPS (GPU 7.7 ms/frame), the volcano 101 FPS (9.4 ms) and the meadow 86 FPS
-(11.0 ms).
+and embers. The frozen lake is close to the meadow: snowy slopes and pines, the ice, snowfall, and
+the water under the holes is drawn by the same water pass. Run back to back on the same integrated
+GPU at Low in a larger window (1563×831), the arena averaged 115 FPS (GPU 7.5 ms/frame), the volcano
+84 FPS (10.4 ms), the frozen lake 71 FPS (12.4 ms) and the meadow 66–79 FPS (11.4–13.5 ms over two
+runs; the slower one had twenty structures collapsing in view). The bots follow a different path in
+every run, so what gets blasted and how much falls varies.
 
 ## How it works
 
@@ -236,7 +279,8 @@ arena averaged 122 FPS (GPU 7.7 ms/frame), the volcano 101 FPS (9.4 ms) and the 
   tone mapping, color grading, SMAA, per-voxel color variation, bevels and material patterns,
   instanced particles and debris, a fixed-size dynamic light pool (no shader recompiles).
   All shaders are compiled up front.
-- **Bots**: multi-level navigation grid that updates as the arena is destroyed, A* pathfinding,
+- **Bots**: multi-level navigation grid that updates as the arena is destroyed (a node stands on the
+  highest ground within one step of its cell, so slopes and drifts are walkable), A* pathfinding,
   target selection, strafing, jumping, dashing, rocket dodging, jump pads. When stuck they drill
   through walls. Near lava they trace where their run, jump or dash would end (steps, drops, the
   arc of a jump) and brake or turn away before it ends in the lava.
@@ -258,18 +302,27 @@ arena averaged 122 FPS (GPU 7.7 ms/frame), the volcano 101 FPS (9.4 ms) and the 
   changes. The night sky (ash
   clouds, the distant volcano with lava streaks and a glowing plume) is a shader, also baked into
   the environment map for reflections. The lava's rumble, bubbles and sizzle are synthesized too.
+- **Ice (frozen lake)**: the lake ice is two layers of voxels at the waterline, drawn with its own
+  material pattern (dark clear patches, frost, a world-space crack network, frozen bubbles). Each
+  blast records who broke which column and when; whoever drops into the water looks up the ice broken
+  around them in the last 3 seconds for the credit. Broken ice goes into a refreeze queue and grows
+  back from the edges inward, surface layer first, never inside a body. Ice at the waterline counts as
+  anchored, so floes cut loose float instead of sinking. Icicles that break off fall as rigid bodies
+  and hurt what they land on. Snowfall is a few thousand GPU points in a box around the camera,
+  hidden under roofs and trees by a top-down height map that follows the destruction; chimneys smoke,
+  the wind howls louder up high and the ice booms in the distance (all synthesized).
 
 ```
 src/            source (src/config.js: all tunables in one place)
-  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano), levels, voxel shader
-  game/         game loop, movement (incl. swimming), weapons, bots, destruction, items, navigation
-  fx/           sky, post-processing, water bridge, lava, environments, particles, debris, lights
+  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake), levels, voxel shader
+  game/         game loop, movement (incl. swimming, ice), weapons, bots, destruction, items, navigation
+  fx/           sky, post-processing, water bridge, lava, ice and snow, environments, particles, debris, lights
   vendor/       water.js
   audio/ ui/    sound synthesis, HUD
 docs/           built single-file game (served by GitHub Pages)
 serve.mjs       dependency-free local server
 build.mjs       build script
-test/           headless tests (movement, world, water, meadow, volcano, flows, screenshots)
+test/           headless tests (movement, world, water, meadow, volcano, frozen lake, flows, screenshots)
 tools/          benchmark scripts
 ```
 
@@ -296,8 +349,8 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   zıplama, tavşan zıplaması, atılma. 25 parçalamaya ulaşan (ya da 10 dakika sonunda önde olan)
   kazanır, ardından yeni bir arena kurulur.
 - **Dil:** oyun İngilizce açılır; *SETTINGS → Language* ile Türkçeye geçilir (seçim hatırlanır).
-- **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **ARENA** ya da **SIRAYLA** (her maçtan sonra
-  değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
+- **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **ARENA** ya da **SIRAYLA** (her
+  maçtan sonra değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
   gözetleme yeri olan büyük bir meşe ve ağaç evi, köprülerle bağlı üç ağaç evi daha, uçurumdaki
   mağaradan çıkıp küçük bir göle akan dere, iskele, atlama tahtası, avcı kulübesi. Ağacı kesersen
   tacı (ve ağaç evindeki) aşağı iner.
@@ -307,6 +360,14 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   mağaradan çıkıp küçük, sığ bir lav göletine akan dar bir lav deresi ve üstünde üç bazalt kemer.
   Mega can göletin ortasındaki bazalt adacıkta (iki obsidyen basamak taşı, dikkatsiz bir atlayış
   ve yanarsın). Obsidyen kristalleri, bazalt sütunları, akkor magma çatlakları, duman tüten fümeroller.
+  Buz Gölü: kar yağan, bulutlu bir kış öğleden sonrası; vadinin ortasındaki göl donmuş. Göldeki
+  adada buz kalesi: dört kapılı alçak mazgallı sur, tepelerinde mangal yanan dört burç, ortada
+  çevresinden sarmal merdiven çıkan buz tuğla kule ve tepesinde KIYAMET küresinin çıktığı gözetleme
+  yeri (kıyıdaki dört zıplama pedi ya da roketle zıplama). Güney kapısından kıyıya tahta köprü.
+  Kıyıda bacası tüten iki kütük ev, kazıklı avcı kulübesi, ucunda buzda balık deliği olan iskele (mega
+  can altında, göl dibinde), karlı çamlar, kayalar, devrik kütükler, kar yığınları ve kardan adamlar;
+  batı uçurumundaki mağaradan donmuş bir dere çıkar. Saçaklardan, burçlardan ve gözetleme yerinden
+  sarkıtlar sarkar.
 - **Su:** derede yavaşlarsın ama ateş edebilirsin. Gölde yüzersin: Boşluk yukarı (yüzeyde basılı
   tutunca başın suyun üstünde kalır), **C** dalış; tuşa basmazsan yavaşça batarsın. **Başın su
   altındayken ateş edemezsin.** 12 saniye nefesin var; sonra her saniye artan hasar alırsın (zırhı
@@ -318,6 +379,18 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   duvarında durur, roket ve plazma orada patlar; lava düşen eşya yanar ve bir süre sonra yerinde
   yeniden çıkar. Botlar lav
   kenarından uzak durur, lava doğru koşmaz, zıplamaz, atılmaz; ama patlamayla lava itilebilirler.
+- **Buz:** göl buzu yarım metre kalınlığında; roket ve plazma deler, mermi yontar. Buz **kaygandır**:
+  geç hızlanır, uzun kayarsın. Altındaki su buz gibidir: yarım saniyede bir artan hasar (5, 6, 7, ...
+  en çok 12, zırhı deler), ekran kırağılanır. **Birinin altındaki buzu kırarsan parçalama senin**
+  (**BUZA GÖMDÜN!**): son 3 saniyede kırdığın buzdan düşüp 14 saniye içinde donan ya da boğulan sana
+  yazılır; kendin düşersen **kendini parçalamış sayılırsın (−1)**. **Buz tavandır:** altından nefese
+  çıkamazsın; delik bul ya da buzun altında **Boşluk**'u bir saniye kadar basılı tutup kır. Kırık
+  buz kenarlarından yeniden donar (roket deliğinin üstü 15 saniye kadar sonra yürünür, bir dakika
+  dolmadan tamamen kapanır), kopan buz parçaları yüzer,
+  iskeledeki balık deliği hiç donmaz. **Sarkıtı** kökünden vurursan kopup düşer, altındakini yaralar
+  (**SARKITLA VURDUN!**). **Kardan adamların** içinde zırh, can ya da cephane saklı: patlat, gör.
+  Botlar buzun üstünde delikleri dolaşır; suya düşerlerse en yakın kenara yüzer, buzun altında
+  kalırlarsa alttan kırarlar.
 - **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).
 - **KIYAMET küresi:** merkez kulenin çatısında çıkar. 15 saniye boyunca her isabet öldürür,

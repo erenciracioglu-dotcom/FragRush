@@ -34,6 +34,14 @@ P([M.MAGMA], 23);
 P([M.FIRE], 24);
 P([M.VCLIFF], 25);
 P([M.BASALT_BRICK], 5);
+// buz golu haritasi: kar (26), gol buzu (27), buz tugla (28), sarkit (29), karli cam (30), karli kaya (31)
+P([M.SNOW], 26);
+P([M.ICE], 27);
+P([M.ICE_BRICK], 28);
+P([M.ICICLE], 29);
+P([M.SNOWPINE], 30);
+P([M.SROCK, M.SCLIFF], 31);
+P([M.CARROT], 12);
 
 // lav isigi haritasi yokken baglanan bos doku
 const blankTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
@@ -104,6 +112,13 @@ float vxLine(float x, float w, float aa) {
   float f = abs(fract(x + 0.5) - 0.5);
   return 1.0 - smoothstep(w - aa, w + aa, f);
 }
+float vxNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = vxHash(vec3(i, 0.5)), b = vxHash(vec3(i + vec2(1.0, 0.0), 0.5));
+  float c = vxHash(vec3(i + vec2(0.0, 1.0), 0.5)), d = vxHash(vec3(i + 1.0, 0.5));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
 vec3 vxEmissive = vec3(0.0);
 float vxRough = 1.0;
 float vxMetal = 0.0;`)
@@ -142,6 +157,13 @@ float vxMetal = 0.0;`)
   float p = 1.0;
   vxRough = mp.x;
   vxMetal = mp.y;
+  if (pat > 25.5) {
+    // kar ve buz: voxel izgarasi belli olmasin (yumusak kar ortusu, puruzsuz gol buzu); tugla derzi kalir
+    float bk = pat < 26.5 ? 0.3 : pat < 27.5 ? 0.1 : pat < 28.5 ? 0.75 : 0.35;
+    bevel = mix(1.0, bevel, bk);
+    var = 1.0 + (h - 0.5) * 0.05 * detail;
+    tint = vec3(1.0);
+  }
   if (pat > 0.5 && pat < 1.5) {
     // beton panel: 2m x 1.5m derz
     float seam = max(vxLine(t.x / 8.0, 0.012, aa / 8.0), vxLine(t.y / 6.0, 0.016, aa / 6.0));
@@ -203,6 +225,97 @@ float vxMetal = 0.0;`)
     // kristal
     float sp = pow(h, 12.0);
     vxEmissive = base * (mp.z + sp * 0.6) * uEmissiveScale * 0.5;
+  } else if (pat > 25.5) {
+    // buz golu: kar (26), gol buzu (27), buz tugla (28), sarkit (29), karli cam (30), karli kaya (31)
+    vec2 sc = floor(t * 4.0);
+    float s = vxHash(vec3(sc, cell.y * 0.37 + cell.x * 0.11 + 5.0));
+    float s2 = vxHash(vec3(sc + 31.7, cell.z * 0.21 + 2.0));
+    bool top = vObjNormal.y > 0.5;
+    if (pat < 26.5 || (top && pat > 29.5)) {
+      // kar (ve karli cam / kayanin ust yuzu): ruzgar dalgalari, hafif benek, ust yuzde goz kirpan kristaller
+      vec3 snow = vec3(0.86, 0.9, 0.95);
+      float wav = 0.5 + 0.5 * sin(vWPos.x * 0.9 + vWPos.z * 0.35 + sin(vWPos.z * 0.6) * 1.5);
+      snow *= mix(1.0, 0.93 + 0.05 * wav + 0.04 * s, detail);
+      if (!top) snow *= vec3(0.92, 0.95, 1.0) * (0.96 - 0.05 * vxLine(t.y / 2.0, 0.08, aa / 2.0) * detail);
+      base = snow;
+      vxRough = 0.8;
+      if (top) {
+        vec2 gc = floor(t * 6.0);
+        float glint = step(0.992, vxHash(vec3(gc, cell.y + 71.0))) * detail;
+        float tw = max(0.0, sin(uTime * 2.3 + vxHash(vec3(gc, 3.0)) * 40.0));
+        vxEmissive += vec3(0.9, 0.95, 1.0) * glint * tw * tw * 1.8;
+      }
+    } else if (pat > 30.5) {
+      // karli kaya (yan / alt yuz): gri kaya, katmanlar, ustten sarkan kar dudaklari
+      base *= mix(1.0, 0.84 + 0.28 * s, detail);
+      if (vertical > 0.5) {
+        // kaya katmanlari: yuz boyunca dalgali yatay seritler (dikey dilim cizgisi olmasin)
+        float sy = q.y / 3.0 + vxNoise(vec2((q.x + q.z) / 21.0, 4.3)) * 2.4;
+        base *= mix(1.0, 0.86 + 0.2 * vxHash(vec3(0.0, floor(sy), 9.0)), detail);
+        float lip = step(0.76 + 0.16 * s2, fract(t.y)) * step(0.5, vxHash(vec3(floor(t.x * 2.0), cell.y, 7.0)));
+        base = mix(base, vec3(0.8, 0.84, 0.9), lip * 0.85 * detail);
+      } else base *= 0.75;
+      vxRough = 0.85;
+    } else if (pat > 29.5) {
+      // karli cam (yan / alt yuz): koyu yesil igne kumeleri, seyrek kar
+      float leaf = vxHash(vec3(floor(t * 2.0), cell.y + 13.0));
+      base *= mix(1.0, 0.62 + 0.62 * leaf, detail);
+      base = mix(base, vec3(0.78, 0.82, 0.88), step(0.86, s2) * 0.75 * detail);
+      vxRough = 0.8;
+    } else if (pat < 27.5) {
+      // gol buzu: genis lekeler (alttaki derin suyu gosteren koyu seffaf buz / acik mavi / kirag), dunya
+      // olceginde catlak agi, donmus kabarciklar. Yan yuz: kirik kenar; alt yuz: su altindan bakista isik gecirir
+      vec2 w = vWPos.xz;
+      float m1 = vxNoise(w * 0.3) * 0.65 + vxNoise(w * 0.95 + 7.3) * 0.35;
+      vec3 col = mix(vec3(0.025, 0.085, 0.13), base * 1.05, smoothstep(0.22, 0.6, m1));
+      col = mix(col, vec3(0.72, 0.82, 0.9), smoothstep(0.64, 0.88, m1) * 0.8);
+      vec2 cw = w * 0.55 + vec2(vxNoise(w * 0.7), vxNoise(w * 0.7 + 3.1)) * 1.4;
+      float cr = max(vxLine(cw.x, 0.016, 0.02), vxLine(cw.y * 0.8 + cw.x * 0.3, 0.014, 0.02));
+      vec2 cw2 = w * 1.7 + vec2(vxNoise(w * 2.1 + 9.0), vxNoise(w * 2.1 + 4.0)) * 1.2;
+      float cr2 = vxLine(cw2.x + cw2.y * 0.4, 0.02, 0.03) * step(0.55, vxNoise(w * 0.5 + 2.0));
+      col = mix(col, vec3(0.85, 0.93, 1.0), max(cr, cr2 * 0.6) * 0.75 * detail);
+      float bub = step(0.985, vxHash(vec3(floor(w * 9.0), 5.0))) * (1.0 - smoothstep(0.25, 0.6, m1));
+      col = mix(col, vec3(0.75, 0.88, 0.95), bub * 0.7 * detail);
+      if (top) {
+        base = col;
+        vxRough = 0.035 + 0.3 * smoothstep(0.62, 0.9, m1);
+      } else if (vObjNormal.y < -0.5) {
+        base = vec3(0.1, 0.22, 0.28);
+        vxEmissive += vec3(0.05, 0.16, 0.21);
+        vxRough = 0.2;
+      } else {
+        base = mix(base * 1.1, vec3(0.6, 0.8, 0.9), 0.3) * (0.92 + 0.08 * vxLine(t.y, 0.1, aa));
+        vxEmissive += base * 0.05;
+        vxRough = 0.1;
+      }
+    } else if (pat < 28.5) {
+      // buz tugla: 2x1 voxel bloklar (yatayda 2x2), karli derz, blok basina ton, blok ortasi acik
+      float row = floor(t.y);
+      float off = mod(row, 2.0);
+      vec2 fb = fract(vec2((t.x + off) / 2.0, t.y));
+      float bh = vxHash(vec3(floor((t.x + off) / 2.0), row, 3.0 + an.x * 7.0));
+      float mortar = max(vxLine(t.y, 0.07, aa), vxLine((t.x + off) / 2.0, 0.035, aa / 2.0));
+      if (vertical < 0.5) {
+        vec2 tb = t / 2.0;
+        fb = fract(tb);
+        bh = vxHash(vec3(floor(tb), 9.0));
+        mortar = max(vxLine(tb.x, 0.035, aa / 2.0), vxLine(tb.y, 0.035, aa / 2.0));
+      }
+      vec3 ice = base * (0.84 + 0.32 * bh);
+      ice = mix(ice, ice * vec3(0.8, 0.95, 1.12), step(0.7, bh) * 0.5);
+      float ctr = 1.0 - max(abs(fb.x - 0.5), abs(fb.y - 0.5)) * 2.0;
+      ice *= 0.9 + 0.2 * ctr;
+      base = mix(ice, vec3(0.86, 0.9, 0.95), mortar * 0.85 * detail);
+      if (top) base = mix(base, vec3(0.86, 0.9, 0.95), 0.5);
+      vxRough = mix(0.12, 0.7, mortar);
+      vxEmissive += ice * 0.03;
+    } else {
+      // sarkit: dikey ince cizgiler, cok parlak, hafif ic isik
+      float st = vxLine(t.x * 1.3 + h * 3.0, 0.15, aa);
+      base *= 1.0 + 0.15 * st;
+      vxRough = 0.03;
+      vxEmissive += base * (0.06 + 0.14 * pow(h2, 6.0));
+    }
   } else if (pat > 18.5) {
     // volkanik: kul (19), bazalt (20), curuf (21), obsidyen (22), magma kaya (23), mangal atesi (24),
     // volkanik ucurum (25)

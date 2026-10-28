@@ -2,15 +2,17 @@
 import { generateArena } from './mapgen.js';
 import { generateMeadow } from './meadow.js';
 import { generateVolcano } from './volcano.js';
+import { generateFrozen } from './frozen.js';
 
 export const LEVELS = {
   arena: { id: 'arena', label: 'mapArena', generate: generateArena },
   meadow: { id: 'meadow', label: 'mapMeadow', generate: generateMeadow },
   volcano: { id: 'volcano', label: 'mapVolcano', generate: generateVolcano },
+  frozen: { id: 'frozen', label: 'mapFrozen', generate: generateFrozen },
 };
-export const LEVEL_ORDER = ['meadow', 'volcano', 'arena'];
+export const LEVEL_ORDER = ['meadow', 'volcano', 'frozen', 'arena'];
 
-// ayar ('arena' | 'meadow' | 'volcano' | 'rotate') ve onceki haritaya gore kurulacak harita
+// ayar ('arena' | 'meadow' | 'volcano' | 'frozen' | 'rotate') ve onceki haritaya gore kurulacak harita
 export function resolveLevel(setting, previous = null) {
   if (LEVELS[setting]) return setting;
   if (!previous) return LEVEL_ORDER[0];

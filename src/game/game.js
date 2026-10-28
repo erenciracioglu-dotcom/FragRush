@@ -10,6 +10,7 @@ import { createSky, createEnvironment } from '../fx/sky.js';
 import { WaterSystem } from '../fx/water.js';
 import { MEADOW_SKY, MEADOW_WATER, createHills } from '../fx/environments.js';
 import { LavaSystem, VOLCANO_ENV, VOLCANO_HILLS, createVolcanoSky, createVolcanoEnvironment, volcanoKeyDir } from '../fx/lava.js';
+import { IceSystem, FROZEN_SKY, FROZEN_WATER, FROZEN_ENV, FROZEN_HILLS } from '../fx/ice.js';
 import { PostFX, QUALITY } from '../fx/post.js';
 import { Effects } from '../fx/effects.js';
 import { Destruction } from './destruction.js';
@@ -26,7 +27,7 @@ import { WEAPONS } from './weapons.js';
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 
-const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava']);
+const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava', 'cold', 'icicle']);
 // lava dusen biri son bu kadar saniye icinde vurulduysa (itildiyse) parcalama vurana yazilir
 const LAVA_PUSH_CREDIT = 4;
 // statik nokta isiklari her haritada bu kadar (sayi degisirse tum malzemeler yeniden derlenir)
@@ -106,6 +107,9 @@ export class Game {
     scene.add(this.volcanoSky.mesh);
     this.volcanoHills = createHills(center, VOLCANO_HILLS);
     scene.add(this.volcanoHills);
+    // buz golu: karli uzak daglar
+    this.frozenHills = createHills(center, FROZEN_HILLS);
+    scene.add(this.frozenHills);
 
     mk('setup');
     this.world = new VoxelWorld(WORLD.X, WORLD.Y, WORLD.Z);
@@ -124,6 +128,7 @@ export class Game {
     this.items = null;
     this.waterSys = new WaterSystem(this);
     this.lavaSys = new LavaSystem(this);
+    this.iceSys = new IceSystem(this);
     this.fx.debris.onLava = this.fx.glowDebris.onLava = (x, y, z) => {
       if (Math.random() < 0.25) this.fx.add.emit(x, y + 0.05, z, 0, 1.5, 0, 0.5, 0.05, 0.02, [5, 1.2, 0.15, 1], [1, 0.1, 0, 0], 2, 0.5, 0.01);
     };
@@ -269,9 +274,12 @@ export class Game {
     const scene = this.scene, ws = this.waterSys, c = this.center;
     const meadow = arena.env === 'meadow';
     const volcano = arena.env === 'volcano';
+    const frozen = arena.env === 'frozen';
     this.volcanoSky.mesh.visible = false;
     this.volcanoHills.visible = false;
+    this.frozenHills.visible = false;
     if (volcano) this.lavaSys.setup(arena.lava); else this.lavaSys.disable();
+    if (frozen) this.iceSys.setup(arena); else this.iceSys.disable();
     if (volcano) {
       // volkan: karanlik kul gokyuzu, ufuktaki patlamanin alcak turuncu isigi (golge), soguk mor ortam
       ws.disable();
@@ -317,6 +325,34 @@ export class Game {
       scene.fog.density = 0.0048;
       this.hemi.intensity = 0;
       this.hills.visible = true;
+    } else if (frozen) {
+      // buz golu: alcak kis gunesi, puslu beyaz ufuk; buz deliklerinde su (water.js), kardan yansiyan isik
+      ws.setup({ water: FROZEN_WATER, sky: FROZEN_SKY, y: arena.water.y, flow: null, depth: arena.water.depth, worldSize: [WORLD.X * VS, WORLD.Z * VS] }, this.settings.quality);
+      if (!this._frozenEnv) {
+        const cubes = ws.skyCubes();
+        const pmrem = new THREE.PMREMGenerator(this.renderer);
+        const env = pmrem.fromCubemap(cubes.env).texture;
+        pmrem.dispose();
+        cubes.env.dispose();
+        this._frozenEnv = { ...cubes, envMap: env };
+      }
+      const E = this._frozenEnv;
+      scene.background = E.background;
+      scene.environment = E.envMap;
+      scene.environmentIntensity = FROZEN_ENV.envIntensity;
+      this.sky.mesh.visible = false;
+      this.sunDir.set(E.sunDirection[0], E.sunDirection[1], E.sunDirection[2]).normalize();
+      const sc = E.sunColor, mx = Math.max(sc[0], sc[1], sc[2], 1e-3);
+      this.sun.color.setRGB(sc[0] / mx, sc[1] / mx, sc[2] / mx, THREE.LinearSRGBColorSpace);
+      this.sun.intensity = Math.PI * mx * FROZEN_ENV.sunScale;
+      const h = E.horizon;
+      scene.fog.color.setRGB(h[0] * 0.92, h[1] * 0.95, h[2], THREE.LinearSRGBColorSpace);
+      scene.fog.density = FROZEN_ENV.fogDensity;
+      this.hemi.color.set(FROZEN_ENV.hemiSky);
+      this.hemi.groundColor.set(FROZEN_ENV.hemiGround);
+      this.hemi.intensity = FROZEN_ENV.hemi;
+      this.hills.visible = false;
+      this.frozenHills.visible = true;
     } else {
       ws.disable();
       scene.background = null;
@@ -501,7 +537,8 @@ export class Game {
     }
     if (hud) {
       const involves = victim.isPlayer || (killer && killer.isPlayer);
-      if (!killer || killer === victim) hud.feed(null, victim, weaponId === 'crush' ? t('crushedFeed') : weaponId === 'drown' ? t('drownedFeed') : weaponId === 'lava' ? t('lavaFeed') : t('blewUp'), involves);
+      const selfFeed = { crush: 'crushedFeed', drown: 'drownedFeed', lava: 'lavaFeed', cold: 'coldFeed', icicle: 'icicleFeed' }[weaponId];
+      if (!killer || killer === victim) hud.feed(null, victim, t(selfFeed || 'blewUp'), involves);
       else hud.feed(killer, victim, label, involves);
     }
     if (killer && killer.isPlayer && killer !== victim) {
@@ -515,6 +552,8 @@ export class Game {
         if (mk.n >= 2) hud.centerMsg(msgs[Math.min(5, mk.n)], 2.0);
         else if (weaponId === 'crush') hud.centerMsg(t('buried'), 1.8);
         else if (weaponId === 'lava') hud.centerMsg(t('lavaKill'), 1.8);
+        else if (weaponId === 'cold' || (weaponId === 'drown' && this.iceSys.active)) hud.centerMsg(t('iceKill'), 1.8);
+        else if (weaponId === 'icicle') hud.centerMsg(t('icicleKill'), 1.8);
         else if (head) hud.centerMsg(t('headshot'), 1.4);
         else hud.centerMsg(t('fragged'), 1.2);
         const st = killer.streak;
@@ -557,6 +596,16 @@ export class Game {
     const pusher = k && k !== a && this.time - a.lastAttackTime < LAVA_PUSH_CREDIT && this.actors.includes(k) ? k : null;
     a.health = 0;
     a.die(pusher, 'lava', false);
+  }
+
+  // ortam olumu (bogulma, buz gibi su) kime yazilir: buz golunde buzu kirip suya dusuren (fx/ice.js)
+  envCredit(a) { return this.iceSys.active ? this.iceSys.credit(a) : null; }
+
+  // kardan adamin icindeki esya ortaya cikti: yakindaki oyuncuya haber
+  onCacheReveal(it) {
+    const p = this.player;
+    if (!this.hud || this.state !== 'playing' || !p.alive) return;
+    if (p.mover.pos.distanceTo(it.pos) < 14) this.hud.subMsg(t('cacheFound'), 1.8);
   }
 
   // bogulma hasari: hirilti + kabarcik
@@ -655,6 +704,7 @@ export class Game {
           this.checkPads(a);
           this.waterEvents(a, dt);
           if (this.lavaSys.active && this.lavaSys.actorInLava(a.mover)) { this.lavaDeath(a); continue; }
+          if (this.iceSys.active) { this.iceSys.actorTick(a, dt); if (!a.alive) continue; }
           if (a.mover.pos.y < -4) a.takeDamage(999, null, 'world', null, false);
         } else {
           a.respawnTimer -= dt;
@@ -697,6 +747,7 @@ export class Game {
       this.volcanoSky.uniforms.uTime.value = this.time;
       this.lavaSys.update(paused ? 0 : dt, this.camera);
     }
+    if (this.iceSys.active) this.iceSys.update(paused ? 0 : dt, this.camera);
     // nisangahtaki hedef (ad etiketi icin)
     this.aimTarget = null;
     if (st === 'playing' && this.player.alive && (this.frame & 3) === 0) {
@@ -814,7 +865,7 @@ export class Game {
     const c = this.center;
     // yuksekten genis yorunge: catilarin (11.5 m) ve antenin ustunde, tum arena gorunsun
     // (cayirda buyuk mesenin tacindan disarida, golu ve dereyi gorecek kadar genis)
-    const O = this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
+    const O = this.mapId === 'frozen' ? { r: 30, y: 19, ty: 9, tr: 8 } : this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
     const r = O.r + Math.sin(a.t * 0.11) * 2;
     this.camera.position.set(c.x + Math.cos(t) * r, O.y + Math.sin(a.t * 0.07) * 1.5, c.z + Math.sin(t) * r);
     _v.set(c.x + Math.cos(t + 0.6) * O.tr, O.ty, c.z + Math.sin(t + 0.6) * O.tr);

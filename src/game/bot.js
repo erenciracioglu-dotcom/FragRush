@@ -448,7 +448,9 @@ export class Bot extends Actor {
       this.path = null;
     }
     let mx = 0, mz = 0;
-    if (this.shore) {
+    // buz golu: basin ustu buz tavansa yerinde kalip yukari it (fx/ice.js buzu alttan kirar); yuzerek
+    // kiyiya gitmeye calisirsa her seferinde yeni tavanin altina girer
+    if (this.shore && !(this.underIceT > 0 && this.mover.eyesUnder)) {
       const dx = this.shore.x - p.x, dz = this.shore.z - p.z, d = Math.hypot(dx, dz) || 1;
       mx = dx / d; mz = dz / d;
     }

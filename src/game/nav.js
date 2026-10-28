@@ -100,19 +100,27 @@ export class NavGrid {
       if (!w.solid(vx, y - 1, vz) || w.solid(vx, y, vz)) continue;
       if (wv - y > 4) continue;
       if (y <= lv && w.lavaMask[vx + w.sx * vz]) continue;
-      // dikey ve yatay acik alan (3x3 voxel)
-      let ok = true;
+      // yamac: govde (3x3) cevredeki en yuksek zemine basar; bir adimlik (en cok 2 voxel) basamak engel
+      // degil (yurume 0.62 m'ye kadar basamak cikar). Daha yuksegi duvar.
+      let top = y, ok = true;
+      for (let dz = -1; dz <= 1 && ok; dz++) for (let dx = -1; dx <= 1 && ok; dx++) {
+        if (!dx && !dz) continue;
+        let h = 0;
+        while (h < 3 && w.solid(vx + dx, y + h, vz + dz)) h++;
+        if (h === 3) ok = false; else if (y + h > top) top = y + h;
+      }
+      // dikey ve yatay acik alan (3x3 voxel), basilan yukseklikten
       for (let k = 0; k < CLEAR && ok; k++) {
         for (let dz = -1; dz <= 1 && ok; dz++) for (let dx = -1; dx <= 1 && ok; dx++) {
-          if (w.solid(vx + dx, y + k, vz + dz)) ok = false;
+          if (w.solid(vx + dx, top + k, vz + dz)) ok = false;
         }
       }
       if (!ok) continue;
-      this.ny[base + n] = y;
-      this.wet[base + n] = wv - y > 0 ? 1 : 0;
-      this.hot[base + n] = lv > -1e9 && y <= lv + 8 && this._lavaNear(vx, vz, lv, 4) ? 1 : 0;
+      this.ny[base + n] = top;
+      this.wet[base + n] = wv - top > 0 ? 1 : 0;
+      this.hot[base + n] = lv > -1e9 && top <= lv + 8 && this._lavaNear(vx, vz, lv, 4) ? 1 : 0;
       n++;
-      y += CLEAR - 1;
+      y = top + CLEAR - 1;
     }
     this.cnt[c] = n;
   }

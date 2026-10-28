@@ -1,9 +1,9 @@
 // Yikim yoneticisi: patlama/delme -> enkaz, yapisal butunluk -> kopan parcalar dusup carpar, moloz birakir.
 import * as THREE from 'three';
-import { VS, GRAVITY, CS } from '../config.js';
+import { VS, GRAVITY, CS, ICE } from '../config.js';
 import { meshVoxels } from '../world/mesher.js';
 import { buildGeometry } from '../world/chunkManager.js';
-import { MAT_SOUND, MAT_TOUGH } from '../world/materials.js';
+import { M, MAT_SOUND, MAT_TOUGH } from '../world/materials.js';
 
 const _q = new THREE.Quaternion();
 const _v = new THREE.Vector3();
@@ -69,8 +69,8 @@ class FallingBody {
       _v.set(S[i], S[i + 1], S[i + 2]).applyQuaternion(g.quaternion).add(g.position);
       if (w.solidAtWorld(_v.x, _v.y, _v.z)) { hit = true; break; }
     }
-    // aktorleri ez
-    if (this.vel.y < -3) this.mgr.crushCheck(this);
+    // aktorleri ez (sarkit hemen saplanir: kafa hizasindan dusen sarkit henuz hizlanmamis olur)
+    if (this.vel.y < (this.icicle ? -0.6 : -3)) this.mgr.crushCheck(this);
     if (hit || this.life > 8 || g.position.y < -5) {
       // son gecerli konuma geri al; yerlesme (moloz birakma) yonetici tarafindan kare butcesiyle yapilir
       g.position.copy(prevPos); g.quaternion.copy(prevQ);
@@ -119,6 +119,9 @@ export class Destruction {
       this.integrityPending = true;
       this.lastSource = source; this.lastBlast.set(x, y, z); this.lastForce = force;
       this.stats.removed += n;
+      // buz golu: kirilan gol buzu kimin (suya dusene parcalama), yeniden donacak voxeller
+      const ice = this.game.iceSys;
+      if (ice && ice.active) ice.onBlast(w.removed, w.removedMat, n, source, x, y, z);
     }
     return n;
   }
@@ -156,7 +159,12 @@ export class Destruction {
   detach(indices) {
     const w = this.world;
     const n = indices.length;
-    if (n <= 30) {
+    // sarkit: kopan parca cogunlukla sarkitsa (ucu vuruldu ya da sacagi yikildi) dikey duser, altindakine
+    // saplanir (vurana parcalama), yere carpinca tuz buz olur
+    let ic = 0;
+    for (let k = 0; k < n; k++) if (w.mat[indices[k]] === M.ICICLE) ic++;
+    const icicle = n <= 400 && ic >= 2 && ic >= n * 0.6;
+    if (n <= 30 && !icicle) {
       const mats = new Uint8Array(n);
       let cx = 0, cy = 0, cz = 0;
       for (let k = 0; k < n; k++) {
@@ -184,25 +192,34 @@ export class Destruction {
       const geo = buildGeometry(r);
       geo.computeBoundingSphere();
       const body = new FallingBody(this, isl, geo, source);
-      // ilk hiz: patlamadan disari + rastgele donus
       const c = isl.com;
-      const dx = c[0] - this.lastBlast.x, dy = c[1] - this.lastBlast.y, dz = c[2] - this.lastBlast.z;
-      const d = Math.hypot(dx, dy, dz) + 0.5;
-      const k = Math.min(6, this.lastForce * 1.4 / Math.sqrt(isl.count) * 6) / d;
-      body.vel.set(dx * k, Math.max(0, dy * k * 0.5), dz * k);
-      const spin = 1.6 / Math.pow(isl.count, 0.18);
-      body.ang.set((Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin * 0.4, (Math.random() - 0.5) * spin);
+      if (icicle) {
+        // sarkit: neredeyse dik duser, hafif yalpa
+        body.icicle = true;
+        body.vel.set((Math.random() - 0.5) * 0.3, -0.4, (Math.random() - 0.5) * 0.3);
+        body.ang.set((Math.random() - 0.5) * 0.5, 0, (Math.random() - 0.5) * 0.5);
+        this.game.audio && this.game.audio.play('icicleSnap', c[0], c[1], c[2], Math.min(1.3, 0.5 + isl.count / 30));
+      } else {
+        // ilk hiz: patlamadan disari + rastgele donus
+        const dx = c[0] - this.lastBlast.x, dy = c[1] - this.lastBlast.y, dz = c[2] - this.lastBlast.z;
+        const d = Math.hypot(dx, dy, dz) + 0.5;
+        const k = Math.min(6, this.lastForce * 1.4 / Math.sqrt(isl.count) * 6) / d;
+        body.vel.set(dx * k, Math.max(0, dy * k * 0.5), dz * k);
+        const spin = 1.6 / Math.pow(isl.count, 0.18);
+        body.ang.set((Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin * 0.4, (Math.random() - 0.5) * spin);
+        this.game.audio && this.game.audio.play('creak', c[0], c[1], c[2], Math.min(1, isl.count / 2000) + 0.3);
+      }
       this.bodies.push(body);
       this.stats.bodies++;
       w.removeIndices(indices);
-      this.game.audio && this.game.audio.play('creak', c[0], c[1], c[2], Math.min(1, isl.count / 2000) + 0.3);
     };
     // kucuk parcalar ana is parcaciginda (kare basina ~2 ms butce), digerleri worker'da meshlenir.
     // Worker yanit verene kadar voxeller dunyada durur, sonra parca kopar (gorunur bir bosluk olmaz).
+    // Sarkit her zaman hemen kopar (kucuk; gecikirse altindaki kacmis olur).
     const fr = this.game.frame;
     if (this._syncFrame !== fr) { this._syncFrame = fr; this._syncMs = 0; }
     const noWorkers = !this.game.workers.workers.length;
-    if (noWorkers || (vol < 12000 && this._syncMs < 2)) {
+    if (noWorkers || icicle || (vol < 12000 && this._syncMs < 2)) {
       const t0 = performance.now();
       make(meshVoxels(pmats, pdmgs, isl.nx, isl.ny, isl.nz, isl.minX, isl.minY, isl.minZ, VS));
       this._syncMs += performance.now() - t0;
@@ -218,17 +235,28 @@ export class Destruction {
   crushCheck(body) {
     const g = body.group.position;
     const sp = -body.vel.y;
+    const isl = body.isl;
+    // sarkit ince: yatayda yalniz kendi genisligi + govde yaricapi
+    const reach = body.icicle ? Math.max(isl.nx, isl.nz) * VS * 0.5 + 0.34 : body.radius * 0.85 + 0.3;
     for (const a of this.game.actors) {
       if (!a.alive || body.hitActors.has(a)) continue;
       const p = a.mover.pos;
       const dx = p.x - g.x, dz = p.z - g.z;
       const horiz = Math.hypot(dx, dz);
-      if (horiz > body.radius * 0.85 + 0.3) continue;
+      if (horiz > reach) continue;
       const bottom = g.y - body.halfY;
       if (bottom > p.y + a.mover.h + 0.2 || g.y + body.halfY < p.y) continue;
-      // ezilme
       body.hitActors.add(a);
-      const dmg = Math.min(400, 8 + body.isl.count * 0.012 * sp);
+      if (body.icicle) {
+        // sarkit saplandi: hasar boyuyla orantili (zirh normal emer)
+        const dmg = Math.min(ICE.icicleMax, ICE.icicleMin + isl.count * ICE.icicleK);
+        a.takeDamage(dmg, body.source, 'icicle', _v.set(dx * 0.2, -1, dz * 0.2).normalize(), false);
+        const fx = this.game.fx;
+        fx.impact(p.x, p.y + a.mover.h, p.z, 0, 1, 0, M.ICICLE, 1.5);
+        continue;
+      }
+      // ezilme
+      const dmg = Math.min(400, 8 + isl.count * 0.012 * sp);
       a.takeDamage(dmg, body.source, 'crush', _v.set(dx, 0.3, dz).normalize(), false);
     }
   }
@@ -288,6 +316,19 @@ export class Destruction {
     const fx = this.game.fx;
     if (debrisList.length) {
       fx.voxelDebris(w, debrisList, debrisMat, debrisList.length, p.x, p.y - body.halfY, p.z, 3 + speed * 0.25, 260);
+    }
+    if (body.icicle) {
+      // sarkit yere carpti: buz kirintisi + ince kirag bulutu, cam gibi sesle tuz buz
+      const by = p.y - body.halfY;
+      fx.impact(p.x, by + 0.05, p.z, 0, 1, 0, M.ICICLE, 1.4);
+      for (let i = 0; i < 5; i++) {
+        const a = Math.random() * 6.28;
+        fx.smoke.emit(p.x, by + 0.1, p.z, Math.cos(a) * 1.2, 0.3 + Math.random() * 0.4, Math.sin(a) * 1.2, 0.8 + Math.random() * 0.6, 0.12, 0.6,
+          [0.75, 0.82, 0.88, 0.5], [0.8, 0.85, 0.9, 0], -0.1, 2.2, 0, Math.random() * 6, 0.5);
+      }
+      if (this.game.audio) this.game.audio.play('iceShatter', p.x, by, p.z, Math.min(1.3, 0.6 + isl.count / 25));
+      this.stats.collapses++;
+      return;
     }
     // toz bulutu
     const r = Math.max(1, body.radius);

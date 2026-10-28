@@ -57,12 +57,17 @@ export class Items {
       const T = ITEM_TYPES[d.type];
       const mesh = makeMesh(d.type);
       game.scene.add(mesh);
-      const it = { type: d.type, pos: new THREE.Vector3(d.x, d.y, d.z), home: new THREE.Vector3(d.x, d.y, d.z), active: !T.initial, timer: T.initial || 0, mesh, phase: Math.random() * 6, fallV: 0, noBots: !!d.noBots };
+      // cache: kardan adamin icinde sakli; kar kirilip yeri bosalana kadar gorunmez, alinamaz, botlar bilmez
+      const it = { type: d.type, pos: new THREE.Vector3(d.x, d.y, d.z), home: new THREE.Vector3(d.x, d.y, d.z), active: !T.initial, timer: T.initial || 0, mesh, phase: Math.random() * 6, fallV: 0, noBots: !!d.noBots, cache: !!d.cache, hidden: false, checkT: 0 };
+      it.hidden = it.cache && this.buried(it);
       mesh.position.set(d.x, d.y + 0.65, d.z);
-      mesh.visible = it.active;
+      mesh.visible = it.active && !it.hidden;
       return it;
     });
   }
+
+  // sakli esyanin yeri hala kar (kati voxel) mi
+  buried(it) { return this.game.world.solidAtWorld(it.pos.x, it.pos.y + 0.3, it.pos.z); }
 
   dispose() {
     for (const it of this.list) {
@@ -73,12 +78,29 @@ export class Items {
   }
 
   reset() {
-    for (const it of this.list) { const T = ITEM_TYPES[it.type]; it.active = !T.initial; it.timer = T.initial || 0; it.mesh.visible = it.active; }
+    for (const it of this.list) {
+      const T = ITEM_TYPES[it.type]; it.active = !T.initial; it.timer = T.initial || 0;
+      if (it.cache) { it.pos.copy(it.home); it.fallV = 0; it.hidden = this.buried(it); }
+      it.mesh.visible = it.active && !it.hidden;
+    }
   }
 
   update(dt) {
     const game = this.game, w = game.world, tm = game.time;
     for (const it of this.list) {
+      if (it.hidden) {
+        // kar kirildi mi (kare basina degil, 0.15 sn'de bir)
+        it.checkT -= dt;
+        if (it.checkT > 0) continue;
+        it.checkT = 0.15;
+        if (this.buried(it)) continue;
+        it.hidden = false;
+        it.mesh.visible = it.active;
+        game.fx.padBurst(it.pos.x, it.pos.y, it.pos.z);
+        if (game.audio) game.audio.play('reveal', it.pos.x, it.pos.y + 0.5, it.pos.z, 1);
+        if (game.onCacheReveal) game.onCacheReveal(it);
+        continue;
+      }
       if (!it.active) {
         it.timer -= dt;
         if (it.timer <= 0) {
@@ -129,7 +151,7 @@ export class Items {
   nearest(pos, types, maxDist) {
     let best = null, bd = maxDist;
     for (const it of this.list) {
-      if (!it.active || it.noBots || !types.includes(it.type)) continue;
+      if (!it.active || it.hidden || it.noBots || !types.includes(it.type)) continue;
       const d = Math.hypot(it.pos.x - pos.x, it.pos.y - pos.y, it.pos.z - pos.z);
       if (d < bd) { bd = d; best = it; }
     }
@@ -141,7 +163,7 @@ export class Items {
     const p = bot.mover.pos;
     let best = null, bs = 0;
     for (const it of this.list) {
-      if (!it.active || it.noBots) continue;
+      if (!it.active || it.hidden || it.noBots) continue;
       const d = Math.hypot(it.pos.x - p.x, (it.pos.y - p.y) * 2, it.pos.z - p.z);
       let v = ITEM_TYPES[it.type].value;
       if (it.type === 'health' && bot.health >= 100) v = 0;

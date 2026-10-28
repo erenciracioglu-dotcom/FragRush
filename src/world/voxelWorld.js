@@ -31,6 +31,9 @@ export class VoxelWorld {
     this.version = 0;
     // su seviyesi (m): bunun altindaki her bos voxel sudur; susuz haritada -Infinity
     this.waterY = -Infinity;
+    // yuzen malzeme (buz golu): bu malzemenin [floatY0, floatY1] katlarindaki voxelleri su tasir; kopan buz
+    // parcasi (kutle) dusmez, yerinde yuzer. 0: yok
+    this.floatMat = 0; this.floatY0 = 0; this.floatY1 = -1;
   }
 
   idx(x, y, z) { return x + this.sx * (z + this.sz * y); }
@@ -257,6 +260,7 @@ export class VoxelWorld {
     const sx = this.sx, sy = this.sy, sz = this.sz, sxz = this.sxz;
     const anchorId = ++this.markCounter;
     const maxCap = Math.min(cap, stack.length - 8);
+    const fm = this.floatMat, fy0 = this.floatY0, fy1 = this.floatY1;
     for (let s = 0; s < this.seedCount; s++) {
       const start = this.seeds[s];
       if (mat[start] === 0) continue;
@@ -274,6 +278,7 @@ export class VoxelWorld {
         if (INDESTRUCTIBLE[mat[i]]) { anchored = true; break; }
         const y = (i / sxz) | 0;
         if (y === 0) { anchored = true; break; }
+        if (fm && mat[i] === fm && y >= fy0 && y <= fy1) { anchored = true; break; }
         if (visited >= maxCap) { anchored = true; break; }
         const rem = i - y * sxz; const z = (rem / sx) | 0; const x = rem - z * sx;
         // asagi en son itilir -> once islenir (zemine hizli inis)

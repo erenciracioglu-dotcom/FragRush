@@ -198,6 +198,50 @@ export class Audio {
     A.g.gain.setTargetAtTime(Math.max(0.0001, k * 0.1), this.ctx.currentTime, 0.35);
   }
 
+  // buz golu: surekli ruzgar ugultusu (esinti kabarip soner, ince islik perdesi kayar). k: 0..1
+  setWindAmbience(k) {
+    if (!this.ctx || !this.enabled) return;
+    if (typeof document !== 'undefined' && document.hidden) k = 0;
+    let A = this.windAmb;
+    if (!A) {
+      if (k <= 0.001) return;
+      const ctx = this.ctx;
+      const src = ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 0.55;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+      const body = ctx.createGain(); body.gain.value = 1.4;
+      const whistle = ctx.createBiquadFilter(); whistle.type = 'bandpass'; whistle.frequency.value = 1900; whistle.Q.value = 9;
+      const gW = ctx.createGain(); gW.gain.value = 0.25;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.09;
+      const lfoG = ctx.createGain(); lfoG.gain.value = 0.8;
+      lfo.connect(lfoG); lfoG.connect(body.gain);
+      const lfo2 = ctx.createOscillator(); lfo2.frequency.value = 0.05;
+      const lfo2G = ctx.createGain(); lfo2G.gain.value = 260;
+      lfo2.connect(lfo2G); lfo2G.connect(whistle.frequency);
+      src.connect(bp); bp.connect(lp); lp.connect(body); body.connect(g);
+      src.connect(whistle); whistle.connect(gW); gW.connect(g);
+      g.connect(this.master);
+      src.start(); lfo.start(); lfo2.start();
+      A = this.windAmb = { src, lfo, lfo2, g, k: 0 };
+      if (!this._visHookW && typeof document !== 'undefined') {
+        this._visHookW = true;
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.setWindAmbience(0); });
+      }
+    }
+    if (Math.abs(k - A.k) < 0.01) return;
+    A.k = k;
+    A.g.gain.setTargetAtTime(Math.max(0.0001, k * 0.07), this.ctx.currentTime, 0.5);
+  }
+
+  stopWindAmbience() {
+    const A = this.windAmb;
+    if (!A) return;
+    this.windAmb = null;
+    try { A.src.stop(); A.lfo.stop(); A.lfo2.stop(); } catch (e) { /* zaten durmus */ }
+    A.g.disconnect();
+  }
+
   stopLavaAmbience() {
     const A = this.lavaAmb;
     if (!A) return;
@@ -244,6 +288,37 @@ export class Audio {
   s_imp_glass(x, y, z, v, local) { this._voice(0.4, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.25 * v, 0.8); this._noise('highpass', 5000, 3500, 1, 0.12, 0.6, o, t); for (let i = 0; i < 3; i++) this._tone('sine', 2500 + Math.random() * 2500, 2400, 0.2, 0.15, o, t + i * 0.03); }); }
   s_imp_dirt(x, y, z, v, local) { this._voice(0.15, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.3 * v, 0.4); this._noise('lowpass', 700 + Math.random() * 300, 180, 1, 0.08, 0.9, o, t); }); }
   s_imp_leaf(x, y, z, v, local) { this._voice(0.25, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.22 * v, 0.4); this._noise('highpass', 2600 + Math.random() * 1500, 1800, 0.8, 0.18, 0.7, o, t, 0.01); }); }
+  // kar: yumusak pof; buz: cam gibi catlak + ince cinlama
+  s_imp_snow(x, y, z, v, local) { this._voice(0.2, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.26 * v, 0.35); this._noise('lowpass', 900 + Math.random() * 400, 250, 0.7, 0.1, 0.8, o, t, 0.004); this._noise('bandpass', 2400, 1200, 1.2, 0.05, 0.25, o, t + 0.01); }); }
+  s_imp_ice(x, y, z, v, local) { this._voice(0.35, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.26 * v, 0.8); this._noise('highpass', 3800, 2600, 0.9, 0.05, 0.9, o, t); const f = 1800 + Math.random() * 1500; this._tone('sine', f * 2.2, f, 0.09, 0.25, o, t); this._tone('triangle', f * 1.3, f * 0.6, 0.14, 0.18, o, t + 0.015); }); }
+  s_stepSnow(x, y, z, v, local) { this._voice(0.15, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.09 * v, 0.2); for (let i = 0; i < 4; i++) this._noise('bandpass', 1500 + Math.random() * 1800, 900, 1.6, 0.025, 0.8, o, t + i * 0.018 + Math.random() * 0.01); this._noise('lowpass', 500, 200, 0.8, 0.06, 0.5, o, t); }); }
+  s_stepIce(x, y, z, v, local) { this._voice(0.12, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.08 * v, 0.3); this._noise('bandpass', 2600 + Math.random() * 800, 1800, 2.2, 0.03, 0.9, o, t); this._tone('sine', 900 + Math.random() * 300, 700, 0.04, 0.25, o, t); }); }
+  // gol buzu kirildi: sert catlak, govde gumbur, sonra buzun "sarkisi" (tizden pese hizla inen cinlama)
+  s_iceCrack(x, y, z, v, local) {
+    this._voice(1.6, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.8 * v, 1.4);
+      this._noise('highpass', 2500, 1200, 0.7, 0.08, 1.0, o, t, 0.001);
+      this._noise('lowpass', 1400, 120, 0.8, 0.5, 0.7, o, t + 0.01);
+      this._tone('sine', 85, 40, 0.35, 0.8, o, t);
+      for (let i = 0; i < 3; i++) this._tone('sine', 3200 - i * 600, 260 + i * 60, 0.22 + i * 0.05, 0.22 - i * 0.05, o, t + 0.03 + i * 0.07);
+      for (let i = 0; i < 8; i++) this._noise('bandpass', 1500 + Math.random() * 3000, 900, 4, 0.03, 0.35, o, t + 0.05 + Math.random() * 0.5);
+    });
+  }
+  // sarkit yere carpti: tuz buz cinlama
+  s_iceShatter(x, y, z, v, local) { this._voice(0.9, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.4 * v, 1); this._noise('highpass', 4200, 3000, 0.8, 0.18, 0.8, o, t); for (let i = 0; i < 7; i++) this._tone('sine', 2600 + Math.random() * 3200, 2200, 0.12 + Math.random() * 0.15, 0.14, o, t + Math.random() * 0.12); this._tone('sine', 300, 120, 0.12, 0.3, o, t); }); }
+  // sarkit koptu: kisa catlak + dusus ugultusu
+  s_icicleSnap(x, y, z, v, local) { this._voice(0.5, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.35 * v, 0.9); this._noise('highpass', 3500, 2500, 1, 0.04, 0.9, o, t); this._tone('sine', 2400, 900, 0.1, 0.25, o, t); this._noise('bandpass', 800, 2200, 1.5, 0.35, 0.25, o, t + 0.05, 0.08); }); }
+  // uzakta golun buzu oturuyor: derin gumbur + yankili "piyu"
+  s_iceBoom(x, y, z, v, local) {
+    this._voice(2.5, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.55 * v, 2.2);
+      this._tone('sine', 70, 30, 1.1, 0.7, o, t, 0.01);
+      this._noise('lowpass', 600, 80, 0.8, 0.9, 0.5, o, t);
+      for (let i = 0; i < 4; i++) this._tone('sine', 2400 + Math.random() * 600, 180 + Math.random() * 80, 0.5 + i * 0.15, 0.18 / (1 + i), o, t + 0.04 + i * 0.11);
+    });
+  }
+  // kardan adamdan esya cikti: parlak cinlama
+  s_reveal(x, y, z, v, local) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.3 * v, 1); [1320, 1760, 2640].forEach((f, i) => this._tone('sine', f, f, 0.35, 0.35, o, t + i * 0.07)); this._noise('highpass', 6000, 8000, 0.7, 0.3, 0.15, o, t); }); }
   s_creak(x, y, z, v, local) { this._voice(1.2, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 1.2); this._tone('sawtooth', 75, 42, 0.9, 0.25, o, t, 0.08); this._noise('lowpass', 500, 80, 1, 1.0, 0.7, o, t, 0.05); }); }
   s_crumble(x, y, z, v, local) {
     this._voice(2.0, () => {
