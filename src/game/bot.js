@@ -6,6 +6,7 @@ import { BotModel } from './botModel.js';
 import { WEAPONS } from './weapons.js';
 import { fire } from './combat.js';
 import { EDGE_JUMP, EDGE_PAD } from './nav.js';
+import { TRANSPARENT } from '../world/materials.js';
 
 // speed: kosu hizi carpani, head: rayli tufekle kafaya nisan.
 // Eren'in geri bildirimi: eski "Caylak" ona gore zor/cok zor -> eski 4 seviye aynen korunup yukari kaydirildi,
@@ -33,6 +34,7 @@ const _eye = new THREE.Vector3();
 const _c = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _muz = new THREE.Vector3();
+const _flow = new THREE.Vector3();
 const _hit = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
 
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
@@ -120,6 +122,12 @@ export class Bot extends Actor {
     this.eye(_eye);
     let bestVis = null, bestScore = -1e9;
     const fwdx = -Math.sin(this.yaw), fwdz = -Math.cos(this.yaw);
+    // ay ussu: cam saydam, kapali bir kubbenin icindeki rakip disaridan gorulur (vurulunca cam kirilir, kubbe
+    // delinir, icerdekiler emilir). Bot kendisi basincli bir hacimdeyse camin ardina ates etmez (kendi kubbesini
+    // deler, emilir).
+    const moon = game.moonSys.active ? game.moonSys : null;
+    const pass = moon ? TRANSPARENT : null;
+    const inside = moon ? moon.pressurized(_eye.x, _eye.y, _eye.z) : false;
     for (const a of game.actors) {
       if (a === this || !a.alive) continue;
       a.center(_c);
@@ -130,8 +138,15 @@ export class Bot extends Actor {
       if (dist > 75) { rec.visible = false; continue; }
       const dot = (dx * fwdx + dz * fwdz) / (hd + 1e-5);
       if (dot < -0.25 && dist > 6 && a !== this.target) { rec.visible = false; continue; }
-      const vis = w.lineOfSight(_eye.x, _eye.y, _eye.z, _c.x, _c.y, _c.z, _hit) ||
-        w.lineOfSight(_eye.x, _eye.y, _eye.z, a.mover.pos.x, a.mover.pos.y + a.mover.h - 0.2, a.mover.pos.z, _hit);
+      let vis = w.lineOfSight(_eye.x, _eye.y, _eye.z, _c.x, _c.y, _c.z, _hit, pass) ||
+        w.lineOfSight(_eye.x, _eye.y, _eye.z, a.mover.pos.x, a.mover.pos.y + a.mover.h - 0.2, a.mover.pos.z, _hit, pass);
+      rec.glass = false;
+      if (vis && pass && !w.lineOfSight(_eye.x, _eye.y, _eye.z, _c.x, _c.y, _c.z, _hit)) {
+        // camin ardi yalniz rakip kapali (basincli) bir hacmin icindeyse hedef: kubbenin obur yanindakine
+        // kubbenin icinden ates edilmez
+        if (inside || !moon.sealedVolAt(_c.x, _c.y, _c.z)) vis = false;
+        else rec.glass = true;
+      }
       if (vis) {
         rec.x = a.mover.pos.x; rec.y = a.mover.pos.y; rec.z = a.mover.pos.z;
         rec.vx = a.mover.vel.x; rec.vz = a.mover.vel.z; rec.t = now; rec.visible = true;
@@ -189,7 +204,10 @@ export class Bot extends Actor {
     const has = (i) => ws.ammo[i] > 0;
     const d = this.targetDist();
     let pick = ws.current;
+    const glass = this.mode === 'engage' && this.target && this.memory(this.target).glass;
     if (this.breachT > 0) pick = has(3) && d > 5 ? 3 : has(4) ? 4 : has(2) ? 2 : 0;
+    // camin ardindaki rakip: kubbeyi delecek agir silah (roket paneli patlatir, icerdekiler emilir)
+    else if (glass) pick = has(3) && d > 5 ? 3 : has(2) ? 2 : has(4) ? 4 : ws.bestAvailable();
     else if (this.mode === 'roam') pick = has(this.favorite) ? this.favorite : ws.bestAvailable();
     else if (d < 6.5) pick = has(1) ? 1 : has(2) ? 2 : 0;
     else if (d < 20) pick = (this.favorite === 2 && has(2)) ? 2 : has(3) && d > 5 ? 3 : has(2) ? 2 : 0;
@@ -309,6 +327,19 @@ export class Bot extends Actor {
     if (this.stuckT > 2.6 && this.weapons.ammo[2] > 0) this.stuckBlast = true;
     if (this.stuckT > 5) { this.stuckT = 0; this.path = null; this.goal = null; this.goalItem = null; }
     if (this.detourT > 0) { this.detourT -= dt; mx = this.detourX; mz = this.detourZ; }
+    // ay ussu: hava kacaginin akisindaysa delikten uzaga kos (ziplama yok: havalanan govdeyi akis tasir), ara ara atil
+    const ms = this.game.moonSys;
+    if (ms.active) {
+      const U = ms.flowAt(p.x, p.y + m.h * 0.5, p.z, _flow);
+      if (U > 2.5) {
+        const hl = Math.hypot(_flow.x, _flow.z);
+        if (hl > 0.15) { mx = -_flow.x / hl; mz = -_flow.z / hl; }
+        jump = false;
+        // yalniz yerdeyken atilir (havalanan govdeyi akis tasir)
+        dash = m.onGround && Math.random() < (0.2 + sk.dodge * 0.5) * dt * 2;
+        this.detourT = 0;
+      }
+    }
     // lav korumasi: yalniz istenen yona degil, govdenin hizina da bakar (9.6 m/s'de kayma ~1 m; kiyi
     // egiminden asagi kosan bot havalanip lava ucuyordu). Zemin izlenir: basamak, inis, ucurumdan dusus.
     //  - hiz lava goturuyorsa fren: hizin tersine iste (yerde ~200 m/s2, havada ~17 m/s2)

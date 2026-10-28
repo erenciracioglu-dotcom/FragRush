@@ -179,6 +179,13 @@ export class Mover {
 
     // yercekimi
     vel.y = Math.max(-MOVE.maxFallSpeed, vel.y - GRAVITY * dt);
+    // yumusak tavan (ay ussu: dusuk yercekiminde roket ziplamasi dunyanin 24 m'lik kutusunun cok ustune atar):
+    // world.ceilY'nin ustunde yercekimi 4 m icinde 5 katina cikar, 5 m ustunde yukselis biter
+    const ceil = this.world.ceilY;
+    if (p.y > ceil) {
+      vel.y -= GRAVITY * 4 * Math.min(1, (p.y - ceil) / 4) * dt;
+      if (p.y > ceil + 5 && vel.y > 0) vel.y = 0;
+    }
 
     // carpismali hareket (alt adimlar)
     const wasGround = this.onGround || this.groundTime < 0.2;

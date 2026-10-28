@@ -34,6 +34,8 @@ export class VoxelWorld {
     // yuzen malzeme (buz golu): bu malzemenin [floatY0, floatY1] katlarindaki voxelleri su tasir; kopan buz
     // parcasi (kutle) dusmez, yerinde yuzer. 0: yok
     this.floatMat = 0; this.floatY0 = 0; this.floatY1 = -1;
+    // yumusak tavan (m): ustunde aktorleri asagi ceken ek yercekimi (mover.js); ay ussunde dusuk yercekimi
+    this.ceilY = Infinity;
   }
 
   idx(x, y, z) { return x + this.sx * (z + this.sz * y); }
@@ -113,7 +115,8 @@ export class VoxelWorld {
   }
 
   // DDA isin izleme. Dunya metre biriminde. out: {x,y,z,nx,ny,nz,dist,mat,i}
-  raycast(ox, oy, oz, dx, dy, dz, maxDist, out) {
+  // pass: gecilen malzemeler (Uint8Array, 1 = saydam gibi gec; botlarin camin ardini gormesi)
+  raycast(ox, oy, oz, dx, dy, dz, maxDist, out, pass = null) {
     const inv = 1 / VS;
     const px = ox * inv, py = oy * inv, pz = oz * inv;
     let x = Math.floor(px), y = Math.floor(py), z = Math.floor(pz);
@@ -136,7 +139,7 @@ export class VoxelWorld {
       if (x >= 0 && z >= 0 && x < sx && z < sz && y < sy) {
         const i = x + sx * (z + sz * y);
         const m = mat[i];
-        if (m !== 0) {
+        if (m !== 0 && !(pass && pass[m])) {
           out.x = x; out.y = y; out.z = z; out.dist = t * VS; out.mat = m; out.i = i;
           out.nx = face === 0 ? -stepX : 0; out.ny = face === 1 ? -stepY : 0; out.nz = face === 2 ? -stepZ : 0;
           if (face === -1) { out.nx = -Math.sign(dx); out.ny = 0; out.nz = 0; }
@@ -158,11 +161,11 @@ export class VoxelWorld {
   }
 
   // Iki nokta arasi gorus hatti (dunya metre).
-  lineOfSight(ax, ay, az, bx, by, bz, tmp) {
+  lineOfSight(ax, ay, az, bx, by, bz, tmp, pass = null) {
     const dx = bx - ax, dy = by - ay, dz = bz - az;
     const d = Math.hypot(dx, dy, dz);
     if (d < 1e-4) return true;
-    return !this.raycast(ax, ay, az, dx / d, dy / d, dz / d, d, tmp);
+    return !this.raycast(ax, ay, az, dx / d, dy / d, dz / d, d, tmp, pass);
   }
 
   // AABB (metre) dunya ile cakisiyor mu?

@@ -52,6 +52,8 @@ export class Actor {
     this.underT = 0;
     this.drownT = 0;
     this.drownDmg = 0;
+    // ay ussu (fx/moon.js): hava kacaginda emilme / firlatilma; carpma hasari icin onceki hiz
+    this.spaceT0 = -100; this.spaceBy = null; this.spaceEjected = false; this.ventV = null; this.ventT = -100; this.pvSpeed = 0;
   }
 
   // gozler su altinda: ates edilemez, nefes azalir
@@ -79,6 +81,7 @@ export class Actor {
     this.air = WATER.air; this.underT = 0; this.drownT = 0; this.drownDmg = 0;
     // buz golu (fx/ice.js): buzu kirip suya dusuren, soguk hasari, buz altinda itme
     this.iceBy = null; this.iceByT = -100; this.coldTick = 0; this.coldDmg = 0; this.cold = 0; this.pushT = 0; this.underIceT = 0;
+    this.spaceT0 = -100; this.spaceBy = null; this.spaceEjected = false; this.ventV = null; this.ventT = -100; this.pvSpeed = 0;
   }
 
   // isin - aktor kesisimi: {t, head} ya da null

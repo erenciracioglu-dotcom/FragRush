@@ -88,7 +88,7 @@ export class MeshWorkers {
     this.jobs.set(id, cb);
     const msg = { type: 'mesh', job: id, vs: VS, ...job };
     if (this.workers.length === 0) {
-      const r = meshVoxels(job.mats, job.dmgs, job.nx, job.ny, job.nz, job.ox, job.oy, job.oz, VS);
+      const r = meshVoxels(job.mats, job.dmgs, job.nx, job.ny, job.nz, job.ox, job.oy, job.oz, VS, !!job.split);
       this.jobs.delete(id);
       cb(r);
       return;
@@ -121,6 +121,9 @@ export class ChunkManager {
     const n = world.ncx * world.ncy * world.ncz;
     this.n = n;
     this.meshes = new Array(n).fill(null);
+    // saydam (cam) yuzler: ayri mesh, ayri malzeme (game.js glassMaterial); golge atmaz
+    this.gmeshes = new Array(n).fill(null);
+    this.glassMaterial = null;
     this.want = new Uint32Array(n);     // istenen surum
     this.sent = new Uint32Array(n);     // gonderilen surum
     this.inflight = new Uint8Array(n);
@@ -201,7 +204,7 @@ export class ChunkManager {
     const version = this.want[ci];
     this.sent[ci] = version;
     this.inflight[ci] = 1;
-    this.workers.submit({ nx: CS, ny: CS, nz: CS, ox: cx * CS, oy: cy * CS, oz: cz * CS, mats, dmgs }, (r) => {
+    this.workers.submit({ nx: CS, ny: CS, nz: CS, ox: cx * CS, oy: cy * CS, oz: cz * CS, mats, dmgs, split: !!this.glassMaterial }, (r) => {
       if (r.mats && r.mats.length === size && r.dmgs && this.inPool.length < 32) this.inPool.push([r.mats, r.dmgs]);
       this.inflight[ci] = 0;
       this._apply(ci, r, cx, cy, cz);
@@ -218,6 +221,7 @@ export class ChunkManager {
       const tris = r.idx.length / 3;
       this.triangles += tris - old.userData.tris;
       old.userData.tris = tris;
+      this._glass(ci, r.glass, cx, cy, cz);
       if (this.onChunkMeshed) this.onChunkMeshed(ci);
       return;
     }
@@ -248,7 +252,38 @@ export class ChunkManager {
       this.group.add(mesh);
       this.meshes[ci] = mesh;
     }
+    this._glass(ci, r.glass, cx, cy, cz);
     if (this.onChunkMeshed) this.onChunkMeshed(ci);
+  }
+
+  // chunk'in cam yuzleri (saydam mesh): yoksa eskisi kaldirilir, sigiyorsa yerinde guncellenir
+  _glass(ci, g, cx, cy, cz) {
+    const old = this.gmeshes[ci];
+    if (!g || !g.vcount || !this.glassMaterial) {
+      if (old) { this.triangles -= old.userData.tris; old.geometry.dispose(); this.group.remove(old); this.gmeshes[ci] = null; }
+      return;
+    }
+    const tris = g.idx.length / 3;
+    if (old && fitsChunkGeometry(old.geometry, g)) {
+      updateChunkGeometry(old.geometry, g);
+      this.triangles += tris - old.userData.tris;
+      old.userData.tris = tris;
+      return;
+    }
+    if (old) { this.triangles -= old.userData.tris; old.geometry.dispose(); this.group.remove(old); }
+    const geo = allocChunkGeometry(g);
+    const s = CS * VS;
+    geo.boundingBox = new THREE.Box3(new THREE.Vector3(cx * s, cy * s, cz * s), new THREE.Vector3((cx + 1) * s, (cy + 1) * s, (cz + 1) * s));
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3((cx + 0.5) * s, (cy + 0.5) * s, (cz + 0.5) * s), s * 0.8661);
+    const mesh = new THREE.Mesh(geo, this.glassMaterial);
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.matrixAutoUpdate = false;
+    mesh.renderOrder = 5;
+    mesh.userData.tris = tris;
+    this.triangles += tris;
+    this.group.add(mesh);
+    this.gmeshes[ci] = mesh;
   }
 
   get busy() { return this.pending.length > 0 || this.deferred.size > 0 || this.inflight.some((v) => v); }
@@ -261,7 +296,9 @@ export class ChunkManager {
 
   dispose() {
     for (const m of this.meshes) if (m) { m.geometry.dispose(); this.group.remove(m); }
+    for (const m of this.gmeshes) if (m) { m.geometry.dispose(); this.group.remove(m); }
     this.meshes.fill(null);
+    this.gmeshes.fill(null);
     this.scene.remove(this.group);
   }
 }

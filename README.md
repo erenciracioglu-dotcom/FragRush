@@ -2,9 +2,9 @@
 
 **A fast, fully destructible arena shooter that runs in your browser.**
 Jump in, no accounts, no setup: fight bots in a neon-lit voxel arena, a sunny meadow of
-treehouses, a creek and a lake, a dark volcanic valley cut by a creek of lava, or a snowy valley
-around a frozen lake with an ice castle, where almost every wall, tree and bridge can be blown apart
-and whatever collapses buries whoever stands below.
+treehouses, a creek and a lake, a dark volcanic valley cut by a creek of lava, a snowy valley
+around a frozen lake with an ice castle, or a moon base of glass domes in low gravity, where almost
+every wall, tree and bridge can be blown apart and whatever collapses buries whoever stands below.
 
 **▶ Play now: https://erenciracioglu-dotcom.github.io/FragRush/**
 
@@ -42,10 +42,10 @@ Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to 
 
 ## Maps
 
-Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **ARENA** or **ROTATE**
-(changes after every match: meadow, volcano, frozen lake, arena, ...). *NEW ARENA* rebuilds the chosen
-map with a new layout seed. URL override for testing: `?map=meadow`, `?map=volcano`, `?map=frozen` or
-`?map=arena`.
+Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **MOON BASE**, **ARENA** or
+**ROTATE** (changes after every match: meadow, volcano, frozen lake, moon base, arena, ...). *NEW ARENA*
+rebuilds the chosen map with a new layout seed. URL override for testing: `?map=meadow`, `?map=volcano`,
+`?map=frozen`, `?map=moon` or `?map=arena`.
 
 - **Arena**: the original neon sunset arena: central tower, four forts, bridges, corner yards.
 - **Meadow**: a sunny afternoon in a valley ringed by cliffs. A great oak in the middle carries a
@@ -93,6 +93,27 @@ map with a new layout seed. URL override for testing: `?map=meadow`, `?map=volca
 |---|---|
 | ![Frozen Lake](media/frozen.jpg) | ![Ice castle](media/frozen_castle.jpg) |
 | ![Broken ice](media/frozen_hole.jpg) | ![Snowman](media/frozen_snowman.jpg) |
+
+- **Moon Base**: a base of glass domes on the floor of a large crater, under a black, starry sky with
+  the half-lit Earth hanging above the horizon; the sun is low and harsh and casts long, sharp
+  shadows. Gravity is about a third of normal: you jump more than twice as high, rocket jumps go
+  nearly three times as high and carry you over the domes, and debris drifts down slowly. Four domes are joined by pressurized tube
+  corridors: a greenhouse with a tree, planting beds and pink grow lights, a command center with a
+  map table and glowing screens, a habitat with a dining table, bunk beds and a kitchen, and a lab
+  with benches of sample tubes and a moon rock on a pedestal. Their doorways are force fields that let
+  you and your shots through but hold the air in. Between the domes stands a comms tower: the
+  Doomsday Orb appears in its dish (three jump pads around the tower, or a rocket jump), and steps
+  on its east face lead halfway up. North of the base lies a field of solar panels you can walk
+  under; to the east a narrow canyon cuts across the map, crossed by a steel bridge, and beyond it
+  are the landing pad and a lander you can climb. Containers, a six-wheeled rover, fuel tanks,
+  craters and boulders give cover. The Mega Health waits under the tree in the greenhouse.
+  Everything breaks except the crater rim and the bedrock.
+
+| | |
+|---|---|
+| ![Moon Base](media/moon.jpg) | ![Earth over the base](media/moon_earth.jpg) |
+| ![Air leak](media/moon_breach.jpg) | ![Blown into space](media/moon_spaced.jpg) |
+| ![Greenhouse](media/moon_greenhouse.jpg) | ![Command center](media/moon_command.jpg) |
 
 ### Water (meadow)
 
@@ -158,6 +179,33 @@ every empty voxel below the waterline is water.
 - **Snowmen** hide armor, health or ammo inside: blast one open to find out. Bots don't know.
 - Bots walk across the ice and path around the holes. If they fall in, they swim for the nearest
   edge; trapped under the ice, they break through from below.
+
+### Air (moon base)
+
+Each dome, together with its entrance corridors, and each tube corridor holds its own air. Outside
+there is none.
+
+- **Low gravity**: about a third of normal. Jumps go more than twice as high (about 2.7 m) and hang
+  in the air, rocket jumps nearly three times as high (over the domes), and debris and dust fall
+  slowly.
+- **The glass breaks**: a stray bullet only cracks a pane; a few more hits, one rocket or one plasma
+  bolt punch a hole, and the glass around the hole bursts.
+- **Air leak**: once a dome or tube is open to the vacuum, its air rushes out for 3–4 seconds.
+  Everything inside (players, bots, items, debris, smoke) is pulled toward the nearest hole, lifted
+  off the floor and blown out into the low gravity. Red alarm lights flash, a horn blares, vapor and
+  ice crystals jet from the hole. Get away from the hole: the pull is strongest close to it.
+- **Damage**: going out through the hole costs 35 health, and slamming into something at speed hurts.
+- **Blow someone out and the frag is yours** ("SPACED!"): whoever dies within 6 seconds of your
+  breach from the decompression, the blow-out or the impact is credited to you. Die in a dome you
+  breached yourself and it counts as a **self frag (−1)**.
+- **Foam patch**: about 25 seconds after the breach the hole is sealed with foam (it waits while
+  someone stands in the hole) and the dome fills with air again. The foam can be shot through again.
+- **Vacuum**: outside, sound is muffled and smoke doesn't linger; inside, the air vents hum and the
+  consoles beep.
+- Bots know the low gravity: they predict where their jumps land and use the long jumps it allows.
+  When they see an enemy through the glass of a dome that still holds its air, they shoot the glass
+  (preferring rockets, plasma and the railgun), and when the air starts to leak they run against the
+  flow, away from the hole.
 
 ### Weapons
 
@@ -245,7 +293,8 @@ Measured on an RTX 5080 Laptop at 2560×1362, Ultra:
   "dGPU only" (MUX) mode takes the integrated GPU out of that path.
 
 Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`), add `&map=meadow`,
-`&map=volcano` or `&map=frozen` for the other maps.
+`&map=volcano`, `&map=frozen` or `&map=moon` for the other maps (on the moon base, `&breach` breaches
+a dome every 4 seconds).
 
 The meadow is heavier than the arena (more triangles in trees and grassy slopes, plus water). On the
 test laptop's **integrated** GPU (Intel Graphics 0x7D67, Chrome/ANGLE D3D11, Low quality, 1104×561,
@@ -261,11 +310,13 @@ the water under the holes is drawn by the same water pass. Run back to back on t
 GPU at Low in a larger window (1563×831), the arena averaged 115 FPS (GPU 7.5 ms/frame), the volcano
 84 FPS (10.4 ms), the frozen lake 71 FPS (12.4 ms) and the meadow 66–79 FPS (11.4–13.5 ms over two
 runs; the slower one had twenty structures collapsing in view). The bots follow a different path in
-every run, so what gets blasted and how much falls varies.
+every run, so what gets blasted and how much falls varies. Measured the same way later, the moon base
+averaged 85 FPS (GPU 10.7 ms/frame). A worst-case run that breached the nearest dome with a plasma bolt
+every 4 seconds (`&breach`) averaged 90 FPS, and no frame took longer than 20 ms.
 
 ## How it works
 
-- **Three.js r186 + WebGL 2**, bundled with esbuild into one self-contained HTML file (~1 MB).
+- **Three.js r186 + WebGL 2**, bundled with esbuild into one self-contained HTML file (~1.5 MB).
 - **Voxel world**: 72 × 24 × 72 m at 25 cm resolution (~8 million cells). Each material has its own
   toughness and per-voxel damage: concrete cracks and darkens before it breaks, steel holds longer,
   wood and glass break easily. Bedrock and the outer frame are indestructible.
@@ -311,18 +362,33 @@ every run, so what gets blasted and how much falls varies.
   and hurt what they land on. Snowfall is a few thousand GPU points in a box around the camera,
   hidden under roofs and trees by a top-down height map that follows the destruction; chimneys smoke,
   the wind howls louder up high and the ice booms in the distance (all synthesized).
+- **Moon base**: gravity is a property of the map (7.7 m/s² here, 22 m/s² elsewhere), and movement,
+  jump pads, the bots' landing predictions and navigation links (higher jumps, longer drops),
+  falling structures, debris and items all read the current value. The pressurized volumes are
+  found when the map is built, by a flood fill from inside each dome and tube that stops at the
+  shell and at the force-field doorways. When a blast opens the shell to the outside, the volume
+  vents: a breadth-first distance field from the holes (a few milliseconds for the largest dome, once
+  per breach) gives the direction of the flow everywhere inside, its speed falls off with the distance
+  to the hole and with the pressure left, and actors, items, debris and smoke are carried along. The
+  foam patch refills the removed shell voxels. The dome glass is meshed apart from the opaque voxels
+  and drawn as a transparent surface that is nearly invisible head-on, more reflective at grazing
+  angles, and frosts and cracks as it is damaged; bots see through it, bullets don't pass. Outside
+  the volumes, smoke falls ballistically and every sound except the interface goes through a
+  low-pass filter. The black sky (stars, a faint Milky Way, a small white sun, the half-lit Earth
+  with generated oceans, continents, clouds, an atmosphere rim and city lights on its night side) is
+  a shader, also baked into the environment map.
 
 ```
 src/            source (src/config.js: all tunables in one place)
-  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake), levels, voxel shader
-  game/         game loop, movement (incl. swimming, ice), weapons, bots, destruction, items, navigation
-  fx/           sky, post-processing, water bridge, lava, ice and snow, environments, particles, debris, lights
+  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake, moon base), levels, voxel shader
+  game/         game loop, movement (incl. swimming, ice, per-map gravity), weapons, bots, destruction, items, navigation
+  fx/           sky, post-processing, water bridge, lava, ice and snow, moon base (sky, air leaks), environments, particles, debris, lights
   vendor/       water.js
   audio/ ui/    sound synthesis, HUD
 docs/           built single-file game (served by GitHub Pages)
 serve.mjs       dependency-free local server
 build.mjs       build script
-test/           headless tests (movement, world, water, meadow, volcano, frozen lake, flows, screenshots)
+test/           headless tests (movement, world, water, meadow, volcano, frozen lake, moon base, flows, screenshots)
 tools/          benchmark scripts
 ```
 
@@ -331,8 +397,10 @@ tools/          benchmark scripts
 Proof of concept, built with Claude. Bots only, no multiplayer (yet). Water does not flow: blasting
 a lake bank does not drain the lake, and a deep crater anywhere fills with water from the water table.
 Lava does not flow either: where it can be is fixed when the map is built, so digging under it leaves
-a standing wall of lava. Weapon models and robots are
-simple procedural boxes. Very large structures (over 160k voxels) are treated as fixed and don't fall.
+a standing wall of lava. Air is simplified too: it follows a precomputed field toward the holes
+rather than a fluid simulation, and an opened dome empties in a few seconds whatever the size of the
+hole. Weapon models and robots are simple procedural boxes. Very large structures (over 160k
+voxels) are treated as fixed and don't fall.
 Sound starts after the first click (browser rule).
 
 ---
@@ -349,8 +417,8 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   zıplama, tavşan zıplaması, atılma. 25 parçalamaya ulaşan (ya da 10 dakika sonunda önde olan)
   kazanır, ardından yeni bir arena kurulur.
 - **Dil:** oyun İngilizce açılır; *SETTINGS → Language* ile Türkçeye geçilir (seçim hatırlanır).
-- **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **ARENA** ya da **SIRAYLA** (her
-  maçtan sonra değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
+- **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **AY ÜSSÜ**, **ARENA** ya da
+  **SIRAYLA** (her maçtan sonra değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
   gözetleme yeri olan büyük bir meşe ve ağaç evi, köprülerle bağlı üç ağaç evi daha, uçurumdaki
   mağaradan çıkıp küçük bir göle akan dere, iskele, atlama tahtası, avcı kulübesi. Ağacı kesersen
   tacı (ve ağaç evindeki) aşağı iner.
@@ -368,6 +436,19 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   can altında, göl dibinde), karlı çamlar, kayalar, devrik kütükler, kar yığınları ve kardan adamlar;
   batı uçurumundaki mağaradan donmuş bir dere çıkar. Saçaklardan, burçlardan ve gözetleme yerinden
   sarkıtlar sarkar.
+  Ay Üssü: büyük bir kraterin tabanında cam kubbelerden kurulu bir üs; yıldızlı siyah gökte yarısı
+  aydınlık Dünya asılı, alçak ve sert güneş uzun, keskin gölgeler düşürür. Yerçekimi normalin üçte
+  biri kadar: iki kattan fazla yükseğe zıplarsın, roketle zıplama neredeyse üç kat yükseğe atar ve
+  seni kubbelerin üstünden aşırır, enkaz ağır çekimde düşer. Dört kubbe basınçlı tüp koridorlarla bağlı: ortasında ağaç, tarhlar ve
+  pembe büyüme lambaları olan sera; harita masası ve ışıl ışıl ekranlarıyla komuta merkezi; yemek
+  masası, ranzaları ve mutfağıyla yaşam modülü; numune tüplü tezgâhları ve kaidede ay kayasıyla
+  laboratuvar. Kapılar seni ve mermini geçiren ama havayı tutan kuvvet alanları. Kubbelerin
+  arasında iletişim kulesi: KIYAMET küresi çanağında çıkar (kulenin çevresindeki üç zıplama pedi ya
+  da roketle zıplama), doğu yüzündeki basamaklar yarı yüksekliğe çıkar. Kuzeyde altından
+  yürünebilen güneş paneli tarlası, doğuda haritayı kesen dar bir kanyon ve üstünde çelik köprü,
+  ötesinde iniş pisti ve üstüne çıkılabilen iniş aracı; konteynerler, altı tekerlekli gezici araç,
+  yakıt tankları, kraterler ve kayalar. Mega can seradaki ağacın dibinde. Krater kenarı ve ana kaya
+  dışında her şey kırılır.
 - **Su:** derede yavaşlarsın ama ateş edebilirsin. Gölde yüzersin: Boşluk yukarı (yüzeyde basılı
   tutunca başın suyun üstünde kalır), **C** dalış; tuşa basmazsan yavaşça batarsın. **Başın su
   altındayken ateş edemezsin.** 12 saniye nefesin var; sonra her saniye artan hasar alırsın (zırhı
@@ -391,6 +472,21 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   (**SARKITLA VURDUN!**). **Kardan adamların** içinde zırh, can ya da cephane saklı: patlat, gör.
   Botlar buzun üstünde delikleri dolaşır; suya düşerlerse en yakın kenara yüzer, buzun altında
   kalırlarsa alttan kırarlar.
+- **Ay üssü (hava):** her kubbe (giriş koridorlarıyla) ve her tüp kendi havasını tutar, dışarıda
+  hava yok. Başıboş bir mermi camı yalnız çatlatır; birkaç isabet, tek roket ya da tek plazma
+  delik açar ve deliğin çevresindeki cam patlar. Delik açılınca hava 3-4 saniyede boşalır:
+  içerideki her şey (oyuncu, bot, eşya, enkaz, duman) en yakın deliğe çekilir, yerden kalkar ve
+  dışarı, boşluğa savrulur. Kırmızı alarm ışıkları yanar, korna çalar, delikten buhar ve buz
+  kristalleri fışkırır; çekiş deliğin yakınında en güçlüsüdür, uzaklaş. Delikten çıkarken bir kez
+  35 hasar alırsın, hızla bir yere çarparsan ayrıca hasar alırsın. **Kubbeyi delersen parçalama
+  senin** (**UZAYA FIRLATTIN!**): delmenden sonraki 6 saniyede basınç düşüşü, savrulma ya da
+  çarpmayla ölen sana yazılır; kendi deldiğin kubbede ölürsen **kendini parçalamış sayılırsın
+  (−1)**. Delik ~25 saniye sonra köpükle kapanır (delikte biri duruyorsa bekler) ve kubbe yeniden
+  havayla dolar; köpük yeniden delinebilir. Dışarıda sesler boğuktur, duman kalmaz; içeride
+  havalandırma uğuldar, konsollar bip sesi çıkarır. Botlar düşük yerçekimini bilir: zıplamalarının
+  nereye ineceğini hesaplar, uzun atlayışları kullanır; havası olan bir kubbenin içindeki rakibi
+  camın ardından görünce camı vurur (roket, plazma ve raylı tüfeği tercih eder), hava kaçarken
+  akışa karşı, delikten uzağa kaçar.
 - **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).
 - **KIYAMET küresi:** merkez kulenin çatısında çıkar. 15 saniye boyunca her isabet öldürür,

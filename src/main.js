@@ -515,6 +515,25 @@ function runBench() {
         }
       }
     }
+    // ay ussu en kotu durum (&breach): 4 sn'de bir izlenen bota en yakin kapali kubbenin camini, bota bakan
+    // yuzunden del (hava kacagi kameranin onunde: akis alani, cam paneli patlamasi, buhar jeti, emme)
+    if (params.has('breach') && game.moonSys.active && el > (runBench.nextBreach ??= 3)) {
+      runBench.nextBreach += 4;
+      const s = game.spectate || game.bots[0], ms = game.moonSys;
+      if (s) {
+        const p = s.mover.pos;
+        let best = null, bd = 1e9;
+        for (const v of ms.vols) if (v.state === 'sealed' && v.kind === 'dome') { const d = Math.hypot(v.c[0] - p.x, v.c[2] - p.z); if (d < bd) { bd = d; best = v; } }
+        if (best) {
+          const dx = p.x - best.c[0], dz = p.z - best.c[2], l = Math.hypot(dx, dz) || 1;
+          const h = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
+          if (game.world.raycast(best.c[0], best.c[1] + 1.2, best.c[2], dx / l, 0.12, dz / l, 30, h)) {
+            game.destruction.blast((h.x + 0.5) * 0.25, (h.y + 0.5) * 0.25, (h.z + 0.5) * 0.25, 0.85, 165, s, 4, 40);
+            game.fx.plasmaHit((h.x + 0.5) * 0.25, (h.y + 0.5) * 0.25, (h.z + 0.5) * 0.25, 0, 0, 0);
+          }
+        }
+      }
+    }
     if (shots < 5 && el > shotTimes[shots] && !params.has('noshots')) {
       shots++;
       lastShotT = el;
@@ -537,6 +556,7 @@ function runBench() {
       gpuMs: gpuMs.length ? mean(gpuMs) : null, gpuMax: gpuMs.length ? Math.max(...gpuMs) : null, gpuN: gpuMs.length, prof: game.prof,
       tris: game.renderer.info.render.triangles, calls: game.renderer.info.render.calls,
       chunkTris: game.chunks.triangles, debris: game.fx.debris.count, d: game.destruction.stats,
+      moon: game.moonSys.active ? game.moonSys.stats : undefined,
       frags: game.actors.map((x) => x.name + ':' + x.frags),
       samples, spikes, gpuSpikes,
       programs: game.renderer.info.programs ? game.renderer.info.programs.map((p) => p.name || p.cacheKey.slice(0, 60)) : null,

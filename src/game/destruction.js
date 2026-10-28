@@ -122,6 +122,9 @@ export class Destruction {
       // buz golu: kirilan gol buzu kimin (suya dusene parcalama), yeniden donacak voxeller
       const ice = this.game.iceSys;
       if (ice && ice.active) ice.onBlast(w.removed, w.removedMat, n, source, x, y, z);
+      // ay ussu: basincli hacmin kabugu delindi mi (hava kacagi)
+      const moon = this.game.moonSys;
+      if (moon && moon.active) moon.onRemoved(w.removed, n, source);
     }
     return n;
   }
@@ -174,6 +177,7 @@ export class Destruction {
       }
       w.removeIndices(indices);
       this.game.fx.voxelDebris(w, indices, mats, n, cx / n * VS, cy / n * VS + 0.3, cz / n * VS, 2, 60);
+      this._moonRemoved(indices, n, this.lastSource);
       return;
     }
     const isl = w.extractIsland(indices);
@@ -212,6 +216,7 @@ export class Destruction {
       this.bodies.push(body);
       this.stats.bodies++;
       w.removeIndices(indices);
+      this._moonRemoved(indices, indices.length, source);
     };
     // kucuk parcalar ana is parcaciginda (kare basina ~2 ms butce), digerleri worker'da meshlenir.
     // Worker yanit verene kadar voxeller dunyada durur, sonra parca kopar (gorunur bir bosluk olmaz).
@@ -230,6 +235,12 @@ export class Destruction {
         make(r);
       }, true);
     }
+  }
+
+  // kopan parca dunyadan kalkti: ay ussunde kubbe kabugundan bir parca koptuysa hava kacar
+  _moonRemoved(indices, n, source) {
+    const moon = this.game.moonSys;
+    if (moon && moon.active) moon.onRemoved(indices, n, source);
   }
 
   crushCheck(body) {

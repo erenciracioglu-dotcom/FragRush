@@ -1,6 +1,6 @@
 // Toplanabilir ogeler: can, mega can, zirh, cephane, KIYAMET (x3 hasar).
 import * as THREE from 'three';
-import { VS } from '../config.js';
+import { VS, GRAVITY } from '../config.js';
 import { t } from '../i18n.js';
 
 export const ITEM_TYPES = {
@@ -113,7 +113,7 @@ export class Items {
       // zemin yok olduysa dus
       const below = w.solidAtWorld(it.pos.x, it.pos.y - 0.05, it.pos.z);
       if (!below) {
-        it.fallV += 22 * dt;
+        it.fallV += GRAVITY * dt;
         it.pos.y -= it.fallV * dt;
         // lava dustu: yanar; suresi dolunca ilk yerinde yeniden belirir
         if (game.lavaSys && game.lavaSys.isLava(it.pos.x, it.pos.y, it.pos.z)) {

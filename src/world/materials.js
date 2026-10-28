@@ -53,6 +53,18 @@ export const M = {
   CARROT: 45,
   SROCK: 46,
   SCLIFF: 47,
+  // ay ussu haritasi (regolit, krater kayasi, cam kubbeler, beyaz govde panelleri, gunes paneli...)
+  REGOLITH: 48,
+  MROCK: 49,
+  MCLIFF: 50,
+  GLASS: 51,
+  HULL: 52,
+  SOLAR: 53,
+  FOAM: 54,
+  PLANT: 55,
+  SCREEN: 56,
+  FOIL: 57,
+  GROW: 58,
 };
 
 // [id, ad, renk, puruzluluk, metallik, emissive, tough, ses]
@@ -106,16 +118,34 @@ const DEFS = [
   [M.CARROT, 'havuc', 0xe0701c, 0.6, 0.0, 0, 20, 'dirt'],
   [M.SROCK, 'karli kaya', 0x7a7d82, 0.85, 0.0, 0, 175, 'stone'],
   [M.SCLIFF, 'karli ucurum', 0x6b6e73, 0.88, 0.0, 0, 255, 'stone'],
+  // regolit: ince gri toz (yumusak, roket genis krater acar); krater kayasi; harita kenarindaki yikilmaz kenar
+  [M.REGOLITH, 'regolit', 0x8f8d89, 0.97, 0.0, 0, 30, 'dirt'],
+  [M.MROCK, 'ay kayasi', 0x6f6d6a, 0.9, 0.0, 0, 165, 'stone'],
+  [M.MCLIFF, 'krater kenari', 0x605e5b, 0.92, 0.0, 0, 255, 'stone'],
+  // kubbe cami: govdeden zayif (birkac mermi ya da tek roket / plazma delik acar, hava kacar); tek basibos mermi
+  // yalniz catlatir. Ayri saydam mesh olarak cizilir (chunkManager)
+  [M.GLASS, 'kubbe cami', 0xa8d8f0, 0.05, 0.0, 0, 100, 'glass'],
+  [M.HULL, 'govde paneli', 0xd9dbd8, 0.5, 0.25, 0, 150, 'metal'],
+  [M.SOLAR, 'gunes paneli', 0x1c2d5c, 0.22, 0.55, 0, 40, 'glass'],
+  // kopuk yama: delinen kubbeyi kapatir; yeniden vurulup delinebilir
+  [M.FOAM, 'kopuk yama', 0xe6cf78, 0.95, 0.0, 0, 100, 'dirt'],
+  [M.PLANT, 'sera bitkisi', 0x3f9a2e, 0.75, 0.0, 0, 12, 'leaf'],
+  [M.SCREEN, 'ekran', 0x2ad8ff, 0.2, 0.0, 1.0, 40, 'glass'],
+  [M.FOIL, 'altin folyo', 0xd8a840, 0.3, 0.9, 0, 90, 'metal'],
+  [M.GROW, 'buyume lambasi', 0xff4fd8, 0.3, 0.0, 1.0, 40, 'glass'],
 ];
 
-export const MAT_COUNT = 48;
+export const MAT_COUNT = 59;
 
 // ustunde durulunca kayilan malzemeler (mover.js): gol ve dere buzu
 export const SLIPPERY = new Uint8Array(MAT_COUNT);
 SLIPPERY[M.ICE] = 1;
 
 // isigi bir statik isiga bagli malzemeler: yikilinca isik soner (lamba, mangal atesi)
-export const LAMP_MATS = new Set([M.LAMP, M.FIRE]);
+export const LAMP_MATS = new Set([M.LAMP, M.FIRE, M.GROW, M.SCREEN]);
+// saydam malzemeler: ayri saydam mesh (mesher bolmesi) ve botlarin gorus hatti (icinden gorulur, mermi carpar)
+export const TRANSPARENT = new Uint8Array(MAT_COUNT);
+TRANSPARENT[M.GLASS] = 1;
 export const MAT_NAME = new Array(MAT_COUNT).fill('');
 export const MAT_COLOR = new Uint32Array(MAT_COUNT);     // sRGB 0xRRGGBB
 export const MAT_ROUGH = new Float32Array(MAT_COUNT).fill(1);
@@ -144,6 +174,7 @@ export function paletteForWorker() {
     metal: Array.from(MAT_METAL),
     emis: Array.from(MAT_EMISSIVE),
     tough: Array.from(MAT_TOUGH),
+    transp: Array.from(TRANSPARENT),
   };
 }
 

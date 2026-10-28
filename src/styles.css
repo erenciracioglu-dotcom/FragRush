@@ -137,6 +137,11 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 
 /* kisa pencereler (or. portal iframe'i 907x510, 821x462): menu tasmasin, ust kisim kesilmesin */
 #menu { overflow-y: auto; align-items: safe center; }
+/* kontroller paneli (harita kurali kartlari): 1280x720 gibi pencerelerde GERI dugmesi ekranda kalsin */
+@media (max-height: 800px) {
+  .keys { gap: 3px; font-size: 13px; margin-bottom: 8px; }
+  .keys b { min-width: 100px; }
+}
 @media (max-height: 640px) {
   #menu { padding-left: 5vw; }
   .title span { font-size: 48px; letter-spacing: 4px; }

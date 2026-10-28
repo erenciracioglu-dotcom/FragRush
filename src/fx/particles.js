@@ -102,6 +102,8 @@ export class Particles {
     this.s0 = F(); this.s1 = F();
     this.grav = F(); this.drag = F(); this.stretch = F(); this.rot = F(); this.rotV = F();
     this.c0 = F(max * 4); this.c1 = F(max * 4);
+    // yercekimi carpani (harita yercekimi / 22): ayda kivilcim, toz ve duman yavas duser / yukselir
+    this.gk = 1;
     this.aPos = new Float32Array(max * 3);
     this.aVel = new Float32Array(max * 3);
     this.aCol = new Float32Array(max * 4);
@@ -171,7 +173,7 @@ export class Particles {
       this.life[i] = l;
       const d = this.drag[i];
       if (d > 0) { const f = Math.exp(-d * dt); this.vx[i] *= f; this.vy[i] *= f; this.vz[i] *= f; }
-      this.vy[i] -= this.grav[i] * dt;
+      this.vy[i] -= this.grav[i] * this.gk * dt;
       this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt;
       this.rot[i] += this.rotV[i] * dt;
       i++;

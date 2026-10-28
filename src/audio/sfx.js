@@ -30,7 +30,16 @@ export class Audio {
     this.uw = ctx.createBiquadFilter();
     this.uw.type = 'lowpass'; this.uw.frequency.value = 22000; this.uw.Q.value = 0.7;
     this.underwater = false;
-    this.master.connect(this.uw); this.uw.connect(comp); comp.connect(ctx.destination);
+    // vakum (ay ussu, dinleyici kubbelerin disinda): sesler bogulur ve kisilir. Arayuz sesleri (isabet, bos
+    // sarjor) ayri yoldan gecer, bogulmaz.
+    this.vac = ctx.createBiquadFilter();
+    this.vac.type = 'lowpass'; this.vac.frequency.value = 22000; this.vac.Q.value = 0.6;
+    this.vacG = ctx.createGain(); this.vacG.gain.value = 1;
+    this.vacuum = false;
+    this.ui = ctx.createGain(); this.ui.gain.value = this.muted ? 0 : this.volume;
+    this.master.connect(this.vac); this.vac.connect(this.vacG); this.vacG.connect(this.uw);
+    this.ui.connect(this.uw);
+    this.uw.connect(comp); comp.connect(ctx.destination);
     // yanki
     this.reverb = ctx.createConvolver();
     this.reverb.buffer = this._impulse(2.4, 2.6);
@@ -54,7 +63,7 @@ export class Audio {
     this.enabled = true;
   }
 
-  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = this.muted ? 0 : v; }
+  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = this.muted ? 0 : v; if (this.ui) this.ui.gain.value = this.muted ? 0 : v; }
   // portal (CrazyGames) sesi kapattiginda: oyun ici ses ayari bunu geri acamaz
   setMuted(m) { this.muted = !!m; this.setVolume(this.volume); }
 
@@ -65,6 +74,18 @@ export class Audio {
     this.uw.frequency.cancelScheduledValues(t);
     this.uw.frequency.setTargetAtTime(on ? 520 : 22000, t, on ? 0.04 : 0.12);
     if (on && this.enabled) this.play('plunge', 0, 0, 0, 1, true);
+  }
+
+  // ay ussu: dinleyici vakumdaysa (kubbelerin disi ya da bosalmis kubbe) tum sesler bogulur
+  setVacuum(on) {
+    on = !!on;
+    if (!this.ctx || on === this.vacuum) return;
+    this.vacuum = on;
+    const t = this.ctx.currentTime;
+    this.vac.frequency.cancelScheduledValues(t);
+    this.vac.frequency.setTargetAtTime(on ? 760 : 22000, t, on ? 0.05 : 0.15);
+    this.vacG.gain.cancelScheduledValues(t);
+    this.vacG.gain.setTargetAtTime(on ? 0.6 : 1, t, 0.1);
   }
 
   _impulse(seconds, decay) {
@@ -116,7 +137,7 @@ export class Audio {
         pan.connect(lp); node = lp;
       }
     }
-    node.connect(this.master);
+    node.connect(local && revAmt === 0 ? this.ui : this.master);
     const send = ctx.createGain(); send.gain.value = 0.35 * revAmt * (local ? 0.5 : 1 + Math.min(1.5, dist / 30));
     node.connect(send); send.connect(this.reverb);
     return g;
@@ -239,6 +260,48 @@ export class Audio {
     if (!A) return;
     this.windAmb = null;
     try { A.src.stop(); A.lfo.stop(); A.lfo2.stop(); } catch (e) { /* zaten durmus */ }
+    A.g.disconnect();
+  }
+
+  // ay ussu: basincli kubbenin icinde havalandirma ugultusu (alcak gurultu + sebeke vinlamasi). k: 0..1
+  setBaseAmbience(k) {
+    if (!this.ctx || !this.enabled) return;
+    if (typeof document !== 'undefined' && document.hidden) k = 0;
+    let A = this.baseAmb;
+    if (!A) {
+      if (k <= 0.001) return;
+      const ctx = this.ctx;
+      const src = ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240; lp.Q.value = 0.8;
+      const body = ctx.createGain(); body.gain.value = 1.6;
+      const air = ctx.createBiquadFilter(); air.type = 'bandpass'; air.frequency.value = 1300; air.Q.value = 0.9;
+      const gAir = ctx.createGain(); gAir.gain.value = 0.05;
+      const hum = ctx.createOscillator(); hum.type = 'sine'; hum.frequency.value = 100;
+      const gHum = ctx.createGain(); gHum.gain.value = 0.12;
+      const hum2 = ctx.createOscillator(); hum2.type = 'triangle'; hum2.frequency.value = 50.3;
+      const gHum2 = ctx.createGain(); gHum2.gain.value = 0.1;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      src.connect(lp); lp.connect(body); body.connect(g);
+      src.connect(air); air.connect(gAir); gAir.connect(g);
+      hum.connect(gHum); gHum.connect(g); hum2.connect(gHum2); gHum2.connect(g);
+      g.connect(this.master);
+      src.start(); hum.start(); hum2.start();
+      A = this.baseAmb = { src, hum, hum2, g, k: 0 };
+      if (!this._visHookB && typeof document !== 'undefined') {
+        this._visHookB = true;
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.setBaseAmbience(0); });
+      }
+    }
+    if (Math.abs(k - A.k) < 0.01) return;
+    A.k = k;
+    A.g.gain.setTargetAtTime(Math.max(0.0001, k * 0.06), this.ctx.currentTime, 0.4);
+  }
+
+  stopBaseAmbience() {
+    const A = this.baseAmb;
+    if (!A) return;
+    this.baseAmb = null;
+    try { A.src.stop(); A.hum.stop(); A.hum2.stop(); } catch (e) { /* zaten durmus */ }
     A.g.disconnect();
   }
 
@@ -389,6 +452,50 @@ export class Audio {
       this._noise('highpass', 4800, 2500, 0.7, 0.7, 0.45, o, t + 0.05, 0.02);
     });
   }
+  // ay ussu: hava kacagi kukremesi (genis bant gurultu, basinc dustukce kararir), alarm kornasi, cam panel patlamasi,
+  // delikten firlayan govde, kopuk yama puskurmesi, yeniden basinclanma, konsol bipi
+  s_airLeak(x, y, z, v, local) {
+    this._voice(4.2, () => {
+      const ctx = this.ctx, t = ctx.currentTime, o = this._out(x, y, z, local, 1.0 * v, 1.4);
+      this._noise('highpass', 900, 2600, 0.6, 3.6, 0.9, o, t, 0.01);
+      this._noise('lowpass', 3800, 500, 0.7, 3.8, 1.0, o, t, 0.006);
+      this._noise('bandpass', 260, 120, 1.2, 1.4, 0.8, o, t, 0.004);
+      this._tone('sine', 62, 30, 1.2, 0.9, o, t, 0.004);
+      this._noise('bandpass', 5200, 3800, 6, 3.4, 0.35, o, t + 0.05, 0.05);
+    });
+  }
+  s_alarm(x, y, z, v, local) {
+    this._voice(0.8, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.32 * v, 1.2);
+      this._tone('square', 690, 690, 0.26, 0.5, o, t, 0.01);
+      this._tone('square', 520, 520, 0.3, 0.5, o, t + 0.3, 0.01);
+      this._tone('sine', 1380, 1380, 0.24, 0.12, o, t, 0.01);
+    });
+  }
+  s_glassBurst(x, y, z, v, local) {
+    this._voice(1.2, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.75 * v, 1.2);
+      this._noise('highpass', 3200, 1800, 0.7, 0.35, 1.0, o, t, 0.001);
+      this._noise('bandpass', 1400, 400, 0.9, 0.5, 0.6, o, t + 0.01);
+      for (let i = 0; i < 12; i++) this._tone('sine', 2200 + Math.random() * 4000, 1800 + Math.random() * 1500, 0.08 + Math.random() * 0.25, 0.14, o, t + Math.random() * 0.45);
+      this._tone('sine', 150, 60, 0.25, 0.6, o, t);
+    });
+  }
+  s_whoosh(x, y, z, v, local) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 0.6); this._noise('bandpass', 300, 2400, 1.1, 0.6, 0.9, o, t, 0.03); this._noise('lowpass', 900, 160, 0.8, 0.5, 0.6, o, t); }); }
+  s_foam(x, y, z, v, local) {
+    this._voice(1.6, () => {
+      const ctx = this.ctx, t = ctx.currentTime, o = this._out(x, y, z, local, 0.45 * v, 0.8);
+      const s = this._noiseSrc(1.4);
+      const bf = ctx.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 2600; bf.Q.value = 0.8;
+      const g = ctx.createGain(); this._env(g, t, 0.05, 0.9, 1.25, 0.2);
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 14; const lg = ctx.createGain(); lg.gain.value = 0.35;
+      lfo.connect(lg); lg.connect(g.gain);
+      s.connect(bf); bf.connect(g); g.connect(o); s.start(t); s.stop(t + 1.45); lfo.start(t); lfo.stop(t + 1.45);
+      this._tone('sine', 180, 90, 0.18, 0.4, o, t + 1.2);
+    });
+  }
+  s_repress(x, y, z, v, local) { this._voice(2.0, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.4 * v, 1); this._noise('highpass', 500, 3200, 0.7, 1.6, 0.7, o, t, 0.4); this._tone('sine', 440, 880, 0.5, 0.15, o, t + 1.3, 0.02); this._tone('sine', 660, 1320, 0.4, 0.12, o, t + 1.45, 0.02); }); }
+  s_beep(x, y, z, v, local) { this._voice(0.4, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.08 * v, 0.5); const f = [1320, 1560, 1760, 2093][(Math.random() * 4) | 0]; this._tone('sine', f, f, 0.07, 0.6, o, t, 0.004); if (Math.random() < 0.5) this._tone('sine', f * 1.25, f * 1.25, 0.06, 0.5, o, t + 0.11, 0.004); }); }
   s_botDeath(x, y, z, v, local) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 1); this._tone('square', 900, 90, 0.5, 0.3, o, t); this._noise('bandpass', 1500, 300, 1, 0.4, 0.8, o, t); }); }
   s_playerDeath(x, y, z, v) { this._voice(1.2, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.45 * v, 1); this._tone('sawtooth', 300, 40, 1.0, 0.35, o, t); this._noise('lowpass', 1200, 80, 0.8, 0.9, 0.6, o, t); }); }
 }

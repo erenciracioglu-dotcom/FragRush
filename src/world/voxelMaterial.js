@@ -42,6 +42,18 @@ P([M.ICICLE], 29);
 P([M.SNOWPINE], 30);
 P([M.SROCK, M.SCLIFF], 31);
 P([M.CARROT], 12);
+// ay ussu: regolit (32), ay kayasi / krater kenari (33), kubbe cami opak (34; saydam cizim createGlassMaterial),
+// govde paneli (35), gunes paneli (36), kopuk yama (37), ekran (38), altin folyo (39)
+P([M.REGOLITH], 32);
+P([M.MROCK, M.MCLIFF], 33);
+P([M.GLASS], 34);
+P([M.HULL], 35);
+P([M.SOLAR], 36);
+P([M.FOAM], 37);
+P([M.SCREEN], 38);
+P([M.FOIL], 39);
+P([M.GROW], 8);
+P([M.PLANT], 16);
 
 // lav isigi haritasi yokken baglanan bos doku
 const blankTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
@@ -157,7 +169,7 @@ float vxMetal = 0.0;`)
   float p = 1.0;
   vxRough = mp.x;
   vxMetal = mp.y;
-  if (pat > 25.5) {
+  if (pat > 25.5 && pat < 31.5) {
     // kar ve buz: voxel izgarasi belli olmasin (yumusak kar ortusu, puruzsuz gol buzu); tugla derzi kalir
     float bk = pat < 26.5 ? 0.3 : pat < 27.5 ? 0.1 : pat < 28.5 ? 0.75 : 0.35;
     bevel = mix(1.0, bevel, bk);
@@ -225,6 +237,80 @@ float vxMetal = 0.0;`)
     // kristal
     float sp = pow(h, 12.0);
     vxEmissive = base * (mp.z + sp * 0.6) * uEmissiveScale * 0.5;
+  } else if (pat > 31.5) {
+    // ay ussu: regolit (32), ay kayasi (33), kubbe cami opak (34), govde paneli (35), gunes paneli (36),
+    // kopuk yama (37), ekran (38), altin folyo (39)
+    vec2 sc = floor(t * 4.0);
+    float s = vxHash(vec3(sc, cell.y * 0.37 + cell.x * 0.11 + 5.0));
+    float s2 = vxHash(vec3(sc + 31.7, cell.z * 0.21 + 2.0));
+    bool top = vObjNormal.y > 0.5;
+    tint = vec3(1.0);
+    if (pat < 32.5) {
+      // regolit: ince gri toz; genis olcekte acik / koyu lekeler, ince benek, seyrek cakil; voxel kenari silik
+      vec2 w = vWPos.xz;
+      float big = vxNoise(w * 0.05) * 0.65 + vxNoise(w * 0.17 + 4.0) * 0.35;
+      base *= mix(1.0, 0.8 + 0.4 * big, max(detail, 0.35));
+      base *= mix(1.0, 0.92 + 0.16 * s, detail);
+      base = mix(base, base * 0.5, step(0.975, s2) * detail);
+      bevel = mix(1.0, bevel, 0.3);
+      var = 1.0 + (h - 0.5) * 0.05 * detail;
+      if (!top) base *= vertical > 0.5 ? 0.8 : 0.55;
+      vxRough = 0.97;
+    } else if (pat < 33.5) {
+      // ay kayasi / krater kenari: koyu gri bazalt, gozenekler, yan yuzde katmanlar
+      base *= mix(1.0, 0.8 + 0.4 * s, detail);
+      base *= 1.0 - 0.5 * step(0.92, s2) * detail;
+      if (vertical > 0.5) base *= mix(1.0, 0.84 + 0.22 * vxHash(vec3(0.0, floor(q.y / 3.0), floor((q.x + q.z) / 24.0))), detail);
+      if (top) base *= 1.08;
+    } else if (pat < 34.5) {
+      // kubbe cami (opak cizim: dusen cam parcasi): koyu mavi-yesil, cok parlak, ince ic isik
+      base = vec3(0.03, 0.07, 0.1) * (0.85 + 0.3 * h);
+      bevel = mix(1.0, bevel, 0.5); var = 1.0;
+      vxRough = 0.05; vxMetal = 0.0;
+      vxEmissive += vec3(0.01, 0.03, 0.04);
+    } else if (pat < 35.5) {
+      // govde paneli: beyaz 1 m paneller, ince derz, panel basina ton, kose percinleri
+      float seam = max(vxLine(t.x / 4.0, 0.018, aa / 4.0), vxLine(t.y / 4.0, 0.018, aa / 4.0));
+      vec2 pid = floor(t / 4.0);
+      float ph = vxHash(vec3(pid, 7.7 + an.x * 11.0 + an.z * 5.0));
+      base *= (0.92 + 0.12 * ph) * (1.0 - seam * 0.5 * mix(0.5, 1.0, detail));
+      vec2 fp = fract(t / 4.0);
+      float rv = step(length(abs(fp - 0.5) - 0.42), 0.03);
+      base *= 1.0 - rv * 0.35 * detail;
+      bevel = mix(1.0, bevel, 0.4); var = 1.0;
+      vxRough = 0.45 + 0.15 * ph;
+    } else if (pat < 36.5) {
+      // gunes paneli: ust yuz koyu mavi hucreler + gumus hatlar; yan / alt gri cerceve
+      if (top) {
+        float cl = max(vxLine(t.x * 2.0, 0.05, aa * 2.0), vxLine(t.y * 2.0, 0.05, aa * 2.0));
+        base = mix(vec3(0.02, 0.035, 0.09) * (0.8 + 0.3 * s), vec3(0.55, 0.58, 0.62), cl);
+        vxRough = mix(0.12, 0.4, cl); vxMetal = mix(0.35, 0.9, cl);
+      } else { base = vec3(0.32, 0.33, 0.35); vxRough = 0.5; vxMetal = 0.7; }
+      bevel = 1.0; var = 1.0;
+    } else if (pat < 37.5) {
+      // kopuk yama: kabarcikli sari kopuk
+      float bl = vxNoise(vWPos.xz * 5.0 + vWPos.y * 3.0) * 0.6 + vxNoise(vWPos.zy * 9.0) * 0.4;
+      base *= 0.8 + 0.4 * bl;
+      bevel = mix(1.0, bevel, 0.2); var = 1.0;
+      vxRough = 0.95;
+    } else if (pat < 38.5) {
+      // ekran: tarama cizgisi, voxel basina yanip sonen veri bloklari; ust / alt yuz koyu kasa
+      if (vertical > 0.5) {
+        float sl = 0.75 + 0.25 * sin(t.y * 12.0 - uTime * 6.0);
+        float blink = step(0.35, fract(h * 7.0 + uTime * (0.3 + h2)));
+        float bar = step(fract(t.x * 0.5 + h), 0.6 + 0.3 * sin(uTime * 1.3 + h * 9.0));
+        vec3 scc = h2 < 0.33 ? vec3(0.15, 0.85, 1.0) : h2 < 0.66 ? vec3(0.25, 1.0, 0.45) : vec3(1.0, 0.7, 0.2);
+        vxEmissive = scc * mp.z * uEmissiveScale * 0.45 * sl * mix(0.4, 1.0, blink * bar);
+        base = scc * 0.2;
+      } else base = vec3(0.05);
+      bevel = 1.0; var = 1.0;
+    } else {
+      // altin folyo: kirisik parlak altin (inis aracinin alt kati)
+      float cr = vxNoise(vWPos.xz * 7.0 + vWPos.y * 5.0) * 0.6 + vxNoise(vWPos.zy * 13.0 + 2.0) * 0.4;
+      base *= 0.7 + 0.6 * cr;
+      vxRough = 0.18 + 0.35 * (1.0 - cr); vxMetal = 0.95;
+      bevel = mix(1.0, bevel, 0.5); var = 1.0;
+    }
   } else if (pat > 25.5) {
     // buz golu: kar (26), gol buzu (27), buz tugla (28), sarkit (29), karli cam (30), karli kaya (31)
     vec2 sc = floor(t * 4.0);
@@ -490,5 +576,57 @@ float vxMetal = 0.0;`)
 }`);
   };
   mat.customProgramCacheKey = () => 'voxel-v1' + (rotated ? 'r' : '');
+  return mat;
+}
+
+// Kubbe cami (ay ussu): chunk'larin saydam mesh'i (mesher bolmesi). Dik bakista neredeyse gorunmez, kenara
+// dogru (fresnel) daha opak ve yansitici; hasar kademesiyle beyazimsi catlaklar ve buzlanma. Golge atmaz.
+export function createGlassMaterial() {
+  const mat = new THREE.MeshStandardMaterial({ color: 0xc4e4f4, roughness: 0.04, metalness: 0.05, transparent: true, depthWrite: false, envMapIntensity: 1.8 });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uVS = voxelUniforms.uVS;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+attribute vec4 aMat;
+flat varying float vDmg;
+varying vec3 vObjPos;
+flat varying vec3 vObjNormal;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vDmg = aMat.y * 255.0 / 36.0;
+vObjPos = position;
+vObjNormal = normal;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform float uVS;
+flat varying float vDmg;
+varying vec3 vObjPos;
+flat varying vec3 vObjNormal;
+float glHash(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.yxz + 33.33); return fract((p.x + p.y) * p.z); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+float glCrack = 0.0;
+{
+  vec3 q = vObjPos / uVS;
+  vec3 an = abs(vObjNormal);
+  vec2 t = an.x > 0.5 ? q.zy : an.y > 0.5 ? q.xz : q.xy;
+  if (vDmg > 0.5) {
+    // catlak: voxel basina iki rastgele kirik hatti + merkezde buzlanma
+    vec3 cell = floor(q - vObjNormal * 0.5 + 0.0001);
+    vec2 f = fract(t) - 0.5;
+    float h = glHash(cell) * 6.2831;
+    float l1 = abs(f.x * cos(h) + f.y * sin(h));
+    float l2 = abs(f.x * cos(h + 2.1) + f.y * sin(h + 2.1));
+    float k = min(vDmg, 6.0);
+    glCrack = clamp((1.0 - smoothstep(0.012, 0.05, min(l1, l2))) * k / 3.0 + (1.0 - smoothstep(0.0, 0.45, length(f))) * k * 0.06, 0.0, 1.0);
+  }
+  diffuseColor.rgb = mix(diffuseColor.rgb * 0.3, vec3(0.9, 0.95, 1.0), glCrack);
+}`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+{
+  float nv = abs(dot(normal, normalize(vViewPosition)));
+  float fres = pow(1.0 - nv, 3.0);
+  diffuseColor.a = clamp(0.08 + 0.55 * fres + glCrack * 0.8, 0.0, 0.95);
+}`);
+  };
+  mat.customProgramCacheKey = () => 'glass-v1';
   return mat;
 }

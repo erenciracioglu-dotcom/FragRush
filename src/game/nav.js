@@ -46,6 +46,10 @@ export class NavGrid {
     this.hot = new Uint8Array(nc * L);       // dugum lav kenarinda (yol bulmada pahali)
     this.pads = new Map();                   // node -> [{to, cost}]
     this.dirtyCells = new Set();
+    // ziplayarak cikilabilen en yuksek basamak (voxel): haritanin yercekimine gore (ay ussu: 9)
+    this.jumpUp = 5;
+    // en uzun inis (voxel): dusuk yercekiminde (dusus hasari da yok) daha yuksekten atlanir
+    this.dropMax = 48;
     // A* tamponlari
     this.g = new Float32Array(nc * L);
     this.parent = new Int32Array(nc * L);
@@ -183,8 +187,8 @@ export class NavGrid {
           const dy = y2 - y;
           let type = 0;
           if (dy >= -1 && dy <= 3) type = EDGE_WALK;
-          else if (dy > 3 && dy <= 5) type = EDGE_JUMP;
-          else if (dy < -1 && dy >= -48) type = EDGE_DROP;
+          else if (dy > 3 && dy <= this.jumpUp) type = EDGE_JUMP;
+          else if (dy < -1 && dy >= -this.dropMax) type = EDGE_DROP;
           else continue;
           const hy = Math.max(y, y2);
           if (type === EDGE_DROP) { if (!this._passable(ax, az, bx, bz, y)) continue; }

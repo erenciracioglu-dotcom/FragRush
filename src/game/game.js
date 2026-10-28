@@ -1,16 +1,17 @@
 // Oyunun cekirdegi: render, dunya, tum alt sistemler ve mac akisi.
 import * as THREE from 'three';
-import { VS, WORLD, FLOOR_Y, MATCH, PLAYER } from '../config.js';
+import { VS, WORLD, FLOOR_Y, MATCH, PLAYER, GRAVITY, GRAVITY0, setPhysics } from '../config.js';
 import { VoxelWorld } from '../world/voxelWorld.js';
 import { LEVELS, resolveLevel } from '../world/levels.js';
 import { MeshWorkers, ChunkManager } from '../world/chunkManager.js';
-import { createVoxelMaterial, voxelUniforms } from '../world/voxelMaterial.js';
+import { createVoxelMaterial, createGlassMaterial, voxelUniforms } from '../world/voxelMaterial.js';
 import { M, LAMP_MATS } from '../world/materials.js';
 import { createSky, createEnvironment } from '../fx/sky.js';
 import { WaterSystem } from '../fx/water.js';
 import { MEADOW_SKY, MEADOW_WATER, createHills } from '../fx/environments.js';
 import { LavaSystem, VOLCANO_ENV, VOLCANO_HILLS, createVolcanoSky, createVolcanoEnvironment, volcanoKeyDir } from '../fx/lava.js';
 import { IceSystem, FROZEN_SKY, FROZEN_WATER, FROZEN_ENV, FROZEN_HILLS } from '../fx/ice.js';
+import { MoonSystem, MOON_ENV, MOON_HILLS, createMoonSky, createMoonEnvironment, moonDirs } from '../fx/moon.js';
 import { PostFX, QUALITY } from '../fx/post.js';
 import { Effects } from '../fx/effects.js';
 import { Destruction } from './destruction.js';
@@ -27,7 +28,7 @@ import { WEAPONS } from './weapons.js';
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 
-const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava', 'cold', 'icicle']);
+const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava', 'cold', 'icicle', 'spaced']);
 // lava dusen biri son bu kadar saniye icinde vurulduysa (itildiyse) parcalama vurana yazilir
 const LAVA_PUSH_CREDIT = 4;
 // statik nokta isiklari her haritada bu kadar (sayi degisirse tum malzemeler yeniden derlenir)
@@ -110,6 +111,11 @@ export class Game {
     // buz golu: karli uzak daglar
     this.frozenHills = createHills(center, FROZEN_HILLS);
     scene.add(this.frozenHills);
+    // ay ussu: yildizli siyah gok + Dunya, alcak gri tepeler
+    this.moonSky = createMoonSky();
+    scene.add(this.moonSky.mesh);
+    this.moonHills = createHills(center, MOON_HILLS);
+    scene.add(this.moonHills);
 
     mk('setup');
     this.world = new VoxelWorld(WORLD.X, WORLD.Y, WORLD.Z);
@@ -118,6 +124,9 @@ export class Game {
     this.voxelMaterial = createVoxelMaterial();
     this.chunks = new ChunkManager(this.world, scene, this.voxelMaterial, this.workers);
     this.chunks.maxInflight = nWorkers * 3;
+    // cam (ay ussu kubbeleri): ayri saydam mesh; ?glassopaque ile opak desen (karsilastirma olcumu)
+    this.glassMaterial = null;
+    if (!new URLSearchParams(location.search).has('glassopaque')) this.chunks.glassMaterial = this.glassMaterial = createGlassMaterial();
     this.fx = new Effects(this, q);
     this.destruction = new Destruction(this);
     this.projectiles = new Projectiles(this);
@@ -129,6 +138,7 @@ export class Game {
     this.waterSys = new WaterSystem(this);
     this.lavaSys = new LavaSystem(this);
     this.iceSys = new IceSystem(this);
+    this.moonSys = new MoonSystem(this);
     this.fx.debris.onLava = this.fx.glowDebris.onLava = (x, y, z) => {
       if (Math.random() < 0.25) this.fx.add.emit(x, y + 0.05, z, 0, 1.5, 0, 0.5, 0.05, 0.02, [5, 1.2, 0.15, 1], [1, 0.1, 0, 0], 2, 0.5, 0.01);
     };
@@ -201,6 +211,10 @@ export class Game {
     mk('b0');
     this.arena = LEVELS[this.mapId].generate(this.world, seed);
     mk('gen');
+    // harita fizigi: yercekimi ve ona bagli hareket ayarlari (verilmeyen varsayilana doner), yumusak tavan
+    setPhysics(this.arena.gravity, this.arena.move);
+    this.world.ceilY = this.arena.ceilY ?? Infinity;
+    this.fx.add.gk = this.fx.smoke.gk = GRAVITY / GRAVITY0;
     this.world.waterY = this.arena.water ? this.arena.water.y : -Infinity;
     this.applyEnvironment(this.arena);
     this.world.dirtyList = []; this.world.chunkDirty.fill(0);
@@ -223,6 +237,8 @@ export class Game {
       }
       this.staticLights.push({ light: pl, def: L, on: true, lamps, base: L.intensity });
     }
+    // ay ussu kurallari (basincli hacimler, zarlar): statik isiklardan sonra (alarm isigi hacmin isigini kullanir)
+    if (this.arena.env === 'moon') this.moonSys.setup(this.arena); else this.moonSys.disable();
     // mesh
     const total = this.chunks.n;
     this.chunks.allocPerFrame = Infinity;
@@ -238,6 +254,8 @@ export class Game {
     onProgress(0.92, t('ldNav'));
     await nextFrame();
     this.nav.pads.clear();
+    this.nav.jumpUp = this.arena.navJump ? this.arena.navJump.up : 5;
+    this.nav.dropMax = this.arena.navJump ? this.arena.navJump.drop : 48;
     this.nav.buildAll();
     for (const p of this.arena.pads) this.nav.addPad(p.x, p.y, p.z, p.tx, p.ty, p.tz);
     mk('nav');
@@ -275,6 +293,9 @@ export class Game {
     const meadow = arena.env === 'meadow';
     const volcano = arena.env === 'volcano';
     const frozen = arena.env === 'frozen';
+    const moon = arena.env === 'moon';
+    this.moonSky.mesh.visible = false;
+    this.moonHills.visible = false;
     this.volcanoSky.mesh.visible = false;
     this.volcanoHills.visible = false;
     this.frozenHills.visible = false;
@@ -353,6 +374,25 @@ export class Game {
       this.hemi.intensity = FROZEN_ENV.hemi;
       this.hills.visible = false;
       this.frozenHills.visible = true;
+    } else if (moon) {
+      // ay: siyah gok, sert alcak gunes (uzun keskin golgeler), sis yok denecek kadar az, soluk yeryuzu isigi
+      ws.disable();
+      if (!this._moonEnv) this._moonEnv = createMoonEnvironment(this.renderer);
+      scene.background = null;
+      scene.environment = this._moonEnv;
+      scene.environmentIntensity = MOON_ENV.envIntensity;
+      this.sky.mesh.visible = false;
+      this.moonSky.mesh.visible = true;
+      this.sunDir.copy(moonDirs().sun);
+      this.sun.color.set(MOON_ENV.sun);
+      this.sun.intensity = MOON_ENV.sunIntensity;
+      scene.fog.color.set(MOON_ENV.fog);
+      scene.fog.density = MOON_ENV.fogDensity;
+      this.hemi.color.set(MOON_ENV.hemiSky);
+      this.hemi.groundColor.set(MOON_ENV.hemiGround);
+      this.hemi.intensity = MOON_ENV.hemi;
+      this.hills.visible = false;
+      this.moonHills.visible = true;
     } else {
       ws.disable();
       scene.background = null;
@@ -537,7 +577,7 @@ export class Game {
     }
     if (hud) {
       const involves = victim.isPlayer || (killer && killer.isPlayer);
-      const selfFeed = { crush: 'crushedFeed', drown: 'drownedFeed', lava: 'lavaFeed', cold: 'coldFeed', icicle: 'icicleFeed' }[weaponId];
+      const selfFeed = { crush: 'crushedFeed', drown: 'drownedFeed', lava: 'lavaFeed', cold: 'coldFeed', icicle: 'icicleFeed', spaced: 'spacedFeed' }[weaponId];
       if (!killer || killer === victim) hud.feed(null, victim, t(selfFeed || 'blewUp'), involves);
       else hud.feed(killer, victim, label, involves);
     }
@@ -554,6 +594,7 @@ export class Game {
         else if (weaponId === 'lava') hud.centerMsg(t('lavaKill'), 1.8);
         else if (weaponId === 'cold' || (weaponId === 'drown' && this.iceSys.active)) hud.centerMsg(t('iceKill'), 1.8);
         else if (weaponId === 'icicle') hud.centerMsg(t('icicleKill'), 1.8);
+        else if (weaponId === 'spaced') hud.centerMsg(t('spacedKill'), 1.8);
         else if (head) hud.centerMsg(t('headshot'), 1.4);
         else hud.centerMsg(t('fragged'), 1.2);
         const st = killer.streak;
@@ -705,6 +746,7 @@ export class Game {
           this.waterEvents(a, dt);
           if (this.lavaSys.active && this.lavaSys.actorInLava(a.mover)) { this.lavaDeath(a); continue; }
           if (this.iceSys.active) { this.iceSys.actorTick(a, dt); if (!a.alive) continue; }
+          if (this.moonSys.active) { this.moonSys.actorTick(a, dt); if (!a.alive) continue; }
           if (a.mover.pos.y < -4) a.takeDamage(999, null, 'world', null, false);
         } else {
           a.respawnTimer -= dt;
@@ -748,6 +790,10 @@ export class Game {
       this.lavaSys.update(paused ? 0 : dt, this.camera);
     }
     if (this.iceSys.active) this.iceSys.update(paused ? 0 : dt, this.camera);
+    if (this.moonSys.active) {
+      this.moonSky.uniforms.uTime.value = this.time;
+      this.moonSys.update(paused ? 0 : dt, this.camera);
+    }
     // nisangahtaki hedef (ad etiketi icin)
     this.aimTarget = null;
     if (st === 'playing' && this.player.alive && (this.frame & 3) === 0) {
@@ -865,7 +911,7 @@ export class Game {
     const c = this.center;
     // yuksekten genis yorunge: catilarin (11.5 m) ve antenin ustunde, tum arena gorunsun
     // (cayirda buyuk mesenin tacindan disarida, golu ve dereyi gorecek kadar genis)
-    const O = this.mapId === 'frozen' ? { r: 30, y: 19, ty: 9, tr: 8 } : this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
+    const O = this.mapId === 'moon' ? { r: 31, y: 17, ty: 6, tr: 8 } : this.mapId === 'frozen' ? { r: 30, y: 19, ty: 9, tr: 8 } : this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
     const r = O.r + Math.sin(a.t * 0.11) * 2;
     this.camera.position.set(c.x + Math.cos(t) * r, O.y + Math.sin(a.t * 0.07) * 1.5, c.z + Math.sin(t) * r);
     _v.set(c.x + Math.cos(t + 0.6) * O.tr, O.ty, c.z + Math.sin(t + 0.6) * O.tr);
@@ -876,6 +922,7 @@ export class Game {
   render(dt) {
     this.sky.mesh.position.copy(this.camera.position);
     this.volcanoSky.mesh.position.copy(this.camera.position);
+    this.moonSky.mesh.position.copy(this.camera.position);
     this.renderer.info.reset();
     this.post.render(dt);
   }

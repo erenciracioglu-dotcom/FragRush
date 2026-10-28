@@ -1,5 +1,6 @@
 // Uctan uca mac testi: gercek Chrome'da OYNA'ya basilir, botlar mac bitene kadar (25 frag ya da 10 dk) oynar.
 // Hatalar, FPS ve mac sonu kaydedilir. usage: node test/fullmatch.mjs [harita=meadow] [bot=11] [zorluk=6]
+// HEADLESS=1: pencere acmadan (bilgisayar kullanilirken ekrana Chrome firlamasin)
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -15,7 +16,7 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 
 const srv = spawn(process.execPath, [path.join(root, 'serve.mjs')], { cwd: root, env: { ...process.env, PORT: '8812' }, stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 600));
-const browser = await chromium.launch({ channel: 'chrome', headless: false, args: ['--window-size=1280,760'] });
+const browser = await chromium.launch({ channel: 'chrome', headless: !!process.env.HEADLESS, args: ['--window-size=1280,760'] });
 const errors = [];
 const res = { map, bots, start: new Date().toISOString(), samples: [] };
 try {
@@ -47,7 +48,8 @@ try {
       const g = window.__enkaz.game;
       return { state: g.state, t: Math.round(g.time || 0), fps: Math.round(g.lastFps || 0),
         top: g.actors.map((a) => [a.name, a.frags]).sort((x, y) => y[1] - x[1]).slice(0, 3), lava: (g.__lava || []).length,
-        iceQ: g.iceSys && g.iceSys.active ? g.iceSys.queue.size : undefined, wet: g.actors.filter((a) => a.alive && a.mover.inWater).length };
+        iceQ: g.iceSys && g.iceSys.active ? g.iceSys.queue.size : undefined, wet: g.actors.filter((a) => a.alive && a.mover.inWater).length,
+        moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats, open: g.moonSys.vols.filter((v) => v.state !== 'sealed').map((v) => v.name + ':' + v.state) } : undefined };
     });
     res.samples.push(s);
     // duraklama (fare kilidi otomasyonda alinamaz) olursa oyunu calisir tut
@@ -59,6 +61,7 @@ try {
   res.lava = await page.evaluate(() => window.__enkaz.game.__lava || []);
   res.kills = await page.evaluate(() => window.__enkaz.game.__kills || {});
   res.final = await page.evaluate(() => window.__enkaz.game.actors.map((a) => [a.name, a.frags, a.deaths]));
+  res.moon = await page.evaluate(() => { const m = window.__enkaz.game.moonSys; return m && m.active ? m.stats : undefined; });
 } finally {
   res.errors = errors;
   fs.writeFileSync(out, JSON.stringify(res, null, 1));

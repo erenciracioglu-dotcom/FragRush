@@ -5,7 +5,10 @@ export const CS = 32;              // chunk boyu (voxel)
 export const WORLD = { X: 288, Y: 96, Z: 288 }; // dunya boyutu (voxel) => 72m x 24m x 72m
 export const FLOOR_Y = 6;          // zemin ust yuzeyi (voxel). 0-1 ana kaya, 2-5 zemin plakasi
 
-export const GRAVITY = 22;         // m/s^2
+// Yercekimi haritaya gore (game.js buildArena -> setPhysics, harita ciktisindaki gravity). Ay ussunde ~0.35 kati;
+// diger haritalarda 22. Canli baglanti (export let): mover, botlar, yikim, enkaz ve ogeler hep o anki degeri okur.
+export const GRAVITY0 = 22;        // varsayilan (m/s^2)
+export let GRAVITY = GRAVITY0;     // m/s^2
 
 export const MOVE = {
   radius: 0.34,          // yatay yari genislik (AABB)
@@ -27,6 +30,14 @@ export const MOVE = {
   dashCooldown: 0.9,
   maxFallSpeed: 60,
 };
+
+// harita fizigi: yercekimi (m/s^2) ve hareketin yercekimine bagli ayarlari (ziplama hizi, azami dusus hizi,
+// atilmanin yukari hizi). Verilmeyen deger varsayilana doner: harita degisince onceki haritanin ayari kalmaz.
+const MOVE0 = { jumpVel: MOVE.jumpVel, maxFallSpeed: MOVE.maxFallSpeed, dashUp: MOVE.dashUp };
+export function setPhysics(gravity = GRAVITY0, move = null) {
+  GRAVITY = gravity > 0 ? gravity : GRAVITY0;
+  for (const k in MOVE0) MOVE[k] = move && move[k] != null ? move[k] : MOVE0[k];
+}
 
 // Su (cayir haritasi): siglikta yavaslama, derinde yuzme, bogulma.
 export const WATER = {
