@@ -551,8 +551,13 @@ export class Bot extends Actor {
     this.aimDir(_dir);
     // kendi dibine roket atma
     if (W.id === 'rocket' && game.world.raycast(_eye.x, _eye.y, _eye.z, _dir.x, _dir.y, _dir.z, 2.6, _hit)) return;
-    const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
-    _muz.set(_eye.x + _dir.x * 0.55 + rx * 0.12, _eye.y - 0.25 + _dir.y * 0.55, _eye.z + _dir.z * 0.55 + rz * 0.12);
+    // atis efektleri modelin namlu ucundan; model gizliyse (birinci sahis izleme) gozun onunden
+    const m = this.mover;
+    if (this.model.root.visible) this.model.muzzle(_muz, m.pos.x, m.pos.y - m.stepSmooth, m.pos.z, this.yaw, this.pitch);
+    else {
+      const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+      _muz.set(_eye.x + _dir.x * 0.55 + rx * 0.12, _eye.y - 0.25 + _dir.y * 0.55, _eye.z + _dir.z * 0.55 + rz * 0.12);
+    }
     fire(game, this, _eye, _dir, _muz);
     this.firing = true;
   }
