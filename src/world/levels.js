@@ -14,7 +14,9 @@ export const LEVELS = {
   moon: { id: 'moon', label: 'mapMoon', generate: generateMoon },
   toyroom: { id: 'toyroom', label: 'mapToyroom', generate: generateToyroom },
 };
-export const LEVEL_ORDER = ['meadow', 'volcano', 'frozen', 'moon', 'toyroom', 'arena'];
+// SIRAYLA sirasi (varsayilan ayar SIRAYLA: oyun ilk haritayla acilir). Oyuncak odasi once: renkli, okunakli,
+// dahili kartta hizli (~100 FPS), ani olum tehlikesi yok. Sonra karsitlik: gece volkani, ay, buz; en agir cayir en sonda.
+export const LEVEL_ORDER = ['toyroom', 'volcano', 'moon', 'frozen', 'arena', 'meadow'];
 
 // ayar ('arena' | 'meadow' | 'volcano' | 'frozen' | 'moon' | 'toyroom' | 'rotate') ve onceki haritaya gore kurulacak harita
 export function resolveLevel(setting, previous = null) {

@@ -121,6 +121,13 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 .panel label span[data-i18n] { width: auto; min-width: 170px; text-align: left; color: var(--ink); font-variant-numeric: normal; white-space: nowrap; }
 #resumeHint { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); padding: 12px 22px; background: rgba(10,11,14,.78); color: var(--ink); letter-spacing: 2px; font-size: 18px; pointer-events: none; z-index: 30; }
 #resumeHint.hidden { display: none; }
+#startScreen { position: fixed; inset: 0; z-index: 25; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; cursor: pointer; text-align: center;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(7,8,11,0.62) 0%, rgba(7,8,11,0.32) 60%, rgba(7,8,11,0.12) 100%); }
+#startScreen .title span { font-size: clamp(54px, 10vw, 128px); }
+#startScreen .cta { font-size: clamp(18px, 2.4vw, 30px); font-weight: 700; letter-spacing: 6px; color: #fff; padding: 12px 30px; border: 2px solid rgba(255,122,26,0.85); background: rgba(255,122,26,0.16);
+  text-shadow: 0 0 14px rgba(255,122,26,0.8), 0 2px 0 #000; box-shadow: 0 0 26px rgba(255,122,26,0.35); animation: ctaPulse 1.4s ease-in-out infinite; }
+#startScreen .sub { font-size: clamp(12px, 1.3vw, 15px); letter-spacing: 3px; color: var(--dim); text-shadow: 0 1px 2px #000; }
+@keyframes ctaPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.86; } }
 .panel select { background: #15171d; color: var(--ink); border: 1px solid #333; padding: 4px 8px; font-family: var(--font); }
 .panel input[type=checkbox] { accent-color: var(--acc); width: 18px; height: 18px; }
 .keys { display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 15px; color: var(--dim); margin-bottom: 12px; }

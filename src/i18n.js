@@ -7,6 +7,7 @@ const D = {
   newArena: ['NEW ARENA', 'YENİ ARENA'],
   map: ['MAP', 'HARİTA'], mapArena: ['ARENA', 'ARENA'], mapMeadow: ['MEADOW', 'ÇAYIR'], mapVolcano: ['VOLCANO', 'VOLKAN'], mapFrozen: ['FROZEN LAKE', 'BUZ GÖLÜ'], mapMoon: ['MOON BASE', 'AY ÜSSÜ'], mapToyroom: ['TOY ROOM', 'OYUNCAK ODASI'], mapRotate: ['ROTATE', 'SIRAYLA'], leave: ['LEAVE MATCH', 'MAÇTAN ÇIK'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],
   menuHint: ['Left click fire · Esc / P menu · F3 FPS', 'Sol tık ateş · Esc / P menü · F3 FPS'],
+  clickToPlay: ['CLICK TO PLAY', 'OYNAMAK İÇİN TIKLA'], startHint: ['Esc · menu, maps and settings', 'Esc · menü, haritalar ve ayarlar'],
   kcTitle: ['CONTROLS', 'KONTROLLER'], kcMove: ['move', 'hareket'], kcAim: ['aim', 'nişan'], kcFire: ['fire', 'ateş'],
   kcJump: ['jump', 'zıpla'], kcDash: ['dash', 'atıl'], kcCrouch: ['crouch', 'eğil'], kcWeapons: ['weapons', 'silahlar'], kcPause: ['pause', 'duraklat'],
   kcGoal: ['First to 25 frags wins · walls break · blast cover away', '25 parçalamaya ulaşan kazanır · duvarlar yıkılır · siperi patlat'],

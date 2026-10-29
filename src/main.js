@@ -10,12 +10,20 @@ import { portal } from './portal.js';
 
 /* global __BUILD_TIME__ */
 const params = new URLSearchParams(location.search);
-const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'low', bots: 7, difficulty: 2, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false, map: 'rotate' };
+const DEFAULTS = { sensitivity: 1.0, fov: 100, quality: 'low', bots: 3, difficulty: 0, diffScale: 2, lang: 'en', volume: 0.7, invert: false, showFps: false, map: 'rotate', mapVer: 2 };
 function loadSettings() {
   let s = {};
   try { s = JSON.parse(localStorage.getItem('fragrush.settings') || localStorage.getItem('enkaz.settings') || '{}'); } catch (e) { s = {}; }
-  // zorluk olcegi 4 -> 7 seviyeye cikti: eski kayitli zorluk yeni varsayilana (Normal) doner
+  // zorluk olcegi 4 -> 7 seviyeye cikti: eski kayitli zorluk yeni varsayilana doner
   if (s.diffScale !== 2) { s.difficulty = DEFAULTS.difficulty; s.diffScale = 2; }
+  // varsayilan zorluk Acemi (yeni oyuncu ilk maci kaybetmesin). Kayitli zorluk yalniz oyuncu ayarlardan
+  // kendisi sectiyse korunur; eski kayitlardaki zorluk o zamanki varsayilandi (Normal).
+  if (!s.diffChosen) s.difficulty = DEFAULTS.difficulty;
+  // varsayilan bot sayisi 3 (yeni oyuncu once kirilabilir ortami kesfetsin); kayitli sayi yalniz oyuncu
+  // ayarlardan kendisi degistirdiyse korunur (eski kayitlardaki 7 o zamanki varsayilandi)
+  if (!s.botsChosen) s.bots = DEFAULTS.bots;
+  // harita listesi degisti (2 -> 6 harita; SIRAYLA oyuncak odasiyla acilir): eski kayitli harita secimi bir kez varsayilana doner
+  if (s.mapVer !== DEFAULTS.mapVer) { s.map = DEFAULTS.map; s.mapVer = DEFAULTS.mapVer; }
   return { ...DEFAULTS, ...s };
 }
 function saveSettings(s) { try { localStorage.setItem('fragrush.settings', JSON.stringify(s)); } catch (e) { /* yok */ } }
@@ -106,7 +114,7 @@ function setHint() {
 setHint();
 onLangChange(() => { setHint(); btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play'); hud.relabel(); game.player.name = t('you'); });
 
-btnPlay.addEventListener('click', async () => {
+async function startPlay() {
   audio.init();
   audio.setVolume(settings.volume);
   const fresh = game.state === 'menu';
@@ -122,7 +130,20 @@ btnPlay.addEventListener('click', async () => {
   lockKeys();
   input.lock();
   if (fresh) showKeyCard();
-});
+}
+btnPlay.addEventListener('click', startPlay);
+
+// ---- CrazyGames: yukleme bitince menu yerine baslangic ekrani; tek tik (ya da Enter / Bosluk) oyuna sokar ----
+// (Full Launch sarti: yeni oyuncu hemen oyuna girmeli, en fazla 1 tik). Ana menu: Esc ya da mactan cikinca.
+const startScreen = $('startScreen');
+const directStart = (portal.on || params.has('direct')) && !testMode && !params.has('bench');
+function showStart(v) { startScreen.classList.toggle('hidden', !v); }
+function startFromScreen() {
+  if (startScreen.classList.contains('hidden') || game.state !== 'menu') return;
+  showStart(false);
+  startPlay();
+}
+startScreen.addEventListener('click', startFromScreen);
 
 // ---- ilk mac: kisa tus karti (yalniz ilk kez; H ile gizlenir, 12 sn sonra kendiliginden kaybolur) ----
 const keyCard = $('keyCard');
@@ -176,6 +197,12 @@ canvas.addEventListener('click', () => {
 });
 window.addEventListener('keydown', (e) => {
   if (!e.repeat && e.code === 'KeyH') hideKeyCard();
+  if (!startScreen.classList.contains('hidden')) {
+    if (e.repeat) return;
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') { e.preventDefault(); startFromScreen(); }
+    else if (e.code === 'Escape') { e.preventDefault(); showStart(false); showMenu(true); }
+    return;
+  }
   // P: Esc'ye ek duraklatma tusu (Esc portalda tam ekrandan da cikarir)
   if (!e.repeat && e.code === 'KeyP' && $('loading').classList.contains('hidden')) {
     const panelP = Object.keys(panels).find((k) => !panels[k].classList.contains('hidden'));
@@ -242,7 +269,7 @@ function bindRange(id, key, fmt, apply) {
 bindRange('setSens', 'sensitivity', (v) => v.toFixed(2));
 bindRange('setFov', 'fov', (v) => String(v), () => { game._fov = -1; });
 bindRange('setVol', 'volume', (v) => Math.round(v * 100) + '%', (v) => audio.setVolume(v));
-bindRange('setBots', 'bots', (v) => String(v), () => { if (game.state !== 'loading') game.syncBots(); });
+bindRange('setBots', 'bots', (v) => String(v), () => { settings.botsChosen = true; if (game.state !== 'loading') game.syncBots(); });
 const selL = $('setLang'); selL.value = settings.lang;
 selL.addEventListener('change', () => { settings.lang = selL.value; setLang(settings.lang); saveSettings(settings); });
 const selQ = $('setQuality'); selQ.value = settings.quality;
@@ -258,7 +285,7 @@ function autoQuality() {
   if (q !== settings.quality) { game.setQuality(q); selQ.value = q; }
 }
 const selD = $('setDiff'); selD.value = String(settings.difficulty);
-selD.addEventListener('change', () => { settings.difficulty = Number(selD.value); for (const b of game.bots) b.setSkill(settings.difficulty); saveSettings(settings); });
+selD.addEventListener('change', () => { settings.difficulty = Number(selD.value); settings.diffChosen = true; for (const b of game.bots) b.setSkill(settings.difficulty); saveSettings(settings); });
 const chkI = $('setInvert'); chkI.checked = !!settings.invert; chkI.addEventListener('change', () => { settings.invert = chkI.checked; saveSettings(settings); });
 const chkF = $('setFps'); chkF.checked = !!settings.showFps; chkF.addEventListener('change', () => { settings.showFps = chkF.checked; hud.showFps = chkF.checked; saveSettings(settings); });
 
@@ -318,7 +345,7 @@ game.init(progress).then(() => {
   window.__enkaz.ready = true;
   checkGpu(); setHint(); autoQuality();
   $('loading').classList.add('hidden');
-  showMenu(true);
+  if (directStart) { menu.classList.add('hidden'); showStart(true); } else showMenu(true);
   if (testMode) {
     window.__enkaz.step = (n = 1, dt = 1 / 60, renderLast = true) => {
       const t0 = performance.now();

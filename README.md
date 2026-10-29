@@ -44,8 +44,8 @@ Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to 
 ## Maps
 
 Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **MOON BASE**, **TOY ROOM**,
-**ARENA** or **ROTATE** (changes after every match: meadow, volcano, frozen lake, moon base, toy room,
-arena, ...). *NEW ARENA* rebuilds the chosen map with a new layout seed. URL override for testing:
+**ARENA** or **ROTATE** (the default; changes after every match: toy room, volcano, moon base, frozen
+lake, arena, meadow, ...). *NEW ARENA* rebuilds the chosen map with a new layout seed. URL override for testing:
 `?map=meadow`, `?map=volcano`, `?map=frozen`, `?map=moon`, `?map=toyroom` or `?map=arena`.
 
 - **Arena**: the original neon sunset arena: central tower, four forts, bridges, corner yards.
@@ -283,8 +283,8 @@ blasts throw you around but don't hurt you.
 ### Settings
 
 Map (main menu), language (English / Türkçe), mouse sensitivity, field of view, graphics quality
-(Ultra / High / Medium / Low), bot count (0-11, can be changed mid-match), bot difficulty
-(7 levels from Rookie to Nightmare), volume, invert mouse, FPS overlay.
+(Ultra / High / Medium / Low), bot count (0-11, 3 by default, can be changed mid-match), bot difficulty
+(7 levels from Rookie to Nightmare; Rookie by default), volume, invert mouse, FPS overlay.
 Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**.
 
 ![Bots](media/bots.jpg)
@@ -328,6 +328,11 @@ npm install
 node build.mjs      # builds dist/index.html and docs/index.html
 node serve.mjs      # http://127.0.0.1:8777/
 ```
+
+**CrazyGames build:** `node build.mjs --portal crazygames` builds the version for the CrazyGames
+portal (with their SDK, without the visit counter). It opens on a start screen over the live toy
+room instead of the main menu: one click (or Enter / Space) starts a match, Esc opens the menu with
+maps and settings. Add `?direct` to a local URL to try the start screen.
 
 ## Performance
 
@@ -487,7 +492,7 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   kazanır, ardından yeni bir arena kurulur.
 - **Dil:** oyun İngilizce açılır; *SETTINGS → Language* ile Türkçeye geçilir (seçim hatırlanır).
 - **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **AY ÜSSÜ**, **OYUNCAK ODASI**,
-  **ARENA** ya da **SIRAYLA** (her maçtan sonra değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
+  **ARENA** ya da **SIRAYLA** (varsayılan; her maçtan sonra değişir: oyuncak odası, volkan, ay üssü, buz gölü, arena, çayır...). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
   gözetleme yeri olan büyük bir meşe ve ağaç evi, köprülerle bağlı üç ağaç evi daha, uçurumdaki
   mağaradan çıkıp küçük bir göle akan dere, iskele, atlama tahtası, avcı kulübesi. Ağacı kesersen
   tacı (ve ağaç evindeki) aşağı iner.
@@ -592,8 +597,8 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   roket patlamaları 5 kat büyür. Kendi patlaman sana hasar vermez.
 - **Saklanmak işe yaramaz:** botlar silah sesini duyar ve siperi deler; 15 saniyeden uzun aynı
   yerde kalırsan konumun açığa çıkar. Bağlantısı kopan yapılar çöker ve altındakini ezer.
-- **Ayarlar:** dil, fare hassasiyeti, görüş alanı, grafik kalitesi, bot sayısı (0-11, maç
-  sırasında da değişir), 7 kademe bot zorluğu (Acemi'den Kâbus'a), ses. Botlardan üçü aile:
+- **Ayarlar:** dil, fare hassasiyeti, görüş alanı, grafik kalitesi, bot sayısı (0-11, varsayılan 3, maç
+  sırasında da değişir), 7 kademe bot zorluğu (Acemi'den Kâbus'a; varsayılan Acemi), ses. Botlardan üçü aile:
   Papa Eren, Eray the Kid ve Mama Aigul.
 - **Gereksinim:** WebGL 2 destekli masaüstü tarayıcı (Chrome / Edge önerilir), fare ve klavye.
   Harici ekran kartı önerilir. **Görüntü birkaç saniyede bir donuyorsa ekran kartı sürücünü
@@ -605,7 +610,10 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   yeniden aç.
 - **Yerelde:** `docs/index.html` tek dosyadır, doğrudan açılabilir. Windows'ta `FragRush.bat`
   yerel sunucuyu açar ve oyunu ayrı, tam ekran bir Chrome penceresinde harici ekran kartıyla başlatır.
-  Kaynaktan derlemek için `npm install` ve `node build.mjs`.
+  Kaynaktan derlemek için `npm install` ve `node build.mjs`. `node build.mjs --portal crazygames`
+  CrazyGames sürümünü derler (CrazyGames SDK'sıyla, ziyaret sayacı olmadan); bu sürüm ana menü yerine
+  canlı oyuncak odasının üstünde bir başlangıç ekranıyla açılır: tek tık (ya da Enter / Boşluk) maçı
+  başlatır, Esc haritaların ve ayarların olduğu menüyü açar. Yerelde denemek için adrese `?direct` ekle.
 
 ## License
 
