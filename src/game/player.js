@@ -5,7 +5,7 @@ import { Actor } from './actor.js';
 import { WEAPONS } from './weapons.js';
 import { fire } from './combat.js';
 import { t } from '../i18n.js';
-import { M } from '../world/materials.js';
+import { M, MAT_SOUND } from '../world/materials.js';
 
 const _eye = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -77,7 +77,7 @@ export class Player extends Actor {
       if (this.stepAcc > 2.3) {
         this.stepAcc = 0;
         // karda gicirti, buzda sert tikirti
-        const g = m.groundMat, snd = m.inWater ? 'wade' : g === M.SNOW || g === M.SNOWPINE ? 'stepSnow' : g === M.ICE || g === M.ICE_BRICK ? 'stepIce' : 'step';
+        const g = m.groundMat, snd = m.inWater ? 'wade' : g === M.SNOW || g === M.SNOWPINE ? 'stepSnow' : g === M.ICE || g === M.ICE_BRICK ? 'stepIce' : MAT_SOUND[g] === 'cloth' ? 'stepSoft' : 'step';
         if (audio) audio.play(snd, p.x, p.y, p.z, 0.6 + hs / 20, true);
       }
     }

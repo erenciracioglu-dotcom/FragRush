@@ -79,6 +79,16 @@ export const ICE = {
   icicleMax: 130,
 };
 
+// Oyuncak odasi: ziplak yuzeyler (silte, nevresim, yastik, lastik top; materials.js BOUNCY). Belli bir hizin
+// ustunde dusen geri seker: cikis hizi = inis hizi * restitution; inerken Bosluk basiliysa + jumpBoost (trambolin).
+// Sekmeler sonumlenir (Bosluksuz her sekmede %20 kayip); en yuksek sekme hizi max (~5 m).
+export const BOUNCE = {
+  min: 4.5,              // m/s: bundan yavas inis sekmez (yurume, kisa dusus)
+  restitution: 0.8,
+  jumpBoost: 4.5,        // m/s
+  max: 15,               // m/s: ~5.1 m yukseklik
+};
+
 export const PLAYER = {
   maxHealth: 100,
   overHealth: 200,

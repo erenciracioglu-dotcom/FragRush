@@ -106,11 +106,14 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 #menu button:hover { background: rgba(255,122,26,0.2); border-left-color: var(--acc); padding-left: 28px; }
 #menu button.primary { background: var(--acc); color: #120a04; font-weight: 700; border-left-color: #fff; }
 #menu button.primary:hover { background: #ff9442; }
-#mapPick { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
-#mapPick .lbl { font-size: 12px; letter-spacing: 4px; color: var(--dim); min-width: 52px; }
-#mapPick .seg { display: flex; flex: 1; gap: 4px; }
-#menu #mapPick button { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; padding: 10px 4px; font-size: 13px; letter-spacing: 1px; text-align: center; white-space: nowrap; clip-path: none; border-left: none; border-bottom: 3px solid transparent; }
-#menu #mapPick button:hover { padding-left: 4px; border-bottom-color: rgba(255,255,255,0.4); }
+/* harita secimi: baslik ustte, dugmeler 4 sutunlu izgarada (harita eklendikce satir eklenir, menu genislemez);
+   SIRAYLA son satirin kalanini doldurur. Yazi tipi daha genis bir sistemde uzun ad sigmazsa iki satira iner. */
+#mapPick { margin: 12px 0 8px; }
+#mapPick .lbl { display: block; font-size: 11px; letter-spacing: 4px; color: var(--dim); margin: 0 0 6px 2px; }
+#mapPick .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+#menu #mapPick button { flex: 0 0 calc((100% - 12px) / 4); width: auto; min-width: 0; margin: 0; padding: 9px 3px; font-size: 12px; letter-spacing: 0.5px; line-height: 1.15; text-align: center; white-space: normal; clip-path: none; border-left: none; border-bottom: 3px solid transparent; }
+#menu #mapPick button[data-map="rotate"] { flex-grow: 1; }
+#menu #mapPick button:hover { padding-left: 3px; border-bottom-color: rgba(255,255,255,0.4); }
 #menu #mapPick button.on { background: rgba(34,228,255,0.16); border-bottom-color: var(--acc2); color: #fff; }
 .panel label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 15px; letter-spacing: 1px; color: var(--ink); }
 .panel input[type=range] { flex: 1; accent-color: var(--acc); }
@@ -141,23 +144,29 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 @media (max-height: 800px) {
   .keys { gap: 3px; font-size: 13px; margin-bottom: 8px; }
   .keys b { min-width: 100px; }
+  /* ana menu: harita izgarasinin ucuncu satirina yer (12 harita dugmesine kadar 1280x720'de kaymaz) */
+  .title small { margin-bottom: 26px; }
+  #menu button { margin: 7px 0; padding: 12px 20px; }
+  #menu #mapPick button { padding: 8px 3px; }
 }
 @media (max-height: 640px) {
   #menu { padding-left: 5vw; }
   .title span { font-size: 48px; letter-spacing: 4px; }
-  .title small { font-size: 13px; letter-spacing: 7px; margin: 6px 0 16px 4px; }
-  #menu button { margin: 5px 0; padding: 9px 18px; font-size: 16px; letter-spacing: 4px; }
-  #menu #mapPick button { padding: 7px 4px; font-size: 13px; }
-  #mapPick { margin: 5px 0; }
+  .title small { font-size: 13px; letter-spacing: 7px; margin: 6px 0 12px 4px; }
+  #menu button { margin: 4px 0; padding: 7px 18px; font-size: 16px; letter-spacing: 4px; }
+  #menu #mapPick button { padding: 4px 3px; }
+  #mapPick { margin: 6px 0 4px; }
+  #mapPick .lbl { margin-bottom: 3px; }
   .panel label { margin: 5px 0; font-size: 14px; }
-  #menuHint { margin-top: 12px; font-size: 12px; line-height: 1.45; }
+  #menuHint { margin-top: 10px; font-size: 12px; line-height: 1.45; }
 }
 @media (max-height: 480px) {
   .title span { font-size: 40px; }
-  .title small { margin-bottom: 10px; }
-  #menu button { margin: 4px 0; padding: 7px 16px; font-size: 15px; }
+  .title small { margin-bottom: 8px; }
+  #menu button { margin: 3px 0; padding: 5px 16px; font-size: 15px; }
+  #mapPick { margin: 4px 0 3px; }
   .panel label { margin: 3px 0; }
-  #menuHint { margin-top: 8px; }
+  #menuHint { margin-top: 6px; }
 }
 
 /* ilk mac tus karti */

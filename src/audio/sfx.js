@@ -354,6 +354,11 @@ export class Audio {
   // kar: yumusak pof; buz: cam gibi catlak + ince cinlama
   s_imp_snow(x, y, z, v, local) { this._voice(0.2, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.26 * v, 0.35); this._noise('lowpass', 900 + Math.random() * 400, 250, 0.7, 0.1, 0.8, o, t, 0.004); this._noise('bandpass', 2400, 1200, 1.2, 0.05, 0.25, o, t + 0.01); }); }
   s_imp_ice(x, y, z, v, local) { this._voice(0.35, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.26 * v, 0.8); this._noise('highpass', 3800, 2600, 0.9, 0.05, 0.9, o, t); const f = 1800 + Math.random() * 1500; this._tone('sine', f * 2.2, f, 0.09, 0.25, o, t); this._tone('triangle', f * 1.3, f * 0.6, 0.14, 0.18, o, t + 0.015); }); }
+  // oyuncak odasi: kumas (hali, silte) tok ve yumusak; boyali tahta / plastik oyuncak kuru ve tiz; lastik top tok bir "bop"
+  s_imp_cloth(x, y, z, v, local) { this._voice(0.15, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.24 * v, 0.3); this._noise('lowpass', 600 + Math.random() * 250, 180, 0.8, 0.08, 0.9, o, t, 0.004); }); }
+  s_imp_toy(x, y, z, v, local) { this._voice(0.2, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.3 * v, 0.5); const f = 900 + Math.random() * 700; this._noise('bandpass', 2600 + Math.random() * 900, 1500, 2, 0.04, 0.9, o, t); this._tone('triangle', f, f * 0.7, 0.06, 0.35, o, t); }); }
+  s_imp_rubber(x, y, z, v, local) { this._voice(0.25, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.3 * v, 0.4); this._tone('sine', 260 + Math.random() * 80, 120, 0.12, 0.7, o, t); this._noise('lowpass', 500, 150, 1, 0.05, 0.4, o, t); }); }
+  s_stepSoft(x, y, z, v, local) { this._voice(0.12, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.06 * v, 0.15); this._noise('lowpass', 420 + Math.random() * 200, 150, 0.7, 0.07, 0.8, o, t, 0.006); }); }
   s_stepSnow(x, y, z, v, local) { this._voice(0.15, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.09 * v, 0.2); for (let i = 0; i < 4; i++) this._noise('bandpass', 1500 + Math.random() * 1800, 900, 1.6, 0.025, 0.8, o, t + i * 0.018 + Math.random() * 0.01); this._noise('lowpass', 500, 200, 0.8, 0.06, 0.5, o, t); }); }
   s_stepIce(x, y, z, v, local) { this._voice(0.12, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.08 * v, 0.3); this._noise('bandpass', 2600 + Math.random() * 800, 1800, 2.2, 0.03, 0.9, o, t); this._tone('sine', 900 + Math.random() * 300, 700, 0.04, 0.25, o, t); }); }
   // gol buzu kirildi: sert catlak, govde gumbur, sonra buzun "sarkisi" (tizden pese hizla inen cinlama)
@@ -496,6 +501,126 @@ export class Audio {
   }
   s_repress(x, y, z, v, local) { this._voice(2.0, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.4 * v, 1); this._noise('highpass', 500, 3200, 0.7, 1.6, 0.7, o, t, 0.4); this._tone('sine', 440, 880, 0.5, 0.15, o, t + 1.3, 0.02); this._tone('sine', 660, 1320, 0.4, 0.12, o, t + 1.45, 0.02); }); }
   s_beep(x, y, z, v, local) { this._voice(0.4, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.08 * v, 0.5); const f = [1320, 1560, 1760, 2093][(Math.random() * 4) | 0]; this._tone('sine', f, f, 0.07, 0.6, o, t, 0.004); if (Math.random() < 0.5) this._tone('sine', f * 1.25, f * 1.25, 0.06, 0.5, o, t + 0.11, 0.004); }); }
+  // ---- oyuncak odasi
+  // ahsap domino: kuru tak (yuksek bant gurultu + kisa, ici bos govde tinisi)
+  s_dominoClack(x, y, z, v, local) {
+    this._voice(0.25, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.4 * v, 0.6);
+      const r = 1 + (Math.random() - 0.5) * 0.18;
+      this._noise('bandpass', 2300 * r, 1500, 2.2, 0.035, 1.0, o, t);
+      this._tone('triangle', 640 * r, 470 * r, 0.07, 0.5, o, t);
+      this._tone('sine', 250 * r, 200, 0.12, 0.35, o, t);
+    });
+  }
+  // devrilmeye baslayan dominonun hafif tiki
+  s_dominoTick(x, y, z, v, local) {
+    this._voice(0.08, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.16 * v, 0.3);
+      this._noise('bandpass', 3400 + Math.random() * 900, 2600, 3, 0.018, 0.9, o, t);
+    });
+  }
+  // dominonun yatik dusmesi: tok gumburtu + tak
+  s_dominoThud(x, y, z, v, local) {
+    this._voice(0.35, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 0.7);
+      this._noise('lowpass', 700, 130, 0.9, 0.16, 0.9, o, t);
+      this._tone('sine', 130, 60, 0.18, 0.7, o, t);
+      this._noise('bandpass', 1700 + Math.random() * 500, 1100, 2, 0.03, 0.6, o, t + 0.005);
+    });
+  }
+  // blok kulenin gicirdamasi: giderek sikilasan yapis-kay tiklari
+  s_blockCreak(x, y, z, v, local) {
+    this._voice(1.0, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.35 * v, 1);
+      let tt = t;
+      for (let i = 0; i < 14; i++) {
+        const f = 300 + Math.random() * 160;
+        this._tone('triangle', f, f * 0.8, 0.03, 0.35, o, tt);
+        this._noise('bandpass', 900 + Math.random() * 400, 600, 2.5, 0.025, 0.4, o, tt);
+        tt += 0.075 - i * 0.004;
+      }
+      this._noise('lowpass', 500, 120, 1, 0.8, 0.4, o, t, 0.1);
+    });
+  }
+  // ahsap bloklarin haliya dokulmesi: tok yikilma + sacilan taklar
+  s_blockCrash(x, y, z, v, local) {
+    this._voice(1.3, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.75 * v, 1.2);
+      this._noise('lowpass', 900, 70, 0.8, 0.7, 1.0, o, t);
+      this._tone('sine', 85, 38, 0.5, 0.9, o, t);
+      for (let i = 0; i < 18; i++) {
+        const tt = t + 0.02 + Math.pow(Math.random(), 1.6) * 0.9, f = 380 + Math.random() * 520;
+        this._tone('triangle', f, f * 0.75, 0.06, 0.25 + Math.random() * 0.25, o, tt);
+        this._noise('bandpass', 1500 + Math.random() * 1500, 1000, 2, 0.03, 0.45, o, tt);
+      }
+    });
+  }
+  // yay sesi (trambolin yatak): titreyerek yukselen ton
+  s_boing(x, y, z, v, local) {
+    this._voice(0.6, () => {
+      const ctx = this.ctx, t = ctx.currentTime, o = this._out(x, y, z, local, 0.32 * v, 0.6);
+      const f = 150 + Math.random() * 60;
+      const osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t); osc.frequency.exponentialRampToValueAtTime(f * 2.6, t + 0.08); osc.frequency.exponentialRampToValueAtTime(f * 1.6, t + 0.5);
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 26;
+      const lg = ctx.createGain(); lg.gain.setValueAtTime(f * 0.45, t); lg.gain.exponentialRampToValueAtTime(1, t + 0.5);
+      lfo.connect(lg); lg.connect(osc.frequency);
+      const g = ctx.createGain(); this._env(g, t, 0.004, 0.7, 0.5);
+      osc.connect(g); g.connect(o);
+      osc.start(t); lfo.start(t); osc.stop(t + 0.56); lfo.stop(t + 0.56);
+      this._noise('lowpass', 500, 150, 1, 0.08, 0.5, o, t);
+    });
+  }
+  // dominolar yeniden diziliyor: yumusak zil arpeji + hisirti
+  s_tidy(x, y, z, v, local) {
+    this._voice(1.4, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.3 * v, 1);
+      [784, 988, 1175, 1568, 1976].forEach((f, i) => { this._tone('sine', f, f, 0.5, 0.35, o, t + i * 0.09, 0.003); this._tone('sine', f * 3, f * 3, 0.15, 0.06, o, t + i * 0.09, 0.003); });
+      this._noise('highpass', 2500, 7000, 0.7, 0.9, 0.18, o, t, 0.2);
+    });
+  }
+  // kulenin bir kati yerine oturdu: tok pop
+  s_blockPop(x, y, z, v, local) {
+    this._voice(0.2, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.25 * v, 0.5);
+      const f = 520 + Math.random() * 180;
+      this._tone('sine', f, f * 1.6, 0.06, 0.6, o, t);
+      this._noise('bandpass', 1800, 1200, 2, 0.02, 0.4, o, t);
+    });
+  }
+  // duvar saati: sirayla tik / tak
+  s_clockTick(x, y, z, v, local) {
+    this._voice(0.06, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.12 * v, 0.3);
+      this._tock = !this._tock;
+      const f = this._tock ? 3600 : 2700;
+      this._noise('bandpass', f, f * 0.9, 5, 0.015, 1.0, o, t);
+      this._tone('sine', f * 0.35, f * 0.3, 0.02, 0.3, o, t);
+    });
+  }
+  // pencerenin disinda kus: 2-4 hizli civilti
+  s_chirp(x, y, z, v, local) {
+    this._voice(0.6, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.09 * v, 0.6);
+      const n = 2 + ((Math.random() * 3) | 0), f = 2600 + Math.random() * 1400;
+      for (let i = 0; i < n; i++) { const a = f * (1 + (Math.random() - 0.5) * 0.15); this._tone('sine', a, a * 1.45, 0.05, 0.6, o, t + i * 0.09, 0.004); }
+    });
+  }
+  // mac basi muzik kutusu: kisa ozgun ezgi; tini celik dil gibi (temel + 2.76x kismi)
+  s_musicBox(x, y, z, v, local) {
+    this._voice(5.5, () => {
+      const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.2 * v, 1.2);
+      // [nota (C5'ten yarim ses), vurus]
+      const tune = [[7, 1], [4, 1], [9, 1], [7, 1], [12, 1], [11, 0.5], [7, 0.5], [4, 2], [2, 1], [4, 1], [7, 1], [9, 1], [7, 3]];
+      let tt = t;
+      for (const [n, d] of tune) {
+        const f = 523.25 * Math.pow(2, n / 12);
+        this._tone('sine', f, f, 0.9, 0.5, o, tt, 0.002);
+        this._tone('sine', f * 2.76, f * 2.76, 0.25, 0.08, o, tt, 0.002);
+        tt += d * 0.27;
+      }
+    });
+  }
   s_botDeath(x, y, z, v, local) { this._voice(0.8, () => { const t = this.ctx.currentTime, o = this._out(x, y, z, local, 0.5 * v, 1); this._tone('square', 900, 90, 0.5, 0.3, o, t); this._noise('bandpass', 1500, 300, 1, 0.4, 0.8, o, t); }); }
   s_playerDeath(x, y, z, v) { this._voice(1.2, () => { const t = this.ctx.currentTime, o = this._out(0, 0, 0, true, 0.45 * v, 1); this._tone('sawtooth', 300, 40, 1.0, 0.35, o, t); this._noise('lowpass', 1200, 80, 0.8, 0.9, 0.6, o, t); }); }
 }

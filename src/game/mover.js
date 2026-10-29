@@ -1,7 +1,7 @@
 // Quake tarzi hareket + voxel carpismasi (oyuncu ve botlar ortak kullanir).
 import * as THREE from 'three';
-import { VS, MOVE, GRAVITY, WATER, ICE } from '../config.js';
-import { SLIPPERY } from '../world/materials.js';
+import { VS, MOVE, GRAVITY, WATER, ICE, BOUNCE } from '../config.js';
+import { SLIPPERY, BOUNCY } from '../world/materials.js';
 
 const EPS = 1e-4;
 const STEPS = [VS, VS * 2, MOVE.stepHeight];
@@ -23,7 +23,7 @@ export class Mover {
     this.slideTime = 0;
     this.padLock = 0;
     this.speedMul = 1;
-    this.events = { jumped: false, landed: false, dashed: false, slid: false, stepUp: 0, splash: 0, waterJump: false };
+    this.events = { jumped: false, landed: false, dashed: false, slid: false, stepUp: 0, splash: 0, waterJump: false, bounced: 0 };
     this._wasCrouchCmd = false;
     // su durumu (dunyanin su seviyesine gore): ayak derinligi, yuzme, gozler su altinda
     this.waterDepth = 0;
@@ -81,7 +81,7 @@ export class Mover {
   simulate(dt, cmd) {
     const ev = this.events;
     ev.jumped = ev.landed = ev.dashed = ev.slid = false; ev.stepUp = 0;
-    ev.splash = 0; ev.waterJump = false;
+    ev.splash = 0; ev.waterJump = false; ev.bounced = 0;
     const vel = this.vel, p = this.pos;
     this.dashCd = Math.max(0, this.dashCd - dt);
     this.padLock = Math.max(0, this.padLock - dt);
@@ -210,6 +210,15 @@ export class Mover {
           break;
         }
       }
+    }
+
+    // ziplak yuzey (oyuncak odasi: silte, yastik, lastik top): hizla inen geri seker (inis hizinin ~0.8'i);
+    // inerken Bosluk basiliysa ek itis (trambolin). Sekmeler sonumlenir, en cok BOUNCE.max.
+    if (ev.landed && this.landSpeed > BOUNCE.min && BOUNCY[this._groundMat()] === 1) {
+      const v = this.landSpeed * BOUNCE.restitution + (cmd.jump ? BOUNCE.jumpBoost : 0);
+      vel.y = Math.min(BOUNCE.max, v);
+      this.onGround = false;
+      ev.bounced = vel.y;
     }
 
     if (this.onGround) this.groundTime = 0; else this.groundTime += dt;

@@ -62,6 +62,12 @@ const buttons = $('menuButtons');
 function showPanel(name) {
   buttons.classList.toggle('hidden', !!name);
   for (const k in panels) panels[k].classList.toggle('hidden', k !== name);
+  if (name === 'controls') {
+    // harita kurallari: yalniz secili (macta: oynanan) haritanin karti; SIRAYLA'da hepsi (harita arttikca panel
+    // kucuk pencereye sigmiyordu)
+    const m = game.state === 'paused' ? game.mapId : settings.map;
+    for (const c of panels.controls.querySelectorAll('[data-rules]')) c.classList.toggle('hidden', m !== 'rotate' && c.dataset.rules !== m);
+  }
 }
 function showMenu(v) {
   menu.classList.toggle('hidden', !v);
@@ -342,7 +348,8 @@ function runBench() {
   let lastProgN = game.renderer.info.programs ? game.renderer.info.programs.length : -1;
   let winFrames = [], nextSample = 10;
   const shotTimes = soak ? [0.15, 0.35, 0.55, 0.75, 0.95].map((k) => k * dur) : [5, 10, 15, 20, 25];
-  game.spectate = game.bots[0] || null;
+  // &domino (oyuncak odasi en kotu durumu): kamera bastan odanin genel gorunusunde (olcum disi ilk 2 sn'de gecis)
+  game.spectate = params.has('domino') ? null : game.bots[0] || null;
   game.benchMode = true;
   if (params.has('fp')) game.benchFirstPerson = true;
   hud.show(false); menu.classList.add('hidden');
@@ -534,6 +541,13 @@ function runBench() {
         }
       }
     }
+    // oyuncak odasi en kotu durum (&domino): 7 sn'de bir zincir ve kule aninda yeniden kurulur (2200 voxel yazilir),
+    // ilk domino devrilir: 22 domino kosar, kule menteseyle devrilir, yere carpar. Kamera odanin genel gorunusunde
+    if (params.has('domino') && game.toySys.active && el > (runBench.nextDomino ??= 2)) {
+      runBench.nextDomino += 7;
+      game.toySys.matchReset();
+      game.toySys.trigger(game.bots[0] || null);
+    }
     if (shots < 5 && el > shotTimes[shots] && !params.has('noshots')) {
       shots++;
       lastShotT = el;
@@ -557,6 +571,7 @@ function runBench() {
       tris: game.renderer.info.render.triangles, calls: game.renderer.info.render.calls,
       chunkTris: game.chunks.triangles, debris: game.fx.debris.count, d: game.destruction.stats,
       moon: game.moonSys.active ? game.moonSys.stats : undefined,
+      toy: game.toySys.active ? game.toySys.stats : undefined,
       frags: game.actors.map((x) => x.name + ':' + x.frags),
       samples, spikes, gpuSpikes,
       programs: game.renderer.info.programs ? game.renderer.info.programs.map((p) => p.name || p.cacheKey.slice(0, 60)) : null,

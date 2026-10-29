@@ -34,6 +34,14 @@ try {
     g.__kills = {};
     const ok = g.onKill.bind(g);
     g.onKill = (v, k, wid, head) => { const key = wid + (k && k !== v ? '' : '*'); g.__kills[key] = (g.__kills[key] || 0) + 1; return ok(v, k, wid, head); };
+    // mac sonu ani (sonuc ekrani 7 sn surer, hizli kurulan haritada yeni mac 10 sn'lik ornekten once baslar)
+    g.__end = null;
+    const em = g.endMatch.bind(g);
+    g.endMatch = () => {
+      if (!g.__end) g.__end = { t: Math.round(g.time), final: g.actors.map((a) => [a.name, a.frags, a.deaths]), kills: { ...g.__kills },
+        toy: g.toySys && g.toySys.active ? { ...g.toySys.stats } : undefined, moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats } : undefined };
+      return em();
+    };
   }, diff);
   // OYNA betikle (guvenilmeyen tiklama): fare kilitlenmez, test penceresi kullanicinin faresini/klavyesini
   // ele gecirmez; kilitsiz oyun duraklar, asagidaki dongu calisir tutar
@@ -49,19 +57,26 @@ try {
       return { state: g.state, t: Math.round(g.time || 0), fps: Math.round(g.lastFps || 0),
         top: g.actors.map((a) => [a.name, a.frags]).sort((x, y) => y[1] - x[1]).slice(0, 3), lava: (g.__lava || []).length,
         iceQ: g.iceSys && g.iceSys.active ? g.iceSys.queue.size : undefined, wet: g.actors.filter((a) => a.alive && a.mover.inWater).length,
-        moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats, open: g.moonSys.vols.filter((v) => v.state !== 'sealed').map((v) => v.name + ':' + v.state) } : undefined };
+        moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats, open: g.moonSys.vols.filter((v) => v.state !== 'sealed').map((v) => v.name + ':' + v.state) } : undefined,
+        toy: g.toySys && g.toySys.active ? { ...g.toySys.stats, tower: g.toySys.tower.state, standing: g.toySys.chain.standing } : undefined,
+        end: g.__end ? g.__end.t : undefined };
     });
     res.samples.push(s);
     // duraklama (fare kilidi otomasyonda alinamaz) olursa oyunu calisir tut
     if (s.state === 'paused') await page.evaluate(() => { window.__enkaz.game.state = 'playing'; });
-    if (s.state === 'matchEnd') { ended = s; break; }
+    if (s.state === 'matchEnd' || s.end !== undefined) { ended = s; break; }
     fs.writeFileSync(out, JSON.stringify({ ...res, errors }, null, 1));
   }
   res.ended = ended; res.seconds = Math.round((Date.now() - t0) / 1000);
   res.lava = await page.evaluate(() => window.__enkaz.game.__lava || []);
-  res.kills = await page.evaluate(() => window.__enkaz.game.__kills || {});
-  res.final = await page.evaluate(() => window.__enkaz.game.actors.map((a) => [a.name, a.frags, a.deaths]));
-  res.moon = await page.evaluate(() => { const m = window.__enkaz.game.moonSys; return m && m.active ? m.stats : undefined; });
+  const end = await page.evaluate(() => window.__enkaz.game.__end);
+  if (end) { res.endT = end.t; res.kills = end.kills; res.final = end.final; res.moon = end.moon; res.toy = end.toy; }
+  else {
+    res.kills = await page.evaluate(() => window.__enkaz.game.__kills || {});
+    res.final = await page.evaluate(() => window.__enkaz.game.actors.map((a) => [a.name, a.frags, a.deaths]));
+    res.moon = await page.evaluate(() => { const m = window.__enkaz.game.moonSys; return m && m.active ? m.stats : undefined; });
+    res.toy = await page.evaluate(() => { const m = window.__enkaz.game.toySys; return m && m.active ? m.stats : undefined; });
+  }
 } finally {
   res.errors = errors;
   fs.writeFileSync(out, JSON.stringify(res, null, 1));

@@ -65,6 +65,41 @@ export const M = {
   SCREEN: 56,
   FOIL: 57,
   GROW: 58,
+  // oyuncak odasi haritasi (dev cocuk odasi: parke, hali, duvar kagidi, mobilya, oyuncaklar)
+  SUBFLOOR: 59,
+  PARQUET: 60,
+  RUG: 61,
+  TRACK: 62,
+  TRACK_LINE: 63,
+  WALLPAPER: 64,
+  WALLCORE: 65,
+  CEILING: 66,
+  TRIM: 67,
+  FURN: 68,
+  PAINTED: 69,
+  MATTRESS: 70,
+  DUVET: 71,
+  PILLOW: 72,
+  CURTAIN: 73,
+  BOOK: 74,
+  BLOCK_R: 75,
+  BLOCK_B: 76,
+  BLOCK_Y: 77,
+  BLOCK_G: 78,
+  PLASTIC_R: 79,
+  PLASTIC_B: 80,
+  PLASTIC_Y: 81,
+  PLASTIC_O: 82,
+  CRAYON_R: 83,
+  CRAYON_B: 84,
+  CRAYON_G: 85,
+  RUBBER: 86,
+  FUR: 87,
+  FUR_LIGHT: 88,
+  BUTTON: 89,
+  SHADE: 90,
+  DOMINO: 91,
+  BOOK_LAY: 92,
 };
 
 // [id, ad, renk, puruzluluk, metallik, emissive, tough, ses]
@@ -133,16 +168,61 @@ const DEFS = [
   [M.SCREEN, 'ekran', 0x2ad8ff, 0.2, 0.0, 1.0, 40, 'glass'],
   [M.FOIL, 'altin folyo', 0xd8a840, 0.3, 0.9, 0, 90, 'metal'],
   [M.GROW, 'buyume lambasi', 0xff4fd8, 0.3, 0.0, 1.0, 40, 'glass'],
+  // oyuncak odasi: zemin (sap yikilmaz: parke delinince alti beton), duvar (ici tugla, yikilmaz), tavan
+  [M.SUBFLOOR, 'sap', 0x8b8781, 0.92, 0.0, 0, 255, 'stone'],
+  [M.PARQUET, 'parke', 0xb98653, 0.5, 0.0, 0, 110, 'wood'],
+  [M.RUG, 'hali', 0x4f78c2, 1.0, 0.0, 0, 36, 'cloth'],
+  [M.TRACK, 'pist baskisi', 0x4b4e57, 0.95, 0.0, 0, 36, 'cloth'],
+  [M.TRACK_LINE, 'pist cizgisi', 0xedebe4, 0.95, 0.0, 0, 36, 'cloth'],
+  [M.WALLPAPER, 'duvar kagidi', 0xb9ddd2, 0.9, 0.0, 0, 70, 'stone'],
+  [M.WALLCORE, 'duvar tuglasi', 0x9a5843, 0.95, 0.0, 0, 255, 'stone'],
+  [M.CEILING, 'tavan', 0xf2efe7, 0.95, 0.0, 0, 70, 'stone'],
+  [M.TRIM, 'beyaz pervaz', 0xf3f0e9, 0.42, 0.0, 0, 90, 'wood'],
+  // mobilya: acik renk hus ahsap (masa, kitaplik, yatak), krem boyali ahsap (gardirop, komodin, kapi)
+  [M.FURN, 'hus ahsap', 0xd6b48a, 0.48, 0.0, 0, 105, 'wood'],
+  [M.PAINTED, 'boyali ahsap', 0xebe3d3, 0.4, 0.0, 0, 105, 'wood'],
+  // ziplak yumusaklar (mover.js BOUNCY): silte, nevresim, yastik; perde, kitap
+  [M.MATTRESS, 'silte', 0xf0ebe2, 0.95, 0.0, 0, 40, 'cloth'],
+  [M.DUVET, 'nevresim', 0x2d4a8c, 0.9, 0.0, 0, 36, 'cloth'],
+  [M.PILLOW, 'yastik', 0xf6f2ea, 0.95, 0.0, 0, 30, 'cloth'],
+  [M.CURTAIN, 'perde', 0xf1cb66, 0.95, 0.0, 0, 22, 'cloth'],
+  // kitap: dik duran (her voxel sutunu ayri kitap, sirti one bakar) ve yatik (her kat ayri kitap) iki malzeme
+  [M.BOOK, 'kitap', 0x8a4a3a, 0.7, 0.0, 0, 60, 'wood'],
+  [M.BOOK_LAY, 'yatik kitap', 0x3a6a8a, 0.7, 0.0, 0, 60, 'wood'],
+  // oyuncaklar: boyali tahta bloklar, parlak plastik (kale, rampa, araba), boya kalemi, lastik top, pelus ayi
+  [M.BLOCK_R, 'kirmizi blok', 0xd8433a, 0.5, 0.0, 0, 95, 'toy'],
+  [M.BLOCK_B, 'mavi blok', 0x3e72d2, 0.5, 0.0, 0, 95, 'toy'],
+  [M.BLOCK_Y, 'sari blok', 0xf2c12e, 0.5, 0.0, 0, 95, 'toy'],
+  [M.BLOCK_G, 'yesil blok', 0x4ead4c, 0.5, 0.0, 0, 95, 'toy'],
+  [M.PLASTIC_R, 'kirmizi plastik', 0xe23a36, 0.26, 0.0, 0, 80, 'toy'],
+  [M.PLASTIC_B, 'mavi plastik', 0x2f6fe2, 0.26, 0.0, 0, 80, 'toy'],
+  [M.PLASTIC_Y, 'sari plastik', 0xf6c419, 0.26, 0.0, 0, 80, 'toy'],
+  [M.PLASTIC_O, 'turuncu plastik', 0xf3862a, 0.26, 0.0, 0, 80, 'toy'],
+  [M.CRAYON_R, 'kirmizi boya kalemi', 0xd32f2b, 0.6, 0.0, 0, 50, 'toy'],
+  [M.CRAYON_B, 'mavi boya kalemi', 0x2d5dd0, 0.6, 0.0, 0, 50, 'toy'],
+  [M.CRAYON_G, 'yesil boya kalemi', 0x38993a, 0.6, 0.0, 0, 50, 'toy'],
+  [M.RUBBER, 'lastik', 0xe8452d, 0.34, 0.0, 0, 60, 'rubber'],
+  [M.FUR, 'pelus', 0x9a6a3d, 1.0, 0.0, 0, 30, 'cloth'],
+  [M.FUR_LIGHT, 'acik pelus', 0xd9b48a, 1.0, 0.0, 0, 30, 'cloth'],
+  [M.BUTTON, 'dugme', 0x1b1515, 0.14, 0.0, 0, 80, 'toy'],
+  // abajur / lamba kubbesi: isikli (statik isiga bagli, kirilinca soner)
+  [M.SHADE, 'abajur', 0xffd498, 0.6, 0.0, 1.0, 30, 'cloth'],
+  // domino: dunyada voxeli yok (sanal kati hucre, fx/toyroom.js); isin izleme carpmasi, etki rengi ve sesi
+  [M.DOMINO, 'domino', 0xf5efe2, 0.3, 0.0, 0, 90, 'toy'],
 ];
 
-export const MAT_COUNT = 59;
+export const MAT_COUNT = 93;
 
 // ustunde durulunca kayilan malzemeler (mover.js): gol ve dere buzu
 export const SLIPPERY = new Uint8Array(MAT_COUNT);
 SLIPPERY[M.ICE] = 1;
 
+// ziplak malzemeler (mover.js): hizla dusen geri seker (oyuncak odasi: silte, nevresim, yastik, lastik top)
+export const BOUNCY = new Uint8Array(MAT_COUNT);
+BOUNCY[M.MATTRESS] = 1; BOUNCY[M.DUVET] = 1; BOUNCY[M.PILLOW] = 1; BOUNCY[M.RUBBER] = 1;
+
 // isigi bir statik isiga bagli malzemeler: yikilinca isik soner (lamba, mangal atesi)
-export const LAMP_MATS = new Set([M.LAMP, M.FIRE, M.GROW, M.SCREEN]);
+export const LAMP_MATS = new Set([M.LAMP, M.FIRE, M.GROW, M.SCREEN, M.SHADE]);
 // saydam malzemeler: ayri saydam mesh (mesher bolmesi) ve botlarin gorus hatti (icinden gorulur, mermi carpar)
 export const TRANSPARENT = new Uint8Array(MAT_COUNT);
 TRANSPARENT[M.GLASS] = 1;

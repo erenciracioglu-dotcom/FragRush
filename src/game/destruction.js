@@ -54,20 +54,35 @@ class FallingBody {
   update(dt) {
     const g = this.group;
     this.life += dt;
-    this.vel.y -= GRAVITY * dt;
     const prevPos = this._pp || (this._pp = new THREE.Vector3());
     const prevQ = this._pq || (this._pq = new THREE.Quaternion());
     prevPos.copy(g.position); prevQ.copy(g.quaternion);
-    g.position.addScaledVector(this.vel, dt);
-    const al = this.ang.length();
-    if (al > 1e-4) { _q.setFromAxisAngle(_v.copy(this.ang).divideScalar(al), al * dt); g.quaternion.premultiply(_q); }
+    const h = this.hinge;
+    if (h) {
+      // mentese: yatay eksen cevresinde doner (agirlik merkezi pivotun onune gecince yercekimi hizlandirir);
+      // konum = pivot + R(phi) (com0 - pivot). Govde hizi (ezme denetimi icin) = w x r
+      h.w += h.k * GRAVITY * (h.ru * Math.sin(h.phi) - h.rb * Math.cos(h.phi)) * dt;
+      if (h.w < 0.15) h.w = 0.15;
+      h.phi += h.w * dt;
+      _q.setFromAxisAngle(_v.set(h.ax, 0, h.az), h.phi);
+      g.quaternion.copy(_q);
+      _v.set(h.rx, h.ry, h.rz).applyQuaternion(_q);
+      g.position.set(h.px + _v.x, h.py + _v.y, h.pz + _v.z);
+      this.vel.set(-h.az * _v.y * h.w, (h.az * _v.x - h.ax * _v.z) * h.w, h.ax * _v.y * h.w);
+      this.ang.set(h.ax * h.w, 0, h.az * h.w);
+    } else {
+      this.vel.y -= GRAVITY * dt;
+      g.position.addScaledVector(this.vel, dt);
+      const al = this.ang.length();
+      if (al > 1e-4) { _q.setFromAxisAngle(_v.copy(this.ang).divideScalar(al), al * dt); g.quaternion.premultiply(_q); }
+    }
     // carpma kontrolu
     const w = this.mgr.world;
     const S = this.samples;
     let hit = false;
     for (let i = 0; i < S.length; i += 3) {
       _v.set(S[i], S[i + 1], S[i + 2]).applyQuaternion(g.quaternion).add(g.position);
-      if (w.solidAtWorld(_v.x, _v.y, _v.z)) { hit = true; break; }
+      if (w.solidRealAtWorld(_v.x, _v.y, _v.z)) { hit = true; break; }
     }
     // aktorleri ez (sarkit hemen saplanir: kafa hizasindan dusen sarkit henuz hizlanmamis olur)
     if (this.vel.y < (this.icicle ? -0.6 : -3)) this.mgr.crushCheck(this);
@@ -110,6 +125,15 @@ export class Destruction {
     this.world.seedCount = 0;
   }
 
+  // dusen / yerlesmeyi bekleyen govdeyi moloz birakmadan kaldir (oyuncak odasi: mac basinda kule yeniden kurulur)
+  cancel(body) {
+    for (const list of [this.bodies, this.settleQueue]) {
+      const i = list.indexOf(body);
+      if (i >= 0) { list.splice(i, 1); body.dispose(); return true; }
+    }
+    return false;
+  }
+
   // patlama: voxel hasari + enkaz. Donus: kaldirilan voxel sayisi
   blast(x, y, z, radius, power, source = null, force = 9, debrisMax = 240, noise = 0.5) {
     const w = this.world;
@@ -126,6 +150,9 @@ export class Destruction {
       const moon = this.game.moonSys;
       if (moon && moon.active) moon.onRemoved(w.removed, n, source);
     }
+    // oyuncak odasi: dominolar sanal kati hucre (voxel hasari almaz); mermi ya da patlama dokununca devrilir
+    const toy = this.game.toySys;
+    if (toy && toy.active) toy.onBlast(x, y, z, radius, source, power);
     return n;
   }
 
@@ -243,10 +270,75 @@ export class Destruction {
     if (moon && moon.active) moon.onRemoved(indices, n, source);
   }
 
+  // devrilen yapi (oyuncak odasi blok kulesi): voxeller tek govde olarak kopar ve on alt kenari cevresinde mentese
+  // gibi doner; yercekimiyle hizlanip bir seye carpinca moloz olur. Ezdigini opts.source'a opts.weaponId ile yazar
+  // (ezme denetimi govdenin kendi kutusuyla: yalniz gercekten altinda kalan). opts: { pivot: [x,y,z] (m),
+  // dir: [dx,dz] (yatay devrilme yonu, birim), w0 (rad/s), source, weaponId }
+  topple(indices, opts) {
+    const w = this.world;
+    if (!indices.length) return null;
+    const isl = w.extractIsland(indices);
+    const vol = (isl.nx + 2) * (isl.ny + 2) * (isl.nz + 2);
+    const pmats = new Uint8Array(vol), pdmgs = new Uint8Array(vol);
+    const px = isl.nx + 2, pz = isl.nz + 2;
+    for (let y = 0; y < isl.ny; y++) for (let z = 0; z < isl.nz; z++) {
+      const src = isl.nx * (z + isl.nz * y);
+      const dst = 1 + px * ((z + 1) + pz * (y + 1));
+      pmats.set(isl.mats.subarray(src, src + isl.nx), dst);
+      pdmgs.set(isl.dmgs.subarray(src, src + isl.nx), dst);
+    }
+    const geo = buildGeometry(meshVoxels(pmats, pdmgs, isl.nx, isl.ny, isl.nz, isl.minX, isl.minY, isl.minZ, VS));
+    geo.computeBoundingSphere();
+    const body = new FallingBody(this, isl, geo, opts.source || null);
+    body.weaponId = opts.weaponId || 'crush';
+    const c = isl.com;
+    const [pvx, pvy, pvz] = opts.pivot, [dx, dz] = opts.dir;
+    // yerel kutu (agirlik merkezine gore): ezme denetimi
+    body.obb = [isl.minX * VS - c[0], isl.minY * VS - c[1], isl.minZ * VS - c[2], (isl.minX + isl.nx) * VS - c[0], (isl.minY + isl.ny) * VS - c[1], (isl.minZ + isl.nz) * VS - c[2]];
+    // agirlik merkezi pivottan: yukari ru, geride rb; eylemsizlik ~ kutu (|r|^2 + (H^2 + T^2)/12)
+    const rx = c[0] - pvx, ry = c[1] - pvy, rz = c[2] - pvz;
+    const H = isl.ny * VS, T = (Math.abs(dx) > Math.abs(dz) ? isl.nx : isl.nz) * VS;
+    const rb = -(rx * dx + rz * dz);
+    body.hinge = {
+      px: pvx, py: pvy, pz: pvz, ax: dz, az: -dx, rx, ry, rz, ru: ry, rb,
+      k: 1 / (rx * rx + ry * ry + rz * rz + (H * H + T * T) / 12), phi: 0, w: opts.w0 ?? 0.45,
+    };
+    w.removeIndices(indices);
+    this.bodies.push(body);
+    this.stats.bodies++;
+    if (this.game.audio) this.game.audio.play('creak', c[0], c[1], c[2], 1.1);
+    return body;
+  }
+
+  // dunya noktasi govdenin (donmus) kutusunun icinde mi (pay: m)
+  _inObb(body, x, y, z, pad) {
+    const g = body.group, b = body.obb;
+    _v.set(x - g.position.x, y - g.position.y, z - g.position.z);
+    _q.copy(g.quaternion).invert();
+    _v.applyQuaternion(_q);
+    return _v.x > b[0] - pad && _v.x < b[3] + pad && _v.y > b[1] - pad && _v.y < b[4] + pad && _v.z > b[2] - pad && _v.z < b[5] + pad;
+  }
+
+  _obbHits(body, a, pad) {
+    const p = a.mover.pos, h = a.mover.h;
+    return this._inObb(body, p.x, p.y + 0.3, p.z, pad) || this._inObb(body, p.x, p.y + h * 0.5, p.z, pad) || this._inObb(body, p.x, p.y + h - 0.2, p.z, pad);
+  }
+
   crushCheck(body) {
     const g = body.group.position;
     const sp = -body.vel.y;
     const isl = body.isl;
+    if (body.obb) {
+      // devrilen yapi: yalniz kutusunun icine giren ezilir
+      for (const a of this.game.actors) {
+        if (!a.alive || body.hitActors.has(a) || !this._obbHits(body, a, 0.35)) continue;
+        body.hitActors.add(a);
+        const p = a.mover.pos;
+        a.takeDamage(Math.min(400, 8 + isl.count * 0.012 * sp), body.source, body.weaponId, _v.set(body.vel.x, -1, body.vel.z).normalize(), false);
+        this.game.fx.dustPuff(p.x, p.y + 0.4, p.z, 1);
+      }
+      return;
+    }
     // sarkit ince: yatayda yalniz kendi genisligi + govde yaricapi
     const reach = body.icicle ? Math.max(isl.nx, isl.nz) * VS * 0.5 + 0.34 : body.radius * 0.85 + 0.3;
     for (const a of this.game.actors) {
@@ -359,11 +451,13 @@ export class Destruction {
       for (const a of this.game.actors) {
         if (!a.alive || body.hitActors.has(a)) continue;
         const ap = a.mover.pos;
-        const d = Math.hypot(ap.x - p.x, ap.z - p.z);
-        if (d < body.radius + 0.6 && ap.y < p.y + body.halfY && ap.y + 2 > p.y - body.halfY - 0.5) {
-          a.takeDamage(Math.min(300, isl.count * 0.008 * speed), body.source, 'crush', _v.set(ap.x - p.x, 0.5, ap.z - p.z).normalize(), false);
-        }
+        // devrilen yapi: yalniz govdenin kutusuna (biraz payla) degen
+        const near = body.obb ? this._obbHits(body, a, 0.6) : Math.hypot(ap.x - p.x, ap.z - p.z) < body.radius + 0.6 && ap.y < p.y + body.halfY && ap.y + 2 > p.y - body.halfY - 0.5;
+        if (!near) continue;
+        body.hitActors.add(a);   // yerlesme sonrasi (onSettle) ayrica vurulmasin
+        a.takeDamage(Math.min(300, isl.count * 0.008 * speed), body.source, body.weaponId || 'crush', _v.set(ap.x - p.x, 0.5, ap.z - p.z).normalize(), false);
       }
     }
+    if (body.onSettle) body.onSettle(body, speed);
   }
 }

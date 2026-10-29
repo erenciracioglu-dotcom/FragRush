@@ -3,8 +3,9 @@
 **A fast, fully destructible arena shooter that runs in your browser.**
 Jump in, no accounts, no setup: fight bots in a neon-lit voxel arena, a sunny meadow of
 treehouses, a creek and a lake, a dark volcanic valley cut by a creek of lava, a snowy valley
-around a frozen lake with an ice castle, or a moon base of glass domes in low gravity, where almost
-every wall, tree and bridge can be blown apart and whatever collapses buries whoever stands below.
+around a frozen lake with an ice castle, a moon base of glass domes in low gravity, or a giant kid's
+room where you are a tiny robot. Almost every wall, tree and bridge can be blown apart, and whatever
+collapses buries whoever stands below.
 
 **▶ Play now: https://erenciracioglu-dotcom.github.io/FragRush/**
 
@@ -42,10 +43,10 @@ Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to 
 
 ## Maps
 
-Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **MOON BASE**, **ARENA** or
-**ROTATE** (changes after every match: meadow, volcano, frozen lake, moon base, arena, ...). *NEW ARENA*
-rebuilds the chosen map with a new layout seed. URL override for testing: `?map=meadow`, `?map=volcano`,
-`?map=frozen`, `?map=moon` or `?map=arena`.
+Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **MOON BASE**, **TOY ROOM**,
+**ARENA** or **ROTATE** (changes after every match: meadow, volcano, frozen lake, moon base, toy room,
+arena, ...). *NEW ARENA* rebuilds the chosen map with a new layout seed. URL override for testing:
+`?map=meadow`, `?map=volcano`, `?map=frozen`, `?map=moon`, `?map=toyroom` or `?map=arena`.
 
 - **Arena**: the original neon sunset arena: central tower, four forts, bridges, corner yards.
 - **Meadow**: a sunny afternoon in a valley ringed by cliffs. A great oak in the middle carries a
@@ -114,6 +115,26 @@ rebuilds the chosen map with a new layout seed. URL override for testing: `?map=
 | ![Moon Base](media/moon.jpg) | ![Earth over the base](media/moon_earth.jpg) |
 | ![Air leak](media/moon_breach.jpg) | ![Blown into space](media/moon_spaced.jpg) |
 | ![Greenhouse](media/moon_greenhouse.jpg) | ![Command center](media/moon_command.jpg) |
+
+- **Toy Room**: you are a tiny robot (about 18 cm tall) in a giant kid's room, about ten times life
+  size: the 7 × 7 m room is 70 × 70 m. Daylight falls through a wide window with the curtains drawn
+  aside, in shafts of light full of floating dust. On the north wall a bookshelf is the climbing
+  route (the shelves and the stacks of books sticking out of them are the steps), and from its top a
+  ruler bridges over to the 20 m wardrobe, where the Doomsday Orb waits (or take one of the two jump
+  pads). The bed is a giant trampoline: the mattress, the duvet, the pillows and a rubber ball throw
+  you back up. You can walk under the bed, and the Mega Health lies there. Next to it a nightstand
+  with a night light, toy blocks to climb onto the bed and a giant crayon leaning on it; across the
+  room a desk with a lamp, a pencil cup and books, and a chair. In the middle a rug with a printed
+  race track, ramps and toy cars; in the corners a toy castle, a toy chest, a teddy bear and a city
+  of blocks. From the castle gate a line of 22 giant dominoes curves across the floor to a 13 m tower
+  of wooden blocks: knock over the first one and the last one brings the tower down. The inner layer
+  of the walls and the ceiling (wallpaper, plaster) breaks, the brick behind it doesn't.
+
+| | |
+|---|---|
+| ![Toy Room](media/toyroom.jpg) | ![Domino line](media/toyroom_dominoes.jpg) |
+| ![The tower falls](media/toyroom_tower.jpg) | ![Bed trampoline](media/toyroom_bed.jpg) |
+| ![Bookshelf and wardrobe](media/toyroom_shelf.jpg) | ![Castle, tower and race track](media/toyroom_south.jpg) |
 
 ### Water (meadow)
 
@@ -207,6 +228,34 @@ there is none.
   (preferring rockets, plasma and the railgun), and when the air starts to leak they run against the
   flow, away from the hole.
 
+### Toys (toy room)
+
+- **Trampolines**: the mattress, the duvet, the pillows and the rubber ball are bouncy. Land on them
+  fast enough and you bounce back at about 80 % of your landing speed; hold **Space** as you land for
+  an extra push (up to about 5 m high). The bounces die down, and a gentle step doesn't bounce.
+- **Dominoes**: 22 giant dominoes (2 m tall) stand in a curving line from the castle gate to the
+  block tower. **Shoot the first one**: each domino tips over on its bottom edge, speeds up and
+  knocks over the next, the wave reaches the end in about four seconds, and the last domino tips the
+  13 m tower over its front edge like a falling tree onto the rug.
+- The dominoes are heavy: the first one falls at a single hit, the others only rock when a stray
+  bullet hits them (a few pulse rounds, a close shotgun blast, two plasma bolts, a rail slug or a
+  rocket knock one over). A domino falls away from whoever knocks it over, so hitting one from the
+  tower side sends the wave back to the start. A domino shot while a wave is running toward it falls
+  the same way as the wave, so crossfire doesn't cut the line.
+- **DOMINO!**: whoever the tower crushes or catches as it slams down, and whoever a falling domino
+  lands on (40 damage, and a shove), is credited to the player who knocked over the first domino of
+  that run. Get crushed by your own tower and it counts as a **self frag (−1)**. A warning shows when
+  you stand where the tower will fall while the line is running.
+- **Reset**: about 45 seconds after a run starts, the dominoes stand up again (a domino waits while
+  someone stands in its place) and the tower rebuilds itself layer by layer. A shot-up tower repairs
+  itself too, and every match starts with the line set up.
+- Bots know the room: they bounce on the bed without getting stuck and climb the bookshelf to the
+  orb. When an enemy stands where the tower would fall (and isn't just passing through), a bot that
+  can see a domino shoots it: the first one, or one near the tower that falls the right way and brings
+  the tower down within two seconds. When a line is running, the bots that notice get out of the way.
+- The wall clock ticks (real time), birds chirp outside, a music box plays as the match starts,
+  rubber toys squeak, the blocks and dominoes clatter (all synthesized).
+
 ### Weapons
 
 1. **Pulse Rifle**: rapid fire, slowly carves through walls
@@ -293,8 +342,9 @@ Measured on an RTX 5080 Laptop at 2560×1362, Ultra:
   "dGPU only" (MUX) mode takes the integrated GPU out of that path.
 
 Benchmark page: `?bench=30&q=ultra` (local server, writes results to `reports/`), add `&map=meadow`,
-`&map=volcano`, `&map=frozen` or `&map=moon` for the other maps (on the moon base, `&breach` breaches
-a dome every 4 seconds).
+`&map=volcano`, `&map=frozen`, `&map=moon` or `&map=toyroom` for the other maps (on the moon base,
+`&breach` breaches a dome every 4 seconds; in the toy room, `&domino` sets up the line and runs it
+into the tower every 7 seconds).
 
 The meadow is heavier than the arena (more triangles in trees and grassy slopes, plus water). On the
 test laptop's **integrated** GPU (Intel Graphics 0x7D67, Chrome/ANGLE D3D11, Low quality, 1104×561,
@@ -312,7 +362,10 @@ GPU at Low in a larger window (1563×831), the arena averaged 115 FPS (GPU 7.5 m
 runs; the slower one had twenty structures collapsing in view). The bots follow a different path in
 every run, so what gets blasted and how much falls varies. Measured the same way later, the moon base
 averaged 85 FPS (GPU 10.7 ms/frame). A worst-case run that breached the nearest dome with a plasma bolt
-every 4 seconds (`&breach`) averaged 90 FPS, and no frame took longer than 20 ms.
+every 4 seconds (`&breach`) averaged 90 FPS, and no frame took longer than 20 ms. The toy room averaged
+101 FPS (GPU 8.8 ms/frame); a worst-case run that rebuilt the block tower (about 2,200 voxels
+written at once) and ran the whole domino line into it every 7 seconds, with the camera taking in the
+whole room (`&domino`), averaged 93 FPS, and no frame took longer than 16 ms.
 
 ## How it works
 
@@ -377,18 +430,32 @@ every 4 seconds (`&breach`) averaged 90 FPS, and no frame took longer than 20 ms
   low-pass filter. The black sky (stars, a faint Milky Way, a small white sun, the half-lit Earth
   with generated oceans, continents, clouds, an atmosphere rim and city lights on its night side) is
   a shader, also baked into the environment map.
+- **Toy room**: the dominoes are not voxels but objects (a box mesh each). Each one tips over its
+  bottom edge as a thin slab under gravity (held back while its center of mass is behind the edge,
+  speeding up once past it); when its top touches the next one it hands over most of its speed, then
+  leans on it and follows its angle, so a finished line lies like roof tiles. Standing or lying, each
+  domino writes its box into a separate layer of virtual solid cells that movement, bullets, line of
+  sight and the bots' navigation grid see but the mesher doesn't, so dominoes block paths and stop
+  bullets without being destructible voxels. The block tower is ordinary voxels: when the last domino
+  touches its bounding box (even if it has been shot full of holes), its voxels are lifted out as one
+  rigid body that rotates about its front bottom edge like a hinge until it hits the floor and breaks
+  into rubble; whatever it crushes is credited to whoever started the run. A snapshot of the tower
+  taken when the map is built is written back layer by layer when the line resets. Bouncy surfaces
+  are a material table like the slippery ice: landing on one above a speed threshold reflects the
+  vertical speed. The window light is a set of camera-facing beam cards with soft edges and drifting
+  dust motes (GPU points); the daylight sky outside is a small shader.
 
 ```
 src/            source (src/config.js: all tunables in one place)
-  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake, moon base), levels, voxel shader
-  game/         game loop, movement (incl. swimming, ice, per-map gravity), weapons, bots, destruction, items, navigation
-  fx/           sky, post-processing, water bridge, lava, ice and snow, moon base (sky, air leaks), environments, particles, debris, lights
+  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake, moon base, toy room), levels, voxel shader
+  game/         game loop, movement (incl. swimming, ice, per-map gravity, trampolines), weapons, bots, destruction, items, navigation, domino chain
+  fx/           sky, post-processing, water bridge, lava, ice and snow, moon base (sky, air leaks), toy room (dominoes, block tower, window light), environments, particles, debris, lights
   vendor/       water.js
   audio/ ui/    sound synthesis, HUD
 docs/           built single-file game (served by GitHub Pages)
 serve.mjs       dependency-free local server
 build.mjs       build script
-test/           headless tests (movement, world, water, meadow, volcano, frozen lake, moon base, flows, screenshots)
+test/           headless tests (movement, world, water, meadow, volcano, frozen lake, moon base, toy room, flows, screenshots)
 tools/          benchmark scripts
 ```
 
@@ -399,7 +466,9 @@ a lake bank does not drain the lake, and a deep crater anywhere fills with water
 Lava does not flow either: where it can be is fixed when the map is built, so digging under it leaves
 a standing wall of lava. Air is simplified too: it follows a precomputed field toward the holes
 rather than a fluid simulation, and an opened dome empties in a few seconds whatever the size of the
-hole. Weapon models and robots are simple procedural boxes. Very large structures (over 160k
+hole. The dominoes are simplified as well: they only tip along the line (a blast knocks one forward or
+back, never sideways), and the block tower always falls the same way. Weapon models and robots are
+simple procedural boxes. Very large structures (over 160k
 voxels) are treated as fixed and don't fall.
 Sound starts after the first click (browser rule).
 
@@ -417,8 +486,8 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   zıplama, tavşan zıplaması, atılma. 25 parçalamaya ulaşan (ya da 10 dakika sonunda önde olan)
   kazanır, ardından yeni bir arena kurulur.
 - **Dil:** oyun İngilizce açılır; *SETTINGS → Language* ile Türkçeye geçilir (seçim hatırlanır).
-- **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **AY ÜSSÜ**, **ARENA** ya da
-  **SIRAYLA** (her maçtan sonra değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
+- **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **AY ÜSSÜ**, **OYUNCAK ODASI**,
+  **ARENA** ya da **SIRAYLA** (her maçtan sonra değişir). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
   gözetleme yeri olan büyük bir meşe ve ağaç evi, köprülerle bağlı üç ağaç evi daha, uçurumdaki
   mağaradan çıkıp küçük bir göle akan dere, iskele, atlama tahtası, avcı kulübesi. Ağacı kesersen
   tacı (ve ağaç evindeki) aşağı iner.
@@ -449,6 +518,18 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   ötesinde iniş pisti ve üstüne çıkılabilen iniş aracı; konteynerler, altı tekerlekli gezici araç,
   yakıt tankları, kraterler ve kayalar. Mega can seradaki ağacın dibinde. Krater kenarı ve ana kaya
   dışında her şey kırılır.
+  Oyuncak Odası: dev bir çocuk odasında 18 cm'lik minik bir robotsun; oda gerçeğinin on katı kadar
+  büyük (7 × 7 m'lik oda 70 × 70 m). Perdeleri iki yana toplanmış geniş pencereden, içinde toz
+  zerreleri uçuşan ışık hüzmeleriyle gün ışığı girer. Kuzey duvarındaki kitaplık tırmanma yoludur
+  (raflar ve raflardan taşan kitap yığınları basamaktır); tepesinden bir cetvel 20 m'lik gardıroba
+  köprü olur, KIYAMET küresi gardırobun tepesinde (iki zıplama pedi de oraya atar). Yatak dev bir
+  trambolin: şilte, nevresim, yastıklar ve lastik top seni geri fırlatır; yatağın altı yürünür, mega
+  can orada. Yanında gece lambalı komodin, yatağa çıkan oyuncak bloklar ve yatağa dayalı dev bir boya
+  kalemi; karşıda masa lambası, kalemliği ve kitaplarıyla çalışma masası ve sandalye. Ortada baskılı
+  yarış pistli, rampalı, oyuncak arabalı bir halı; köşelerde oyuncak kale, oyuncak sandığı, pelüş ayı
+  ve bloklardan bir şehir. Kale kapısından yere kıvrılarak giden 22 dev domino, 13 m'lik bir blok
+  kuleye uzanır: ilk dominoyu devir, sonuncusu kuleyi yıkar. Duvarların ve tavanın iç katı (duvar
+  kâğıdı, sıva) kırılır, arkasındaki tuğla kırılmaz.
 - **Su:** derede yavaşlarsın ama ateş edebilirsin. Gölde yüzersin: Boşluk yukarı (yüzeyde basılı
   tutunca başın suyun üstünde kalır), **C** dalış; tuşa basmazsan yavaşça batarsın. **Başın su
   altındayken ateş edemezsin.** 12 saniye nefesin var; sonra her saniye artan hasar alırsın (zırhı
@@ -487,6 +568,24 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   nereye ineceğini hesaplar, uzun atlayışları kullanır; havası olan bir kubbenin içindeki rakibi
   camın ardından görünce camı vurur (roket, plazma ve raylı tüfeği tercih eder), hava kaçarken
   akışa karşı, delikten uzağa kaçar.
+- **Oyuncak odası:** şilte, nevresim, yastıklar ve lastik top **trambolindir**: hızlı inersen iniş
+  hızının ~%80'iyle geri seker, inerken **Boşluk**'a basılı tutarsan ek itiş alırsın (en çok ~5 m);
+  sekmeler sönümlenir, yavaş adım sekmez. **İlk dominoyu vur:** her domino alt kenarı çevresinde
+  menteşe gibi devrilip bir sonrakini iter, dalga ~4 saniyede sona varır ve son domino 13 m'lik
+  kuleyi devrilen bir ağaç gibi halıya yıkar. Dev dominolar ağırdır: ilki tek isabette devrilir,
+  ötekiler başıboş mermiyle yalnız sallanır (birkaç darbe mermisi, yakından saçma, iki plazma, raylı
+  tüfek ya da roket devirir). Devrilen domino vurandan uzağa düşer; kule tarafından vurursan dalga
+  başa koşar. Dalga gelirken vurulan domino dalganın yönüne düşer, çapraz ateş zinciri kesmez.
+  **Kulenin ezdiği, yere çakılırken yakaladığı ve devrilen dominonun altında kalan** (40 hasar ve
+  itme) herkes o koşunun ilk dominosunu devirene yazılır (**DOMİNO!**); kendi kulenin altında kalırsan
+  **kendini parçalamış sayılırsın (−1)**. Zincir koşarken kulenin düşeceği yerdeysen uyarı çıkar.
+  Koşu başladıktan ~45 saniye sonra dominolar kalkar (yerinde biri duruyorsa bekler) ve kule katman
+  katman yeniden kurulur; vurulup oyulan kule de kendini onarır, her maç dizili zincirle başlar.
+  Botlar odayı bilir: yatakta takılmadan seker, kitaplıktan küreye tırmanır; bir rakip kulenin
+  düşeceği yerde durunca (geçip gitmiyorsa) görebildiği bir dominoyu vurur (ilkini ya da kuleyi iki
+  saniye içinde yıkacak, doğru yöne düşen yakın birini); zincir koşarken fark eden botlar kenara
+  kaçar. Duvar saati tıkırdar, dışarıda kuşlar öter, maç başında bir müzik kutusu çalar, lastik
+  oyuncaklar gıcırdar.
 - **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).
 - **KIYAMET küresi:** merkez kulenin çatısında çıkar. 15 saniye boyunca her isabet öldürür,

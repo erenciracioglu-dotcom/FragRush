@@ -184,9 +184,9 @@ export class HUD {
   }
 
   death(killerName, weaponLabel, self, weaponId) {
-    const drown = weaponId === 'drown', lava = weaponId === 'lava', cold = weaponId === 'cold', icicle = weaponId === 'icicle', spaced = weaponId === 'spaced';
-    this.el.deathTitle.textContent = drown ? t('youDrowned') : lava ? t('youBurned') : cold ? t('youFroze') : icicle ? t('youIcicle') : spaced ? t('youSpaced') : self ? t('selfKill') : t('youDied');
-    // ortam olumu: kendin dustuysen -1 notu, biri dusurduyse (buzu kirdiysa, ittiyse, kubbeyi deldiyse) onun adi
-    this.el.deathBy.textContent = (drown || lava || cold || icicle || spaced) && self ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
+    const drown = weaponId === 'drown', lava = weaponId === 'lava', cold = weaponId === 'cold', icicle = weaponId === 'icicle', spaced = weaponId === 'spaced', domino = weaponId === 'domino';
+    this.el.deathTitle.textContent = drown ? t('youDrowned') : lava ? t('youBurned') : cold ? t('youFroze') : icicle ? t('youIcicle') : spaced ? t('youSpaced') : domino ? t('youDomino') : self ? t('selfKill') : t('youDied');
+    // ortam olumu: kendin dustuysen -1 notu, biri dusurduyse (buzu kirdiysa, ittiyse, kubbeyi deldiyse, dominoyu vurduysa) onun adi
+    this.el.deathBy.textContent = (drown || lava || cold || icicle || spaced || domino) && self ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
   }
 }

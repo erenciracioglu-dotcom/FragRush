@@ -3,7 +3,7 @@
 // split: saydam malzemeler (cam) ayri bir cikti setine gider (chunkManager ayri saydam mesh cizer). Opak
 // yuzler cam komsusunda da uretilir (camin arkasi gorunsun); cam yuzleri yalniz bos komsuda uretilir.
 
-const NMAT = 64;   // malzeme kimligi 8 bit; palet materials.js MAT_COUNT kadar dolu
+const NMAT = 128;  // malzeme kimligi 8 bit; palet materials.js MAT_COUNT kadar dolu
 const COLOR_LUT = new Uint8Array(NMAT * 8 * 3);
 const MATP = new Uint8Array(NMAT * 3);
 const TOUGH = new Uint8Array(NMAT);

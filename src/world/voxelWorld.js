@@ -36,6 +36,11 @@ export class VoxelWorld {
     this.floatMat = 0; this.floatY0 = 0; this.floatY1 = -1;
     // yumusak tavan (m): ustunde aktorleri asagi ceken ek yercekimi (mover.js); ay ussunde dusuk yercekimi
     this.ceilY = Infinity;
+    // sanal kati hucreler (oyuncak odasi dominolari, fx/toyroom.js): mat[] disinda tutulur (hucre basina sayac).
+    // Carpisma (solid / boxSolid), gezinme agi ve isin izleme (raycast extraMat doner) gorur; mesher, yikim ve
+    // yapisal butunluk gormez. Harita kullanmiyorsa null.
+    this.extra = null;
+    this.extraMat = 0;
   }
 
   idx(x, y, z) { return x + this.sx * (z + this.sz * y); }
@@ -49,10 +54,20 @@ export class VoxelWorld {
     if (y < 0) return true;
     if (y >= this.sy) return false;
     if (x < 0 || z < 0 || x >= this.sx || z >= this.sz) return true;
-    return this.mat[x + this.sx * (z + this.sz * y)] !== 0;
+    const i = x + this.sx * (z + this.sz * y);
+    return this.mat[i] !== 0 || (this.extra !== null && this.extra[i] !== 0);
   }
   solidAtWorld(wx, wy, wz) {
     return this.solid(Math.floor(wx / VS), Math.floor(wy / VS), Math.floor(wz / VS));
+  }
+  // yalniz gercek voxeller (sanal hucreler haric): dusen govdeler. Yapisal butunluk sanal hucreyi destek saymaz;
+  // govde dominonun ustune oturursa yerlesen voxeller desteksiz kalip yeniden kopardi (sonsuz dongu).
+  solidRealAtWorld(wx, wy, wz) {
+    const x = Math.floor(wx / VS), y = Math.floor(wy / VS), z = Math.floor(wz / VS);
+    if (y < 0) return true;
+    if (y >= this.sy) return false;
+    if (x < 0 || z < 0 || x >= this.sx || z >= this.sz) return true;
+    return this.mat[x + this.sx * (z + this.sz * y)] !== 0;
   }
 
   onChange(cb) { this.listeners.push(cb); }
@@ -129,7 +144,7 @@ export class VoxelWorld {
     let tmz = dz > 0 ? (z + 1 - pz) * tdz : (pz - z) * tdz;
     if (dx === 0) tmx = 1e30; if (dy === 0) tmy = 1e30; if (dz === 0) tmz = 1e30;
     const maxT = maxDist * inv;
-    const sx = this.sx, sy = this.sy, sz = this.sz, mat = this.mat;
+    const sx = this.sx, sy = this.sy, sz = this.sz, mat = this.mat, extra = this.extra, xm = this.extraMat;
     let t = 0, face = -1;
     for (let iter = 0; iter < 2048; iter++) {
       if (y < 0) {
@@ -138,7 +153,8 @@ export class VoxelWorld {
       }
       if (x >= 0 && z >= 0 && x < sx && z < sz && y < sy) {
         const i = x + sx * (z + sz * y);
-        const m = mat[i];
+        let m = mat[i];
+        if (m === 0 && extra !== null && extra[i] !== 0) m = xm;
         if (m !== 0 && !(pass && pass[m])) {
           out.x = x; out.y = y; out.z = z; out.dist = t * VS; out.mat = m; out.i = i;
           out.nx = face === 0 ? -stepX : 0; out.ny = face === 1 ? -stepY : 0; out.nz = face === 2 ? -stepZ : 0;

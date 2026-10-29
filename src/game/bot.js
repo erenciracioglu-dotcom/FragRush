@@ -6,7 +6,7 @@ import { BotModel } from './botModel.js';
 import { WEAPONS } from './weapons.js';
 import { fire } from './combat.js';
 import { EDGE_JUMP, EDGE_PAD } from './nav.js';
-import { TRANSPARENT } from '../world/materials.js';
+import { TRANSPARENT, M } from '../world/materials.js';
 
 // speed: kosu hizi carpani, head: rayli tufekle kafaya nisan.
 // Eren'in geri bildirimi: eski "Caylak" ona gore zor/cok zor -> eski 4 seviye aynen korunup yukari kaydirildi,
@@ -36,6 +36,7 @@ const _dir = new THREE.Vector3();
 const _muz = new THREE.Vector3();
 const _flow = new THREE.Vector3();
 const _hit = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
+const _dp = { x: 0, y: 0, z: 0 };
 
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
 function gauss() { return (Math.random() + Math.random() + Math.random() - 1.5) * 1.15; }
@@ -65,6 +66,7 @@ export class Bot extends Actor {
     this.favorite = [1, 2, 3, 4][(Math.random() * 4) | 0];
     this.cmd = { fwd: 0, side: 0, yaw: 0, pitch: 0, jump: false, crouch: false, dash: false };
     this.shore = null; this.shoreT = 0;
+    this.dominoT = 0; this.dominoAt = null; this.dominoCd = 0;
     this.burstT = 0; this.pauseT = 0;
     this.dt = 0.016;
   }
@@ -79,6 +81,7 @@ export class Bot extends Actor {
     super.spawn(sp);
     this.mem.clear(); this.target = null; this.mode = 'roam'; this.path = null; this.goal = null; this.goalItem = null;
     this.stuckT = 0; this.breachT = 0; this.lastPos.copy(this.mover.pos);
+    this.dominoT = 0; this.dominoAt = null;
     this.model.root.visible = true;
     this.model.root.position.copy(this.mover.pos);
   }
@@ -188,8 +191,63 @@ export class Bot extends Actor {
       if (now - rec.t < 4.5 && d < 34 && this.breachT <= 0 && Math.random() < this.skill.breach * 0.35) this.breachT = 1.2 + Math.random() * 2.2;
     }
     if (this.breachT > 0) this.breachT -= 0.1;
+    this._toyThink(now);
     this.chooseWeapon();
     this.planMovement();
+  }
+
+  // oyuncak odasi: zincir kuruluyken bir rakip devrilecek kulenin dibinde (ya da domino yolunda) ve uygun bir domino
+  // gorus hattindaysa bot o dominoya ates eder (kule rakibi ezer). Kendisi tehlike alanindaysa yapmaz.
+  // Kule icin en iyisi kuleye en yakin, bu konumdan zincir yonune devrilecek domino (vurandan uzaga devrilir; dalga
+  // kisa, kule hemen yikilir); ilk domino her yerden zincir yonune devrilir (gosterisli botlar ondan baslatir).
+  _toyThink(now) {
+    const ts = this.game.toySys;
+    if (!ts.active) { this.dominoT = 0; return; }
+    if (this.dominoT > 0) {
+      this.dominoT -= 0.1;
+      if (!ts.armed) this.dominoT = 0;
+      return;
+    }
+    if (!ts.armed || now < this.dominoCd) return;
+    const p = this.mover.pos;
+    if (ts.hitZone(p.x, p.z, p.y)) return;
+    // asil odul: kulenin ezecegi seritteki rakip (su an gorunur ve hizina gore ~1.5 sn sonra da seritte: gecip
+    // giden icin zincir harcanmaz); dominolarin dibindeki rakip icin ara sira (uzun dalga)
+    let victim = false, tower = false;
+    for (const [a, rec] of this.mem) {
+      if (!a.alive || now - rec.t > 0.3) continue;
+      const m = a.mover, q = m.pos, fx = q.x + m.vel.x * 1.5, fz = q.z + m.vel.z * 1.5;
+      if (ts.crushZone(q.x, q.z, q.y) && ts.crushZone(fx, fz, q.y)) { victim = tower = true; break; }
+      if (!victim && Math.random() < 0.04 && ts.hitZone(q.x, q.z, q.y) && ts.hitZone(fx, fz, q.y)) victim = true;
+    }
+    if (!victim) return;
+    this.dominoCd = now + 1.5;
+    this.eye(_eye);
+    const ch = ts.chain, L = ch.list, order = [];
+    if (tower) {
+      for (let i = L.length - 1; i > 0; i--) {
+        const d = L[i];
+        if ((d.x - _eye.x) * d.fx + (d.z - _eye.z) * d.fz > 0.4) order.push(i);
+      }
+      if (Math.random() < 0.4) order.unshift(0); else order.push(0);
+    } else order.push(0);
+    let pick = -1, tries = 0;
+    for (const i of order) {
+      if (tries >= 4) break;
+      ch.center(L[i], _dp);
+      const dx = _dp.x - _eye.x, dy = _dp.y - 0.2 - _eye.y, dz = _dp.z - _eye.z, d = Math.hypot(dx, dy, dz);
+      if (d > 45 || d < 3.5) continue;
+      tries++;
+      // isinin ilk carptigi sey bu domino olmali (sanal hucre: DOMINO malzemesi)
+      if (!this.game.world.raycast(_eye.x, _eye.y, _eye.z, dx / d, dy / d, dz / d, d + 1, _hit) || _hit.mat !== M.DOMINO) continue;
+      if (ch.findAt(_eye.x + dx / d * (_hit.dist + 0.1), _eye.y + dy / d * (_hit.dist + 0.1), _eye.z + dz / d * (_hit.dist + 0.1), 0.3) !== i) continue;
+      pick = i; break;
+    }
+    if (pick < 0) return;
+    if (Math.random() > 0.35 + this.skill.breach * 0.6) { this.dominoCd = now + 4; return; }
+    ch.center(L[pick], _dp);
+    this.dominoT = 2.5; this.dominoAt = { i: pick, x: _dp.x, y: _dp.y, z: _dp.z }; this.dominoCd = now + 8;
+    this.reactT = this.skill.reaction * 0.6;
   }
 
   targetDist() {
@@ -199,13 +257,14 @@ export class Bot extends Actor {
   }
 
   chooseWeapon() {
-    if (this.switchCd > 0) return;
+    if (this.switchCd > 0 && this.dominoT <= 0) return;
     const ws = this.weapons;
     const has = (i) => ws.ammo[i] > 0;
     const d = this.targetDist();
     let pick = ws.current;
     const glass = this.mode === 'engage' && this.target && this.memory(this.target).glass;
-    if (this.breachT > 0) pick = has(3) && d > 5 ? 3 : has(4) ? 4 : has(2) ? 2 : 0;
+    if (this.dominoT > 0) pick = has(0) ? 0 : has(4) ? 4 : has(1) ? 1 : ws.bestAvailable();
+    else if (this.breachT > 0) pick = has(3) && d > 5 ? 3 : has(4) ? 4 : has(2) ? 2 : 0;
     // camin ardindaki rakip: kubbeyi delecek agir silah (roket paneli patlatir, icerdekiler emilir)
     else if (glass) pick = has(3) && d > 5 ? 3 : has(2) ? 2 : has(4) ? 4 : ws.bestAvailable();
     else if (this.mode === 'roam') pick = has(this.favorite) ? this.favorite : ws.bestAvailable();
@@ -339,6 +398,27 @@ export class Bot extends Actor {
         dash = m.onGround && Math.random() < (0.2 + sk.dodge * 0.5) * dt * 2;
         this.detourT = 0;
       }
+    }
+    // oyuncak odasi: kosan zincirin / devrilecek kulenin altindan kac (en kisa yan yona, atilarak); tehlikeye yurume
+    const ts = this.game.toySys;
+    if (ts.active && ts.running) {
+      // her zincirde: fark eder mi (beceriye gore) ve ne kadar gec; farkinda olmayanin yarisi kule devrilmeye
+      // baslayinca fark eder (gicirti); zinciri baslatan hep bilir
+      const now = this.game.time;
+      if (this.toyRun !== ts.runId) {
+        this.toyRun = ts.runId;
+        this.toyAware = ts.runBy === this || Math.random() < 0.2 + sk.dodge * 0.5;
+        this.toyLate = Math.random() < 0.5;
+        this.toyNoticeT = now + sk.reaction * 1.4 + Math.random() * 1.1;
+        this.toyFallT = -1;
+      }
+      // gec fark eden: kulenin gicirtisini duyunca, tepki suresi kadar sonra
+      if (this.toyLate && this.toyFallT < 0 && ts.tower.state === 'fall') this.toyFallT = now + sk.reaction + Math.random() * 0.5;
+      const aware = (this.toyAware && now >= this.toyNoticeT) || (this.toyLate && this.toyFallT >= 0 && now >= this.toyFallT);
+      if (!aware) { /* habersiz */ } else if (ts.dangerAt(p.x, p.z, p.y)) {
+        const e = ts.escapeDir(p.x, p.z);
+        if (e) { mx = e[0]; mz = e[1]; jump = false; dash = m.onGround && Math.random() < (0.15 + sk.dodge) * dt * 3; this.detourT = 0; }
+      } else if ((mx || mz) && ts.dangerAt(p.x + mx * 1.8, p.z + mz * 1.8, p.y)) { mx = 0; mz = 0; jump = false; dash = false; }
     }
     // lav korumasi: yalniz istenen yona degil, govdenin hizina da bakar (9.6 m/s'de kayma ~1 m; kiyi
     // egiminden asagi kosan bot havalanip lava ucuyordu). Zemin izlenir: basamak, inis, ucurumdan dusus.
@@ -497,7 +577,10 @@ export class Bot extends Actor {
     const sk = this.skill, p = this.mover.pos;
     this.eye(_eye);
     let tx, ty, tz, has = false, precise = false;
-    if (this.mode === 'engage' && this.target) {
+    if (this.dominoT > 0 && this.dominoAt) {
+      // zincirin ilk dominosu (ortasindan biraz asagi: devrilme kolu uzun)
+      tx = this.dominoAt.x; ty = this.dominoAt.y - 0.2; tz = this.dominoAt.z; has = true; precise = true;
+    } else if (this.mode === 'engage' && this.target) {
       const t = this.target, tp = t.mover.pos;
       const W = this.weapons.def;
       tx = tp.x; ty = tp.y + t.mover.h * (W.id === 'rail' && sk.head ? 0.82 : 0.55); tz = tp.z;
@@ -561,6 +644,17 @@ export class Bot extends Actor {
     if (this.stuckBlast) {
       if (ws.current !== 2) { if (ws.pending < 0) ws.select(2); return; }
       ok = true; this.stuckBlast = false; this.stuckT = 1.0;
+    } else if (this.dominoT > 0 && this.dominoAt) {
+      // zincir basladiysa birak (ucan mermi obur dominolari devirmesin); anlik isabetli silah varsa mermi atma
+      const ts = this.game.toySys;
+      if (!ts.armed) { this.dominoT = 0; return; }
+      // ilk domino disindakiler vurandan uzaga devrilir: bot bu arada dominonun onune gectiyse vazgec
+      const dm = ts.chain.list[this.dominoAt.i];
+      if (this.dominoAt.i > 0 && (dm.x - this.mover.pos.x) * dm.fx + (dm.z - this.mover.pos.z) * dm.fz < 0.25) { this.dominoT = 0; return; }
+      if (this.reactT > 0) { this.reactT -= dt; return; }
+      if (this.aimDelta > 0.045 || ws.pending >= 0) return;
+      if (W.type === 'projectile' && (ws.ammo[0] > 0 || ws.ammo[4] > 0 || ws.ammo[1] > 0)) return;
+      ok = true;
     } else if (this.mode === 'engage' && this.target) {
       if (this.reactT > 0) { this.reactT -= dt; return; }
       const cone = this.skill.cone * (W.id === 'rail' ? 0.45 : W.id === 'shotgun' ? 1.6 : 1);
