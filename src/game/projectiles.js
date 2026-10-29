@@ -99,6 +99,7 @@ export class Projectiles {
   }
 
   _release(p) {
+    if (p.nid && !p.nidDone && this.game.net && this.game.net.role === 'host') { p.nidDone = true; this.game.net.broadcast({ t: 'pend', i: p.nid }); }
     if (p.mesh) { this.game.scene.remove(p.mesh); this.rocketPool.push(p.mesh); p.mesh = null; }
     // isik yuvasi bu arada bir patlamaya verilmis olabilir: yalniz hala bizimse birak
     if (p.light && p.light.follow === p.lightObj) this.game.fx.lights.release(p.light);
@@ -227,6 +228,6 @@ export class Projectiles {
       if (game.audio) game.audio.play('plasmaHit', ox, oy, oz, deep ? 0.5 : 1);
     }
     game.noise(p.owner, { x: ox, y: oy, z: oz }, 30);
-    if (game.net && game.net.role === 'host') game.net.onBoom(p, ox, oy, oz, nx, ny, nz, deep);
+    if (game.net && game.net.role === 'host') { p.nidDone = true; game.net.onBoom(p, ox, oy, oz, nx, ny, nz, deep); };
   }
 }

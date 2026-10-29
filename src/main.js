@@ -346,7 +346,6 @@ async function startFriends() {
   netBusy = true;
   try {
     $('menuHint').textContent = t('connecting');
-    if (game.mapId !== 'arena' && game.mapId !== 'meadow') await rebuildArena('arena');     // Asama 1: yalniz arena / cayir
     const room = await RoomClient.host({ base: SIGNAL, name: playerName(), netsim });
     const host = new HostSession(game, room, playerName());
     host.enable(); host.onChange = () => { if (!menu.classList.contains('hidden')) renderRoom(); };

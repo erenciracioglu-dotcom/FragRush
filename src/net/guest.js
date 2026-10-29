@@ -166,6 +166,7 @@ export class GuestSession {
     else if (m.t === 'ann') this.onAnn(m);
     else if (m.t === 'bodyend') this.bodies.end(m.i);
     else if (m.t === 'hash') this.checkHashes(m);
+    else if (m.t === 'pend') this.vis.remove(m.i);
     else if (m.t === 'boom') {
       const [x, y, z] = m.p, [nx, ny, nz] = m.n, q = m.q === 1;
       this.vis.remove(m.i);

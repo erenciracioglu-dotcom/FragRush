@@ -308,6 +308,7 @@ export class Destruction {
     };
     w.removeIndices(indices);
     this.bodies.push(body);
+    if (this.game.net && this.game.net.role === 'host') this.game.net.onBody(body, isl);
     this.stats.bodies++;
     if (this.game.audio) this.game.audio.play('creak', c[0], c[1], c[2], 1.1);
     return body;

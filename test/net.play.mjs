@@ -149,7 +149,7 @@ try {
   const rk = await guest.evaluate(() => {
     const g = window.__enkaz.game, p = g.player, T = p.mover.pos.constructor, gs = window.__enkaz.guest;
     p.weapons.current = 3; p.weapons.cooldown = 0; p.weapons.ammo[3] = 20;
-    const o = new T(p.mover.pos.x, p.mover.pos.y + 1.62, p.mover.pos.z), d = new T(0, 0.25, -1).normalize();
+    const o = new T(p.mover.pos.x, p.mover.pos.y + 1.62, p.mover.pos.z), d = new T(0, -0.12, -1).normalize();
     const p0 = gs.stats.proj || 0;
     g.net.fire(o, d, o.clone());
     return { n: gs.vis.list.length, p0 };
@@ -159,7 +159,10 @@ try {
   const rk2 = await guest.evaluate(() => { const gs = window.__enkaz.guest; return { proj: gs.stats.proj || 0, left: gs.vis.list.length, fx: gs.stats.fx || 0 }; });
   ok(rk2.proj > rk.p0, 'ev sahibi roket dogusunu bildirdi (proj olayi ' + rk2.proj + ')');
   await sleep(2500);
-  ok(await guest.evaluate(() => window.__enkaz.guest.vis.list.length === 0), 'patlamadan / carpmadan sonra gorsel mermi kalkti');
+  {
+    const left = await guest.evaluate(() => window.__enkaz.guest.vis.list.map((p) => ({ id: p.id, w: p.W.id, local: p.local, mapped: p.mapped, life: +p.life.toFixed(2), x: +p.pos.x.toFixed(1), y: +p.pos.y.toFixed(1), z: +p.pos.z.toFixed(1) })));
+    ok(left.length === 0, 'patlamadan / carpmadan sonra gorsel mermi kalkti' + (left.length ? ' ' + JSON.stringify(left) : ''));
+  }
   await host.evaluate(() => { const g = window.__enkaz.game, p = g.player, W = g.WEAPONS[3], T = p.mover.pos.constructor; g.net.stats.hostRockets = 1; p.weapons.cooldown = 0; const o = new T(p.mover.pos.x, p.mover.pos.y + 1.62, p.mover.pos.z); g.projectiles.spawn(W, p, o, new T(0, 0.3, -1).normalize(), 1, o.clone()); });
   await sleep(500);
   ok((await guest.evaluate(() => window.__enkaz.guest.stats.proj || 0)) > rk2.proj, 'ev sahibinin roketi konukta gorsel mermi olarak dogdu');
