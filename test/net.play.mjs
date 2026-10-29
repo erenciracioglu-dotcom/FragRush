@@ -251,7 +251,7 @@ try {
     if (!ok2) return -3;
     p.mover.vel.set(0, 0, 0);
     p.yaw = Math.atan2(-(rp.x - p.mover.pos.x), -(rp.z - p.mover.pos.z)); p.pitch = 0;
-    await new Promise((res) => setTimeout(res, 600));
+    for (let i = 0; i < 20; i++) { await new Promise((res) => setTimeout(res, 150)); if (document.querySelectorAll('#tags .tag').length) break; }
     return document.querySelectorAll('#tags .tag').length;
   });
   ok(hostTags >= 1 || hostTags < 0, 'ev sahibinde konuk oyuncunun basinda ad etiketi gorunuyor (' + hostTags + ')');

@@ -43,7 +43,7 @@ class VisualProjectiles {
       const p = this.list[i]; p.life += dt;
       const sp = p.vel.length() || 1;
       this.d.copy(p.vel).divideScalar(sp);
-      if (p.life > 7 || w.raycast(p.pos.x, p.pos.y, p.pos.z, this.d.x, this.d.y, this.d.z, sp * dt + p.W.radius, this.hit)) { this._free(p); this.list.splice(i, 1); continue; }
+      if (p.life > 7 || (p.local && !p.mapped && p.life > 1.2) || w.raycast(p.pos.x, p.pos.y, p.pos.z, this.d.x, this.d.y, this.d.z, sp * dt + p.W.radius, this.hit)) { this._free(p); this.list.splice(i, 1); continue; }
       p.pos.addScaledVector(p.vel, dt);
       const x = p.pos.x, y = p.pos.y, z = p.pos.z;
       if (p.mesh) {

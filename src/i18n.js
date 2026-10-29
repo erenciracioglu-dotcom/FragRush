@@ -28,7 +28,7 @@ const D = {
   d0: ['Rookie', 'Acemi'], d1: ['Novice', 'Çaylak'], d2: ['Normal', 'Normal'], d3: ['Hard', 'Zor'], d4: ['Very Hard', 'Çok Zor'], d5: ['Master', 'Usta'], d6: ['Nightmare', 'Kâbus'],
   sVol: ['Volume', 'Ses'], sInvert: ['Invert mouse', 'Fareyi ters çevir'], sFps: ['Show FPS', 'FPS göster'],
   // kontroller
-  kMove: ['move', 'hareket'], kSpace: ['Space', 'Boşluk'], kJump: ['jump (hold: bunny hop)', 'zıpla (basılı tut: tavşan zıplaması)'],
+  kMove: ['move', 'hareket'], kSpace: ['Space', 'Boşluk'], kJump: ['jump (hold: bunny hop; hold + forward at a ledge up to 1.8 m: climb it, also out of craters and water)', 'zıpla (basılı tut: tavşan zıplaması; kenarın önünde ileri ile basılı tutarsan 1,8 m\'ye kadar tırmanırsın: krater ve sudan çıkış)'],
   kDash: ['dash', 'atılma (dash)'], kCrouch: ['crouch · slide while running · dive in water', 'eğil · koşarken kayma · suda dal'],
   kWater: ['Water:', 'Su:'], kWaterText: ['creek slows you · in the lake hold Space to stay at the surface, C to dive · you cannot fire with your head underwater and you drown if you stay under too long',
     'dere yavaşlatır · gölde yüzeyde kalmak için Boşluk, dalmak için C · başın su altındayken ateş edemezsin, çok uzun kalırsan boğulursun'],

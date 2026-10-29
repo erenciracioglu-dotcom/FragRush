@@ -25,6 +25,7 @@ export const MOVE = {
   stopSpeed: 3.0,
   jumpVel: 7.4,
   stepHeight: 0.62,
+  mantleHeight: 1.8,     // Bosluk + ileri ile kendini cekebilecegin kenar yuksekligi (ayaktan, m): krater / yikinti kenari, kutu, duvar
   dashSpeed: 17.5,
   dashUp: 2.6,
   dashCooldown: 0.9,
@@ -51,7 +52,7 @@ export const WATER = {
   thrustDown: 0.3,       // C: dalis
   dragY: 2,              // dikey dogrusal direnc (1/s)
   dragQ: 0.35,           // karesel direnc: hizli dusus suya girince cabuk yavaslar
-  ledge: 1.0,            // sudan tirmanilabilen kiyi yuksekligi (su yuzeyinin ustu, m)
+  ledge: 1.6,            // sudan tirmanilabilen kiyi yuksekligi (su yuzeyinin ustu, m)
   air: 12,               // nefes (s)
   drownFirst: 10,        // nefes bitince ilk hasar; her saniye drownStep artar
   drownStep: 5,

@@ -24,7 +24,7 @@ last.
 | Key | Action |
 |---|---|
 | WASD | move |
-| Space | jump (hold to bunny hop); in deep water: swim up, hold at the surface to tread water |
+| Space | jump (hold to bunny hop); hold it with forward at a ledge up to 1.8 m (crater rim, rubble, crate, lake bank) to climb it; in deep water: swim up, hold at the surface to tread water |
 | Shift | dash |
 | C | crouch, slide while running; in deep water: dive |
 | Left click | fire |

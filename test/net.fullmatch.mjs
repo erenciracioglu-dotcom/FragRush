@@ -11,7 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(path.resolve(root, '..', 'FragRush-CrazyGames', 'tools', 'package.json'));
 const { chromium } = require('playwright-core');
 const DUR = Number(process.argv[2] || 300), MAP = process.argv[3] || 'arena', NS = process.argv[4] || '';
-const SIGNAL = 'http://127.0.0.1:8787', PORT = '8812', BASE = `http://127.0.0.1:${PORT}/`;
+const SIGNAL = process.env.SIGNAL || 'http://127.0.0.1:8787', PORT = '8812', BASE = `http://127.0.0.1:${PORT}/`;
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fail++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -59,6 +59,14 @@ try {
   }
   for (const p of [host, ...guests]) await p.evaluate(() => { window.__upd.sum = 0; window.__upd.n = 0; window.__upd.max = 0; });
   console.log(`oda ${code}, ${MAP}, ${DUR} sn, 3 bot, 3 insan (otomatik pilot)`);
+  // SWITCH=<harita>: ev sahibi maci bitirip o haritaya gecer (ag uzerinden newmap), sonra o haritada oynanir
+  if (process.env.SWITCH) {
+    const to = process.env.SWITCH;
+    await host.evaluate((m) => { const g = window.__enkaz.game; g.settings.map = m; g.matchTime = 0.2; }, to);
+    await Promise.all(guests.map((g) => g.waitForFunction((m) => window.__enkaz.game.mapId === m && window.__enkaz.game.state === 'playing' && window.__enkaz.game.player.alive, to, { timeout: 90000 })));
+    ok(true, 'konuklar ' + to + ' haritasina gecti: ' + (await Promise.all(guests.map((g) => g.evaluate(() => window.__enkaz.game.mapId + '/' + window.__enkaz.game.seed)))).join(', ') + ' (ev sahibi ' + (await host.evaluate(() => window.__enkaz.game.mapId + '/' + window.__enkaz.game.seed)) + ')');
+    for (const p of [host, ...guests]) await p.evaluate(() => { const pr = window.__enkaz.guest && window.__enkaz.guest.predictor; if (pr) { pr.stats.n = 0; pr.stats.corrections = 0; pr.stats.small = 0; pr.stats.big = 0; pr.stats.maxErr = 0; pr.stats.sumErr = 0; pr.stats.snaps = 0; } });
+  }
   const fpsAcc = [[], [], []];
   const t0 = Date.now();
   while ((Date.now() - t0) / 1000 < DUR) {

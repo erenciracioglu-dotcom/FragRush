@@ -161,6 +161,10 @@ export class Mover {
     const baseSpeed = this.crouching && this.slideTime <= 0 ? MOVE.crouchSpeed : MOVE.runSpeed;
     const wishSpeed = wl > 1e-6 ? baseSpeed * this.speedMul * wade : 0;
 
+    // kenara tirmanma: Bosluk + ileri basili, onde basamaktan yuksek bir engel var ve ustu bossa kendini cek
+    // (krater, yikinti, kutu; sudan cikisin kara karsiligi). Bekleme suresi waterJumpT'de (durum vektorunde zaten var)
+    if (cmd.jump && wl > 1e-6 && this.waterJumpT <= 0 && this.padLock <= 0 && (this.onGround || this.groundTime < 0.35)) this._mantle(wx, wz);
+
     // ziplama (basili tutunca otomatik tavsan ziplamasi)
     if (cmd.jump && (this.onGround || this.groundTime < 0.09) && vel.y <= 0.5 && this.padLock <= 0) {
       vel.y = MOVE.jumpVel * (1 - 0.35 * sub);
@@ -296,6 +300,29 @@ export class Mover {
     if (this.onGround) this.groundTime = 0; else this.groundTime += dt;
     this.stepSmooth *= Math.exp(-dt * 16);
     if (Math.abs(this.stepSmooth) < 1e-4) this.stepSmooth = 0;
+  }
+
+  _mantle(fx, fz) {
+    const p = this.pos, w = this.world, r = this.r, SH = MOVE.stepHeight;
+    // onde bel hizinda (basamak yuksekliginin ustunde) dolu bir engel yoksa duz yuruyoruz
+    if (!w.solidAtWorld(p.x + fx * (r + 0.3), p.y + SH + 0.2, p.z + fz * (r + 0.3))) return false;
+    const yHi = Math.floor((p.y + MOVE.mantleHeight) / VS), yLo = Math.floor((p.y + SH) / VS);
+    for (let k = 0; k < 3; k++) {
+      const d = r + 0.35 + k * 0.3;                       // inis noktasi: 0.35 / 0.65 / 0.95 m ilerde (egimli duvarda kenar daha yakin)
+      const lx = p.x + fx * d, lz = p.z + fz * d, vx = Math.floor(lx / VS), vz = Math.floor(lz / VS);
+      let top = -1;
+      for (let y = yHi; y >= yLo; y--) if (w.solid(vx, y, vz)) { top = (y + 1) * VS; break; }
+      if (top < 0 || top <= p.y + SH + 0.02) continue;     // yalniz basamaktan yuksek kenarlar
+      if (top > p.y + MOVE.mantleHeight + 1e-3 || w.solid(vx, yHi + 1, vz)) continue;   // duvar daha yukari devam ediyor
+      if (this.collides(lx, top + EPS, lz, MOVE.height)) continue;                      // ustte gövdeye yer yok
+      this.vel.y = Math.max(this.vel.y, Math.sqrt(2 * GRAVITY * (top - p.y + 0.25)));
+      this.vel.x = fx * 3.2; this.vel.z = fz * 3.2;
+      this.waterJumpT = 0.45;
+      this.onGround = false; this.groundTime = 1;
+      this.events.jumped = true;
+      return true;
+    }
+    return false;
   }
 
   // Quake'in "water jump"u: yuzeye yakin yuzerken onumuzde kiyi varsa ve ustu bossa ustune firla
