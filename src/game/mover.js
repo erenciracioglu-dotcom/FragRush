@@ -44,6 +44,26 @@ export class Mover {
     this._water();
   }
 
+  // Ag tahmini / uzlastirmasi (src/net): hareketin tum yetkili durumu. Konuk, ev sahibinden gelen duruma doner ve
+  // onaylanmamis komutlari yeniden oynatir; bu yuzden simulate() icin gereken HER alan burada olmali.
+  // (Mover'da Math.random yok, simulate deterministiktir: ayni durum + ayni komut + ayni dt = ayni sonuc.)
+  getState(out = new Float64Array(Mover.STATE_LEN)) {
+    const p = this.pos, v = this.vel;
+    out[0] = p.x; out[1] = p.y; out[2] = p.z; out[3] = v.x; out[4] = v.y; out[5] = v.z;
+    out[6] = this.crouching ? 1 : 0; out[7] = this.onGround ? 1 : 0; out[8] = this.groundTime; out[9] = this.stepSmooth;
+    out[10] = this.dashCd; out[11] = this.slideTime; out[12] = this.padLock; out[13] = this.waterJumpT;
+    out[14] = this._wasCrouchCmd ? 1 : 0; out[15] = this.landSpeed; out[16] = this.speedMul;
+    return out;
+  }
+  setState(s) {
+    this.pos.set(s[0], s[1], s[2]); this.vel.set(s[3], s[4], s[5]);
+    this.crouching = s[6] > 0.5; this.h = this.crouching ? MOVE.crouchHeight : MOVE.height;
+    this.onGround = s[7] > 0.5; this.groundTime = s[8]; this.stepSmooth = s[9];
+    this.dashCd = s[10]; this.slideTime = s[11]; this.padLock = s[12]; this.waterJumpT = s[13];
+    this._wasCrouchCmd = s[14] > 0.5; this.landSpeed = s[15]; this.speedMul = s[16];
+    this._water();
+  }
+
   // su durumunu konuma gore guncelle (su seviyesinin altindaki her bos voxel sudur)
   _water() {
     const wy = this.world.waterY ?? -Infinity;
@@ -399,6 +419,23 @@ export class Mover {
     this.vel.x += x; this.vel.y += y; this.vel.z += z;
     if (y > 0.5) { this.onGround = false; this.groundTime = 1; }
   }
+}
+
+Mover.STATE_LEN = 17;
+
+// Ziplama pedi: aktor pedin ustundeyse firlatir ve pedi doner (yoksa null). Saf (efektsiz): ev sahibi, konuk tahmini ve
+// yeniden oynatma ayni islevi kullanir (komut disi bir etki oldugu icin yeniden oynatmada da uygulanmali).
+export function applyPad(pads, m) {
+  if (m.padLock > 0) return null;
+  for (const pd of pads) {
+    const dx = m.pos.x - pd.x, dz = m.pos.z - pd.z;
+    if (dx * dx + dz * dz > pd.radius * pd.radius) continue;
+    if (m.pos.y < pd.y - 0.3 || m.pos.y > pd.y + 0.6) continue;
+    padLaunchVelocity(pd, m.vel);
+    m.onGround = false; m.groundTime = 1; m.padLock = 0.5;
+    return pd;
+  }
+  return null;
 }
 
 export function padLaunchVelocity(pad, out) {

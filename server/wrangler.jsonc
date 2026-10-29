@@ -1,0 +1,16 @@
+{
+  // FragRush sinyal + oda sunucusu (Cloudflare Worker + Durable Object). Yalniz tarayicilari bulusturur:
+  // oyun mantigi ev sahibinin tarayicisinda calisir. Ucretsiz plan: SQLite tabanli DO (new_sqlite_classes).
+  "name": "fragrush-rooms",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "vars": {
+    // virgullu liste; sonu * olan kaynaklar onek eslesmesi (ornegin http://localhost:* -> herhangi bir port)
+    "ALLOWED_ORIGINS": "https://erenciracioglu-dotcom.github.io,http://127.0.0.1:*,http://localhost:*",
+    "MAX_GUESTS": "3"
+  }
+}

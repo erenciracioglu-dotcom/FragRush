@@ -9,3 +9,4 @@ tools/pack.sh
 .probe/
 trailer/
 .claude/
+.wrangler/

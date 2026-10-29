@@ -3,6 +3,7 @@
 //   node build.mjs --portal crazygames  -> CrazyGames surumu: ../FragRush-CrazyGames/build/index.html
 //                                          (analitik yok, CrazyGames SDK, oyun ici tam ekran istegi yok)
 //   --out <klasor>  portal ciktisinin klasoru
+//   --no-docs       docs/ (GitHub Pages kaynagi) yazilmasin: dal uzerinde test derlemesi
 import * as esbuild from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,10 +33,13 @@ async function build() {
     bundle: true, format: 'iife', minify: !dev, write: false, target: 'es2022',
     sourcemap: dev ? 'inline' : false,
     legalComments: 'none',
+    // portal: ag kodu hic pakete girmesin (net/index.js -> stub.js)
+    plugins: portal ? [{ name: 'no-net', setup(b) { b.onResolve({ filter: /\/net\/index\.js$/ }, () => ({ path: path.resolve('src/net/stub.js') })); } }] : [],
     define: {
       __WORKER_CODE__: JSON.stringify(workerCode),
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
       __PORTAL__: JSON.stringify(portal),
+      __NET__: JSON.stringify(!portal),     // CrazyGames surumunde ag kodu ve dugme pakete girmez
     },
   });
   const js = main.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
@@ -60,9 +64,11 @@ async function build() {
   fs.mkdirSync('dist', { recursive: true });
   fs.writeFileSync('dist/index.html', html);
   // GitHub Pages: ayni tek dosya docs/ altina (Pages kaynagi: main /docs)
-  fs.mkdirSync('docs', { recursive: true });
-  fs.writeFileSync('docs/index.html', html);
-  fs.writeFileSync('docs/.nojekyll', '');
+  if (!argv.includes('--no-docs')) {
+    fs.mkdirSync('docs', { recursive: true });
+    fs.writeFileSync('docs/index.html', html);
+    fs.writeFileSync('docs/.nojekyll', '');
+  }
   console.log(`dist/index.html ${kb(html)} KB (${Date.now() - t0} ms)`);
 }
 

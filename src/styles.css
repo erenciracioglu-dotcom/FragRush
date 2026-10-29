@@ -121,6 +121,19 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 .panel label span[data-i18n] { width: auto; min-width: 170px; text-align: left; color: var(--ink); font-variant-numeric: normal; white-space: nowrap; }
 #resumeHint { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); padding: 12px 22px; background: rgba(10,11,14,.78); color: var(--ink); letter-spacing: 2px; font-size: 18px; pointer-events: none; z-index: 30; }
 #resumeHint.hidden { display: none; }
+#roomBox { margin: 10px 0; padding: 10px 12px; border: 1px solid rgba(34,228,255,0.35); background: rgba(34,228,255,0.07); }
+#roomBox .rbT { font-size: 12px; letter-spacing: 4px; color: var(--dim); } #roomBox .rbT b { color: var(--acc2); letter-spacing: 6px; font-size: 20px; margin-left: 8px; }
+#roomBox .rbL { display: flex; gap: 6px; margin: 6px 0; } #roomBox .rbL input { flex: 1; min-width: 0; background: #15171d; color: var(--ink); border: 1px solid #333; padding: 6px 8px; font-family: var(--font); font-size: 12px; }
+#roomBox .rbL button { width: auto; margin: 0; padding: 6px 12px; font-size: 12px; clip-path: none; }
+#roomPlayers { font-size: 13px; color: var(--ink); line-height: 1.7; } #roomPlayers .pg { color: var(--dim); margin-left: 8px; font-size: 12px; }
+#joinScreen { position: fixed; inset: 0; z-index: 27; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; background: rgba(7,8,11,0.92); }
+#joinScreen .title span { font-size: clamp(48px, 9vw, 110px); }
+#joinCode { font-size: 22px; letter-spacing: 8px; color: var(--acc2); } #joinMsg { font-size: 15px; letter-spacing: 2px; color: var(--ink); min-height: 20px; }
+#joinScreen .lbar { width: min(420px, 70vw); height: 6px; background: #1a1c22; } #joinBar { height: 100%; width: 0; background: var(--acc); transition: width .2s; }
+#joinBtns { display: flex; gap: 10px; } #joinBtns button { width: auto; min-width: 180px; clip-path: none; }
+#roomToast { position: fixed; left: 12px; bottom: 12px; z-index: 12; padding: 8px 12px; font-size: 13px; letter-spacing: 1px; color: var(--ink); background: rgba(7,8,11,0.82); border: 1px solid rgba(34,228,255,0.4); pointer-events: none; }
+#tags { position: fixed; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+#tags .tag { position: absolute; left: 0; top: 0; font: 700 12px var(--font); letter-spacing: 1px; text-shadow: 0 1px 2px #000, 0 0 4px #000; white-space: nowrap; will-change: transform; }
 #startScreen { position: fixed; inset: 0; z-index: 25; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; cursor: pointer; text-align: center;
   background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(7,8,11,0.62) 0%, rgba(7,8,11,0.32) 60%, rgba(7,8,11,0.12) 100%); }
 #startScreen .title span { font-size: clamp(54px, 10vw, 128px); }

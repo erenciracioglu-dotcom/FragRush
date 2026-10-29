@@ -131,6 +131,7 @@ export class HUD {
         } catch (e) { this.gpuName = '?'; }
       }
       this.fpsText = t('fps', fps.toFixed(0), (this.worst * 1000).toFixed(1), (info.triangles / 1000).toFixed(0), info.calls, this.gpuName, game.fx.debris.count, game.fx.add.count + game.fx.smoke.count, game.destruction.bodies.length, (game.renderScale * 100).toFixed(0));
+      if (game.net && game.net.infoLine) this.fpsText += '  |  ' + game.net.infoLine();
       this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.worst = 0;
       game.lastFps = fps;
     }

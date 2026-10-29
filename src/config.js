@@ -117,6 +117,9 @@ export const FX = {
   lightPool: 14,
 };
 
+// Cok oyunculu (ARKADASLA OYNA): sinyal sunucusu (Cloudflare Worker). Bos = canli adres henuz yok (yerelde 127.0.0.1:8787).
+export const NET = { signal: 'https://fragrush-rooms.fragrush-rooms.workers.dev', maxGuests: 3 };
+
 export const AUDIO = {
   master: 0.7,
 };

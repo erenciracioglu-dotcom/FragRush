@@ -54,6 +54,8 @@ export class Game {
     this.lastFps = 0;
     this.multiKill = { n: 0, t: -10 };
     this.attract = { t: 0 };
+    // cok oyunculu (src/net): net = HostSession | GuestSession | null; auth: yetki bu bilgisayarda mi (konukta false)
+    this.net = null; this.auth = true; this.inputBlocked = false;
   }
 
   async init(onProgress = () => {}) {
@@ -291,6 +293,7 @@ export class Game {
   async newArena(onProgress, map = null) {
     this.state = 'loading';
     await this.buildArena((Math.random() * 1e9) | 0, onProgress, map);
+    if (this.net && this.net.role === 'host') this.net.onArenaBuilt();
     this.startMatch(false);
   }
 
@@ -493,9 +496,11 @@ export class Game {
     this.projectiles.clear();
     if (this.items) this.items.reset();
     if (this.toySys.active) this.toySys.matchReset();
-    this.actors = withPlayer ? [this.player, ...this.bots] : [...this.bots];
-    for (const a of [this.player, ...this.bots]) { a.frags = 0; a.deaths = 0; a.alive = false; }
+    const rem = this.net && this.net.role === 'host' ? this.net.remotes() : [];
+    this.actors = withPlayer ? [this.player, ...this.bots, ...rem] : [...this.bots, ...rem];
+    for (const a of [this.player, ...this.bots, ...rem]) { a.frags = 0; a.deaths = 0; a.alive = false; }
     for (const b of this.bots) b.spawn(this.pickSpawn(b));
+    for (const r of rem) r.spawn(this.pickSpawn(r));
     if (withPlayer) { this.player.spawn(this.pickSpawn(this.player)); if (this.audio) this.audio.play('respawn', 0, 0, 0, 1, true); }
     this.state = withPlayer ? 'playing' : 'menu';
   }
@@ -562,6 +567,7 @@ export class Game {
 
   // -------------------------------------------------- olaylar
   onDamage(victim, attacker, dmg, dir, head, weaponId) {
+    if (this.net && this.net.role === 'host') this.net.onDamage(victim, attacker, dmg, dir, head);
     const hud = this.hud, audio = this.audio;
     if (victim.isPlayer) {
       if (this.post) this.post.hit(Math.min(1.2, dmg / 45));
@@ -588,6 +594,7 @@ export class Game {
   }
 
   onKill(victim, killer, weaponId, head) {
+    if (this.net && this.net.role === 'host') this.net.onKill(victim, killer, weaponId, head);
     this.logEvent('kill ' + (killer ? killer.name : '-') + '>' + victim.name + ' ' + weaponId + (killer && killer.quad > 0 ? ' DOOM' : ''));
     const hud = this.hud, audio = this.audio;
     const label = t('k.' + (KILL_IDS.has(weaponId) ? weaponId : 'world'));
@@ -693,6 +700,7 @@ export class Game {
   }
 
   onPickup(actor, item) {
+    if (this.net && this.net.role === 'host') this.net.onPickup(actor, item);
     if (item.type === 'quad') this.logEvent('quad ' + actor.name);
     const p = item.pos;
     if (actor.isPlayer) {
@@ -746,6 +754,7 @@ export class Game {
     this.state = 'matchEnd';
     this.endT = 7;
     const sorted = [...this.actors].sort((a, b) => b.frags - a.frags);
+    if (this.net && this.net.role === 'host') this.net.onMatchEnd(sorted[0]);
     if (this.hud) { this.hud.centerMsg(sorted[0].isPlayer ? t('youWin') : t('winner', sorted[0].name), 6); this.hud.subMsg(t('newArenaSoon'), 6); }
   }
 
@@ -757,13 +766,15 @@ export class Game {
     this.sky.uniforms.uTime.value = this.time;
     const st = this.state;
     if (st === 'loading') return;
+    const guest = !!this.net && this.net.role === 'guest';
+    if (this.net) this.net.update(dt);
     const paused = st === 'paused';
     if (!paused) {
       if (st === 'playing') {
         this.player.update(dt, this.input, this.settings);
-        this.matchTime -= dt;
-        if (this.matchTime <= 0) this.endMatch();
+        if (!guest) { this.matchTime -= dt; if (this.matchTime <= 0) this.endMatch(); }
       } else if (this.input) this.input.consumeMouse();
+      if (guest) this.fx.update(dt); else {
       const P = this.prof || (this.prof = { bots: 0, proj: 0, destr: 0, items: 0, nav: 0, fx: 0, chunks: 0, n: 0 });
       let _t = performance.now(), _t2;
       for (const b of this.bots) b.update(dt);
@@ -797,6 +808,7 @@ export class Game {
       this.checkLamps(dt);
       this.fx.update(dt);
       _t2 = performance.now(); P.fx = Math.max(P.fx, _t2 - _t); _t = _t2;
+      }
     }
     const _tc = performance.now();
     this.chunks.update(this.camera.position);
@@ -809,6 +821,7 @@ export class Game {
       this.attractCamera(dt);
     }
     this.camera.updateMatrixWorld();
+    if (this.net && this.net.updateTags && st === 'playing') this.net.updateTags(this.camera);
     if (this.waterSys.active) {
       const med = this.waterSys.update(paused ? 0 : dt, this.camera);
       if (this.audio) this.audio.setUnderwater(this.waterSys.underwater);
@@ -835,7 +848,7 @@ export class Game {
       const h = this._aimHit || (this._aimHit = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 });
       const wd = this.world.raycast(o.x, o.y, o.z, d.x, d.y, d.z, 90, h) ? h.dist : 90;
       let best = null, bt = wd;
-      for (const a of this.bots) { const r = a.rayHit(o, d, bt); if (r) { bt = r.t; best = a; } }
+      for (const a of this.actors) { if (a === this.player) continue; const r = a.rayHit(o, d, bt); if (r) { bt = r.t; best = a; } }
       this._aimT = best;
     }
     if (st === 'playing') this.aimTarget = this._aimT || null;
@@ -849,11 +862,11 @@ export class Game {
       }, this.camera);
     }
     if (this.audio) this.audio.setListener(this.camera);
-    if (st === 'matchEnd') {
+    if (st === 'matchEnd' && !guest) {
       this.endT -= dt;
       if (this.endT <= 0 && !this._rebuilding) {
         this._rebuilding = true;
-        this.buildArena((Math.random() * 1e9) | 0).then(() => { this._rebuilding = false; this.startMatch(true); });
+        this.buildArena((Math.random() * 1e9) | 0).then(() => { this._rebuilding = false; if (this.net && this.net.role === 'host') this.net.onArenaBuilt(); this.startMatch(true); });
       }
     }
     if (this.hud && st !== 'loading') this.hud.update(dt, this);

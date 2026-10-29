@@ -3,6 +3,10 @@
 const D = {
   // menu
   tagline: ['Break · Blast · Bury', 'Break · Blast · Bury'],
+  friends: ['PLAY WITH FRIENDS', 'ARKADAŞLA OYNA'], roomTitle: ['ROOM', 'ODA'], copy: ['COPY LINK', 'LİNKİ KOPYALA'], copied: ['COPIED', 'KOPYALANDI'], join: ['JOIN', 'KATIL'], playSolo: ['PLAY SOLO', 'TEK BAŞINA OYNA'],
+  connecting: ['Connecting...', 'Bağlanıyor...'], joinTitle: ['Joining room', 'Odaya katılınıyor'], hostLeft: ['The host left the match.', 'Ev sahibi maçtan ayrıldı.'], mainMenu: ['MAIN MENU', 'ANA MENÜ'],
+  roomFull: ['The room is full.', 'Oda dolu.'], noRoom: ['Room not found or closed.', 'Oda bulunamadı ya da kapandı.'], netFail: ['Could not connect to the room server.', 'Oda sunucusuna bağlanılamadı.'], netNoServer: ['Play with friends is not available yet.', 'Arkadaşla oynama henüz kullanılamıyor.'],
+  sName: ['Player name', 'Oyuncu adı'], roomShare: ['Send this link to a friend:', 'Bu linki arkadaşına gönder:'], conDirect: ['direct', 'doğrudan'], conRelay: ['relay', 'aktarma'], you2: ['you', 'sen'], hostWord: ['host', 'ev sahibi'], joinWait: ['Loading the arena...', 'Arena yükleniyor...'],
   play: ['PLAY', 'OYNA'], resume: ['RESUME', 'DEVAM ET'], settings: ['SETTINGS', 'AYARLAR'], controls: ['CONTROLS', 'KONTROLLER'],
   newArena: ['NEW ARENA', 'YENİ ARENA'],
   map: ['MAP', 'HARİTA'], mapArena: ['ARENA', 'ARENA'], mapMeadow: ['MEADOW', 'ÇAYIR'], mapVolcano: ['VOLCANO', 'VOLKAN'], mapFrozen: ['FROZEN LAKE', 'BUZ GÖLÜ'], mapMoon: ['MOON BASE', 'AY ÜSSÜ'], mapToyroom: ['TOY ROOM', 'OYUNCAK ODASI'], mapRotate: ['ROTATE', 'SIRAYLA'], leave: ['LEAVE MATCH', 'MAÇTAN ÇIK'], quit: ['QUIT', 'ÇIKIŞ'], back: ['BACK', 'GERİ'],

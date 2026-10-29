@@ -10,6 +10,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="tags"></div>
 
 <div id="hud" class="hidden">
   <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
@@ -70,6 +71,15 @@
   <div class="sub" data-i18n="startHint">Esc · menu, maps and settings</div>
 </div>
 
+<div id="joinScreen" class="hidden">
+  <div class="title"><span>FRAG<b>RUSH</b></span></div>
+  <div id="joinCode"></div>
+  <div id="joinMsg"></div>
+  <div class="lbar"><div id="joinBar"></div></div>
+  <div id="joinBtns"><button id="btnJoin" class="primary" data-i18n="join">JOIN</button><button id="btnSolo" data-i18n="playSolo">PLAY SOLO</button></div>
+</div>
+<div id="roomToast" class="hidden"></div>
+
 <div id="menu">
   <div class="menu-inner">
     <div class="title"><span>FRAG<b>RUSH</b></span><small data-i18n="tagline">Break · Blast · Bury</small></div>
@@ -79,6 +89,12 @@
     </div>
     <div id="menuButtons" class="hidden">
       <button id="btnPlay" class="primary">PLAY</button>
+      <button id="btnFriends" class="hidden" data-i18n="friends">PLAY WITH FRIENDS</button>
+      <div id="roomBox" class="hidden">
+        <div class="rbT"><span data-i18n="roomTitle">ROOM</span> <b id="roomCode"></b></div>
+        <div class="rbL"><input id="roomLink" readonly><button id="btnCopy" data-i18n="copy">COPY</button></div>
+        <div id="roomPlayers"></div>
+      </div>
       <button id="btnLeave" class="hidden" data-i18n="leave">LEAVE MATCH</button>
       <div id="mapPick"><span class="lbl" data-i18n="map">MAP</span><div class="seg"><button data-map="meadow" data-i18n="mapMeadow">MEADOW</button><button data-map="volcano" data-i18n="mapVolcano">VOLCANO</button><button data-map="frozen" data-i18n="mapFrozen">FROZEN LAKE</button><button data-map="moon" data-i18n="mapMoon">MOON BASE</button><button data-map="toyroom" data-i18n="mapToyroom">TOY ROOM</button><button data-map="arena" data-i18n="mapArena">ARENA</button><button data-map="rotate" data-i18n="mapRotate">ROTATE</button></div></div>
       <button id="btnSettings" data-i18n="settings">SETTINGS</button>
@@ -91,6 +107,7 @@
       <label><span data-i18n="sSens">Mouse sensitivity</span> <input type="range" id="setSens" min="0.2" max="4" step="0.05"><span id="setSensV"></span></label>
       <label><span data-i18n="sFov">Field of view (FOV)</span> <input type="range" id="setFov" min="80" max="120" step="1"><span id="setFovV"></span></label>
       <label><span data-i18n="sQuality">Graphics quality</span> <select id="setQuality"><option value="ultra" data-i18n="qUltra">Ultra</option><option value="high" data-i18n="qHigh">High</option><option value="medium" data-i18n="qMedium">Medium</option><option value="low" data-i18n="qLow">Low</option></select></label>
+      <label><span data-i18n="sName">Player name</span> <input type="text" id="setName" maxlength="16" style="flex:1;background:#15171d;color:#e8e8ee;border:1px solid #333;padding:4px 8px;font-family:inherit"></label>
       <label><span data-i18n="sBots">Bot count</span> <input type="range" id="setBots" min="0" max="11" step="1"><span id="setBotsV"></span></label>
       <label><span data-i18n="sDiff">Bot difficulty</span> <select id="setDiff"><option value="0" data-i18n="d0">Acemi</option><option value="1" data-i18n="d1">Çaylak</option><option value="2" data-i18n="d2">Normal</option><option value="3" data-i18n="d3">Zor</option><option value="4" data-i18n="d4">Çok Zor</option><option value="5" data-i18n="d5">Usta</option><option value="6" data-i18n="d6">Kâbus</option></select></label>
       <label><span data-i18n="sVol">Volume</span> <input type="range" id="setVol" min="0" max="1" step="0.05"><span id="setVolV"></span></label>

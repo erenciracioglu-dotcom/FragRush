@@ -76,6 +76,7 @@ export class Projectiles {
       vis: new THREE.Vector3().subVectors(muzzle, origin),
       mesh: null, light: null, trailT: 0,
     };
+    if (this.game.net && this.game.net.role === 'host') this.game.net.onProj(p);
     if (W.id === 'rocket') {
       let m = this.rocketPool.pop();
       if (!m) m = makeRocketMesh();
@@ -226,5 +227,6 @@ export class Projectiles {
       if (game.audio) game.audio.play('plasmaHit', ox, oy, oz, deep ? 0.5 : 1);
     }
     game.noise(p.owner, { x: ox, y: oy, z: oz }, 30);
+    if (game.net && game.net.role === 'host') game.net.onBoom(p, ox, oy, oz, nx, ny, nz, deep);
   }
 }

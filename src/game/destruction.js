@@ -95,6 +95,8 @@ class FallingBody {
   }
 
   dispose() {
+    const net = this.mgr.game.net;
+    if (net && net.role === 'host' && this.nid) net.onBodyEnd(this);
     this.mgr.game.scene.remove(this.group);
     this.mesh.geometry.dispose();
   }
@@ -241,6 +243,7 @@ export class Destruction {
         this.game.audio && this.game.audio.play('creak', c[0], c[1], c[2], Math.min(1, isl.count / 2000) + 0.3);
       }
       this.bodies.push(body);
+      if (this.game.net && this.game.net.role === 'host') this.game.net.onBody(body, isl);
       this.stats.bodies++;
       w.removeIndices(indices);
       this._moonRemoved(indices, indices.length, source);

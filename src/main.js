@@ -7,6 +7,8 @@ import { MeshBasicMaterial as THREE_Basic, MeshStandardMaterial as THREE_Std } f
 import { voxelUniforms } from './world/voxelMaterial.js';
 import { t, setLang, onLangChange } from './i18n.js';
 import { portal } from './portal.js';
+import { NET } from './config.js';
+import { RoomClient, parseNetsim, HostSession, GuestSession, Autopilot } from './net/index.js';
 
 /* global __BUILD_TIME__ */
 const params = new URLSearchParams(location.search);
@@ -49,6 +51,8 @@ audio.setVolume(settings.volume);
 hud.showFps = !!settings.showFps;
 const game = new Game(canvas, settings, { hud, audio, input });
 window.__enkaz = { game, ready: false, input };
+// cok oyunculu maçta menu acikken ya da duraklatilmisken (tek kisilikte oyun durur, cok oyunculuda yalniz girdi kesilir)
+const midMatch = () => game.state === 'paused' || game.inputBlocked;
 
 // ---- portal (CrazyGames) ----
 // SDK oyunu hicbir zaman bekletmez: yuklenemezse oyun aynen calisir.
@@ -81,9 +85,12 @@ function showMenu(v) {
   menu.classList.toggle('hidden', !v);
   hud.show(!v && game.state === 'playing');
   if (v) showPanel(null);
-  btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play');
-  $('btnLeave').classList.toggle('hidden', game.state !== 'paused');
-  mapPick.classList.toggle('hidden', game.state === 'paused');
+  btnPlay.textContent = midMatch() ? t('resume') : t('play');
+  $('btnLeave').classList.toggle('hidden', !midMatch());
+  mapPick.classList.toggle('hidden', midMatch() || !!game.net);
+  $('btnFriends').classList.toggle('hidden', !NET_ON || midMatch() || !!game.net);
+  $('roomBox').classList.toggle('hidden', !game.net || !v);
+  if (game.net && v) renderRoom();
   syncMapPick();
 }
 // harita secimi (ana menude): secilen harita hemen kurulur; SIRAYLA her mactan sonra degistirir
@@ -115,6 +122,7 @@ setHint();
 onLangChange(() => { setHint(); btnPlay.textContent = game.state === 'paused' ? t('resume') : t('play'); hud.relabel(); game.player.name = t('you'); });
 
 async function startPlay() {
+  if (game.inputBlocked) { resumeGame(); return; }
   audio.init();
   audio.setVolume(settings.volume);
   const fresh = game.state === 'menu';
@@ -139,7 +147,9 @@ const startScreen = $('startScreen');
 const directStart = (portal.on || params.has('direct')) && !testMode && !params.has('bench');
 function showStart(v) { startScreen.classList.toggle('hidden', !v); }
 function startFromScreen() {
-  if (startScreen.classList.contains('hidden') || game.state !== 'menu') return;
+  if (startScreen.classList.contains('hidden')) return;
+  if (game.net && game.net.role === 'guest') { showStart(false); startGuestPlay(); return; }
+  if (game.state !== 'menu') return;
   showStart(false);
   startPlay();
 }
@@ -173,10 +183,12 @@ let lastPauseT = 0;
 function pauseGame() {
   if (game.state !== 'playing') return;
   hideKeyCard();
-  game.state = 'paused'; lastPauseT = performance.now();
+  lastPauseT = performance.now();
+  if (game.net) game.inputBlocked = true; else game.state = 'paused';
   resumeHint(false); showMenu(true); input.unlock();
 }
 function resumeGame() {
+  if (game.net && game.inputBlocked) { game.inputBlocked = false; showMenu(false); resumeHint(false); lockKeys(); input.lock(); return; }
   if (game.state !== 'paused') return;
   game.state = 'playing'; showMenu(false); resumeHint(false);
   lockKeys(); input.lock();
@@ -184,16 +196,16 @@ function resumeGame() {
 input.onLockChange = (locked, error) => {
   if (error) {
     // kilit alinamadi (or. Esc ile devam: tarayici Esc'yi kullanici hareketi saymiyor) -> tikla / Enter ile devam
-    if (game.state === 'playing') { game.state = 'paused'; showMenu(false); hud.show(true); resumeHint(true); }
+    if (game.state === 'playing') { if (game.net) game.inputBlocked = true; else game.state = 'paused'; showMenu(false); hud.show(true); resumeHint(true); }
     return;
   }
-  if (locked) { resumeHint(false); if (game.state === 'paused' && menu.classList.contains('hidden')) game.state = 'playing'; return; }
-  if (game.state === 'playing') pauseGame();
+  if (locked) { resumeHint(false); if (game.inputBlocked && menu.classList.contains('hidden')) game.inputBlocked = false; if (game.state === 'paused' && menu.classList.contains('hidden')) game.state = 'playing'; return; }
+  if (game.state === 'playing' && !game.inputBlocked) pauseGame();
 };
 // oyunda / devam ipucunda tiklayinca kilidi geri al
 canvas.addEventListener('click', () => {
-  if (game.state === 'playing' && !input.locked) input.lock();
-  else if (game.state === 'paused' && menu.classList.contains('hidden')) resumeGame();
+  if (game.state === 'playing' && !input.locked && !game.inputBlocked) input.lock();
+  else if (midMatch() && menu.classList.contains('hidden')) resumeGame();
 });
 window.addEventListener('keydown', (e) => {
   if (!e.repeat && e.code === 'KeyH') hideKeyCard();
@@ -206,8 +218,8 @@ window.addEventListener('keydown', (e) => {
   // P: Esc'ye ek duraklatma tusu (Esc portalda tam ekrandan da cikarir)
   if (!e.repeat && e.code === 'KeyP' && $('loading').classList.contains('hidden')) {
     const panelP = Object.keys(panels).find((k) => !panels[k].classList.contains('hidden'));
-    if (game.state === 'playing') { e.preventDefault(); pauseGame(); return; }
-    if (game.state === 'paused' && !panelP) { e.preventDefault(); resumeGame(); return; }
+    if (game.state === 'playing' && !game.inputBlocked) { e.preventDefault(); pauseGame(); return; }
+    if (midMatch() && !panelP) { e.preventDefault(); resumeGame(); return; }
   }
   if (e.repeat || (e.code !== 'Escape' && e.code !== 'Enter' && e.code !== 'NumpadEnter')) return;
   if (game.state === 'loading' || game.state === 'matchEnd' || !$('loading').classList.contains('hidden')) return;
@@ -219,21 +231,22 @@ window.addEventListener('keydown', (e) => {
     if (performance.now() - lastPauseT < 350) return;
     if (menuOpen) {
       if (panel) { if (panel === 'settings') saveSettings(settings); showPanel(null); return; }
-      if (game.state === 'paused') resumeGame();
+      if (midMatch()) resumeGame();
       return;
     }
-    if (game.state === 'playing') pauseGame();
-    else if (game.state === 'paused') resumeGame();
+    if (game.state === 'playing' && !game.inputBlocked) pauseGame();
+    else if (midMatch()) resumeGame();
     return;
   }
   // Enter: ana menude OYNA / DEVAM ET, devam ipucunda devam
   if (menuOpen && !panel && document.activeElement && document.activeElement.tagName !== 'BUTTON' && document.activeElement.tagName !== 'SELECT') { e.preventDefault(); btnPlay.click(); }
-  else if (!menuOpen && game.state === 'paused') { e.preventDefault(); resumeGame(); }
+  else if (!menuOpen && midMatch()) { e.preventDefault(); resumeGame(); }
 });
 $('btnSettings').addEventListener('click', () => showPanel('settings'));
 // maci birak: ana menuye don (arkada botlar oynamaya devam eder), tam ekrandan cik
 $('btnLeave').addEventListener('click', () => {
-  if (game.state !== 'paused') return;
+  if (!midMatch()) return;
+  if (game.net) { leaveNet(); return; }
   game.startMatch(false);
   resumeHint(false);
   try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { /* yok */ }
@@ -288,6 +301,135 @@ const selD = $('setDiff'); selD.value = String(settings.difficulty);
 selD.addEventListener('change', () => { settings.difficulty = Number(selD.value); settings.diffChosen = true; for (const b of game.bots) b.setSkill(settings.difficulty); saveSettings(settings); });
 const chkI = $('setInvert'); chkI.checked = !!settings.invert; chkI.addEventListener('change', () => { settings.invert = chkI.checked; saveSettings(settings); });
 const chkF = $('setFps'); chkF.checked = !!settings.showFps; chkF.addEventListener('change', () => { settings.showFps = chkF.checked; hud.showFps = chkF.checked; saveSettings(settings); });
+
+// ---- cok oyunculu: ARKADASLA OYNA ----
+/* global __NET__ */
+const NET_ON = typeof __NET__ !== 'undefined' && __NET__ && !portal.on && location.protocol !== 'file:';
+const SIGNAL = params.get('signal') || (localServer ? 'http://127.0.0.1:8787' : NET.signal);
+const netsim = parseNetsim(location.search);
+const roomParam = (params.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+let netBusy = false;
+function playerName() {
+  if (!settings.name) { settings.name = 'Player ' + (1000 + ((Math.random() * 9000) | 0)); saveSettings(settings); }
+  return settings.name;
+}
+function roomLink(code) {
+  const base = location.origin + location.pathname + '?room=' + code;
+  return params.get('signal') ? base + '&signal=' + encodeURIComponent(params.get('signal')) : base;
+}
+function renderRoom() {
+  const net = game.net; if (!net) return;
+  const code = net.role === 'host' ? net.room.code : net.room.code;
+  $('roomCode').textContent = code;
+  $('roomLink').value = roomLink(code);
+  const rows = [];
+  if (net.role === 'host') {
+    rows.push('<div>' + esc(playerName()) + '<span class="pg">' + t('hostWord') + ' · ' + t('you2') + '</span></div>');
+    for (const g of net.guests.values()) rows.push('<div>' + esc(g.name) + '<span class="pg">' + (g.link.open ? Math.round(g.link.rtt) + ' ms · ' + (g.link.connType === 'relay' ? t('conRelay') : t('conDirect')) : '...') + '</span></div>');
+  } else {
+    rows.push('<div>' + esc(net.hostName) + '<span class="pg">' + t('hostWord') + ' · ' + Math.round(net.link.rtt) + ' ms</span></div>');
+    for (const e of net.roster.values()) if (e.human && e.id !== 0) rows.push('<div>' + esc(e.id === net.myId ? playerName() : e.name) + (e.id === net.myId ? '<span class="pg">' + t('you2') + '</span>' : '') + '</div>');
+  }
+  $('roomPlayers').innerHTML = rows.join('');
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+setInterval(() => { if (game.net && !menu.classList.contains('hidden')) renderRoom(); }, 1000);
+$('btnCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('roomLink').value); $('btnCopy').textContent = t('copied'); setTimeout(() => { $('btnCopy').textContent = t('copy'); }, 1500); } catch (e) { $('roomLink').select(); }
+});
+function toast(msg, ms = 9000) { const el = $('roomToast'); el.textContent = msg; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), ms); }
+
+// ev sahibi: oda ac, oyunu baslat
+async function startFriends() {
+  if (netBusy || game.net || !NET_ON) return;
+  if (!SIGNAL) { $('menuHint').textContent = t('netNoServer'); return; }
+  netBusy = true;
+  try {
+    $('menuHint').textContent = t('connecting');
+    if (game.mapId !== 'arena' && game.mapId !== 'meadow') await rebuildArena('arena');     // Asama 1: yalniz arena / cayir
+    const room = await RoomClient.host({ base: SIGNAL, name: playerName(), netsim });
+    const host = new HostSession(game, room, playerName());
+    host.enable(); host.onChange = () => { if (!menu.classList.contains('hidden')) renderRoom(); };
+    // yerel deneme (.bat): oda kodunu sunucuya birak, ikinci pencere linkle acilsin
+    if (localServer) fetch('/__report?name=room', { method: 'POST', body: JSON.stringify({ code: room.code, link: roomLink(room.code) }) }).catch(() => {});
+    setHint();
+    await startPlay();
+    toast(t('roomShare') + '  ' + roomLink(room.code), 12000);
+  } catch (e) {
+    console.error(e); setHint(); $('menuHint').textContent = t('netFail');
+  } finally { netBusy = false; }
+}
+$('btnFriends').addEventListener('click', startFriends);
+
+function leaveNet() {
+  const net = game.net; if (!net) return;
+  const guest = net.role === 'guest';
+  net.close(); game.inputBlocked = false;
+  if (guest) { location.href = location.pathname; return; }
+  game.startMatch(false);
+  resumeHint(false);
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { /* yok */ }
+  $('roomToast').classList.add('hidden');
+  showMenu(true);
+}
+
+// konuk: baglantiya KATIL
+const joinScreen = $('joinScreen');
+function joinMsg(msg, bar) { $('joinMsg').textContent = msg; if (bar !== undefined) $('joinBar').style.width = (bar * 100).toFixed(0) + '%'; }
+function showJoin() {
+  menu.classList.add('hidden'); showStart(false);
+  joinScreen.classList.remove('hidden');
+  $('joinCode').textContent = roomParam;
+  joinMsg('');
+  $('btnJoin').classList.remove('hidden');
+}
+async function joinRoom() {
+  if (netBusy) return; netBusy = true;
+  $('btnJoin').classList.add('hidden');
+  joinMsg(t('connecting'), 0.02);
+  audio.init(); audio.setVolume(settings.volume);
+  let room = null, guest = null;
+  const end = (reason) => {
+    guest = null; game.inputBlocked = false;
+    try { if (document.exitPointerLock) document.exitPointerLock(); } catch (e) { /* yok */ }
+    hud.show(false); showStart(false); joinScreen.classList.remove('hidden');
+    joinMsg(reason === 'host-left' ? t('hostLeft') : t('netFail'), 0);
+    $('btnJoin').classList.add('hidden'); $('btnSolo').textContent = t('mainMenu');
+  };
+  try {
+    room = await RoomClient.join({
+      base: SIGNAL, code: roomParam, name: playerName(), netsim,
+      onLink: (link) => {
+        guest = new GuestSession(game, room, link, {
+          progress: (p, msg) => joinMsg(msg || t('joinWait'), 0.1 + p * 0.85),
+          onReady: () => { joinMsg('', 1); joinScreen.classList.add('hidden'); showStart(true); },
+          onEnd: end,
+        });
+        window.__enkaz.guest = guest;
+      },
+    });
+    joinMsg(t('joinWait'), 0.08);
+  } catch (e) {
+    console.error(e);
+    joinMsg(e.code === 'room-full' ? t('roomFull') : e.code === 'no-room' ? t('noRoom') : t('netFail'), 0);
+    $('btnSolo').textContent = t('mainMenu');
+  } finally { netBusy = false; }
+}
+$('btnJoin').addEventListener('click', joinRoom);
+$('btnSolo').addEventListener('click', () => { location.href = location.pathname; });
+async function startGuestPlay() {
+  audio.init(); audio.setVolume(settings.volume);
+  game.net.begin();
+  showMenu(false); resumeHint(false); hud.show(true);
+  if (!portal.on && settings.fullscreen !== false && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+    try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) { /* olmadi */ }
+  }
+  lockKeys(); input.lock();
+  showKeyCard();
+}
+window.__enkaz.netApi = { startFriends, joinRoom, roomCode: () => (game.net ? game.net.room.code : null), leaveNet };
+const nameEl = $('setName'); nameEl.value = settings.name || '';
+nameEl.addEventListener('change', () => { settings.name = nameEl.value.trim().slice(0, 16); saveSettings(settings); });
 
 const loadBar = $('loadBar'), loadText = $('loadText');
 function progress(p, msg) { loadBar.style.width = (p * 100).toFixed(0) + '%'; loadText.textContent = msg; }
@@ -344,8 +486,11 @@ game.init(progress).then(() => {
   portalReady.then(() => portal.loadingStop());
   window.__enkaz.ready = true;
   checkGpu(); setHint(); autoQuality();
+  if (NET_ON && params.has('autopilot')) game.autopilot = new Autopilot(game);
   $('loading').classList.add('hidden');
-  if (directStart) { menu.classList.add('hidden'); showStart(true); } else showMenu(true);
+  if (NET_ON && roomParam) showJoin();
+  else if (NET_ON && params.has('autohost')) { menu.classList.add('hidden'); startFriends(); }
+  else if (directStart) { menu.classList.add('hidden'); showStart(true); } else showMenu(true);
   if (testMode) {
     window.__enkaz.step = (n = 1, dt = 1 / 60, renderLast = true) => {
       const t0 = performance.now();

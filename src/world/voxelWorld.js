@@ -41,6 +41,22 @@ export class VoxelWorld {
     // yapisal butunluk gormez. Harita kullanmiyorsa null.
     this.extra = null;
     this.extraMat = 0;
+    // ag esitlemesi (src/net/voxelSync.js): ikinci, mesher'dan bagimsiz kirli chunk kumesi. null = kapali (tek kisilik oyun).
+    this.netDirty = null; this.netChunkDirty = null;
+  }
+
+  // ev sahibi: kirli chunk'lari ag icin de biriktir
+  enableNetDirty() {
+    if (this.netDirty) return;
+    this.netDirty = []; this.netChunkDirty = new Uint8Array(this.ncx * this.ncy * this.ncz);
+  }
+  // en cok max chunk al (kalanlar siradaki cagriya: buyuk patlamada kodlama islemi karelere yayilsin)
+  takeNetDirty(max = Infinity) {
+    const all = this.netDirty;
+    const l = all.length > max ? all.splice(0, max) : all;
+    if (l === all) this.netDirty = [];
+    for (const ci of l) this.netChunkDirty[ci] = 0;
+    return l;
   }
 
   idx(x, y, z) { return x + this.sx * (z + this.sz * y); }
@@ -93,6 +109,7 @@ export class VoxelWorld {
         for (let cx = cx0; cx <= cx1; cx++) {
           const ci = cx + this.ncx * (cz + this.ncz * cy);
           if (!this.chunkDirty[ci]) { this.chunkDirty[ci] = 1; this.dirtyList.push(ci); }
+          if (this.netDirty !== null && !this.netChunkDirty[ci]) { this.netChunkDirty[ci] = 1; this.netDirty.push(ci); }
         }
   }
   markAllDirty() { this.markRegionDirty(0, 0, 0, this.sx - 1, this.sy - 1, this.sz - 1); }
@@ -211,7 +228,7 @@ export class VoxelWorld {
     const mat = this.mat, dmg = this.dmg;
     const noise = opts && opts.noise !== undefined ? opts.noise : 0.5;
     let removed = this.removedCount = 0;
-    let changed = false;
+    let changed = false, touched = false;
     const cap = this.removed.length;
     for (let y = y0; y <= y1; y++) {
       const ddy = y + 0.5 - cy;
@@ -236,7 +253,7 @@ export class VoxelWorld {
           } else if (amt >= 1) {
             const nd = Math.min(254, total) | 0;
             if (((nd * 8 / tough) | 0) !== ((dmg[i] * 8 / tough) | 0)) changed = true;
-            dmg[i] = nd;
+            dmg[i] = nd; touched = true;
           }
         }
       }
@@ -245,6 +262,15 @@ export class VoxelWorld {
     if (changed) {
       this.markRegionDirty(x0 - 1, y0 - 1, z0 - 1, x1 + 1, y1 + 1, z1 + 1);
       this._notify(x0, y0, z0, x1, y1, z1);
+    } else if (touched && this.netDirty !== null) {
+      // gorunur esigin altindaki hasar: mesh degismez ama ag kopyasi (dmg dizisi) ayni kalsin
+      const cx0 = Math.max(0, Math.floor((x0 - 1) / CS)), cx1 = Math.min(this.ncx - 1, Math.floor((x1 + 1) / CS));
+      const cy0 = Math.max(0, Math.floor((y0 - 1) / CS)), cy1 = Math.min(this.ncy - 1, Math.floor((y1 + 1) / CS));
+      const cz0 = Math.max(0, Math.floor((z0 - 1) / CS)), cz1 = Math.min(this.ncz - 1, Math.floor((z1 + 1) / CS));
+      for (let cy = cy0; cy <= cy1; cy++) for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
+        const ci = cx + this.ncx * (cz + this.ncz * cy);
+        if (!this.netChunkDirty[ci]) { this.netChunkDirty[ci] = 1; this.netDirty.push(ci); }
+      }
     }
     if (removed > 0) this._collectSeeds();
     return removed;

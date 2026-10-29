@@ -105,7 +105,8 @@ export class Items {
         it.timer -= dt;
         if (it.timer <= 0) {
           it.active = true; it.mesh.visible = true;
-          if (it.type === 'quad') { game.announce(t('quadSpawn'), t(game.arena.quadWhere || 'quadWhere')); if (game.audio) game.audio.play('quadSpawn', it.pos.x, it.pos.y, it.pos.z, 1, true); }
+          if (it.type === 'quad') { game.announce(t('quadSpawn'), t(game.arena.quadWhere || 'quadWhere'));
+          if (game.net && game.net.role === 'host') game.net.broadcast({ t: 'ann', k: 'quadSpawn', w: game.arena.quadWhere || 'quadWhere' }); if (game.audio) game.audio.play('quadSpawn', it.pos.x, it.pos.y, it.pos.z, 1, true); }
           game.fx.padBurst(it.pos.x, it.pos.y, it.pos.z);
         }
         continue;

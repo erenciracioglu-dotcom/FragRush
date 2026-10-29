@@ -47,15 +47,25 @@ export class Player extends Actor {
     const fwd = (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0) - (input.down('KeyS') || input.down('ArrowDown') ? 1 : 0);
     const side = (input.down('KeyD') || input.down('ArrowRight') ? 1 : 0) - (input.down('KeyA') || input.down('ArrowLeft') ? 1 : 0);
     // Ctrl kullanilmaz: Chrome'da Ctrl+W sekmeyi kapatir. C: egil / kay, suda dal.
+    // cok oyunculu maçta menu acikken oyun durmaz (game.inputBlocked): oyuncu yerinde durur, ates etmez
+    const B = this.game.inputBlocked;
     const cmd = {
-      fwd, side, yaw: this.yaw, pitch: this.pitch,
-      jump: input.down('Space'),
-      crouch: input.down('KeyC'),
-      dash: input.pressed('ShiftLeft') || input.pressed('ShiftRight'),
+      fwd: B ? 0 : fwd, side: B ? 0 : side, yaw: this.yaw, pitch: this.pitch,
+      jump: !B && input.down('Space'),
+      crouch: !B && input.down('KeyC'),
+      dash: !B && (input.pressed('ShiftLeft') || input.pressed('ShiftRight')),
     };
+    // otomatik pilot (yalniz testler: ?autopilot)
+    let autoFire = false;
+    if (this.game.autopilot && !B) {
+      const ap = this.game.autopilot.step(dt, this);
+      this.yaw = ap.yaw; this.pitch = ap.pitch;
+      cmd.fwd = ap.fwd; cmd.side = ap.side; cmd.yaw = ap.yaw; cmd.pitch = ap.pitch; cmd.jump = ap.jump; cmd.dash = ap.dash; autoFire = ap.fire;
+    }
     this.cmd = cmd;   // buz altinda Bosluk ile tavani kirma (fx/ice.js) son komutu okur
     const m = this.mover;
-    m.simulate(dt, cmd);
+    const net = this.game.net, guest = !!net && net.role === 'guest';
+    if (guest) net.step(dt, cmd); else m.simulate(dt, cmd);
     const ev = m.events;
     const audio = this.game.audio;
     const p = m.pos;
@@ -98,14 +108,14 @@ export class Player extends Actor {
         if (audio) audio.play('empty', p.x, p.y, p.z, 1, true);
         if (this.game.hud) this.game.hud.subMsg(t('noFireWater'), 1.2);
       }
-    } else if (input.mouseDown(0)) {
+    } else if (!B && (autoFire || input.mouseDown(0))) {
       if (ws.canFire()) {
         const W2 = ws.def;
         this.game.camera.updateMatrixWorld();
         this.eye(_eye);
         this.aimDir(_dir);
         this.game.viewmodel.muzzleWorld(this.game.camera, _muz);
-        fire(this.game, this, _eye, _dir, _muz);
+        if (guest) net.fire(_eye, _dir, _muz); else fire(this.game, this, _eye, _dir, _muz);
         this.game.viewmodel.fireKick(W2);
         this.recoil += W2.recoil;
         this.recoilYaw += (Math.random() - 0.5) * W2.recoil * 0.6;
@@ -147,7 +157,8 @@ export class Player extends Actor {
     const hs = Math.hypot(m.vel.x, m.vel.z);
     const bob = m.onGround ? Math.sin(this.bobT * 1.0) * Math.min(1, hs / 9) * 0.035 : 0;
     const eyeY = m.pos.y + m.eyeHeight - m.stepSmooth - this.landDip + Math.abs(bob) * 0.6;
-    cam.position.set(m.pos.x, eyeY, m.pos.z);
+    const po = this.game.net && this.game.net.role === 'guest' && this.game.net.predictor ? this.game.net.predictor.offset : null;
+    cam.position.set(m.pos.x + (po ? po.x : 0), eyeY + (po ? po.y : 0), m.pos.z + (po ? po.z : 0));
     const sx = (Math.random() - 0.5) * shake * 0.03, sy = (Math.random() - 0.5) * shake * 0.03;
     cam.rotation.set(this.pitch + this.recoil + sy, this.yaw + this.recoilYaw + sx, this.roll + bob * 0.08);
     let fov = (settings.fov || 100) + this.fovKick + Math.min(8, Math.max(0, hs - 10) * 0.6);

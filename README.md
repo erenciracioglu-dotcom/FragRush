@@ -299,8 +299,13 @@ Three of the bots are family: **Papa Eren**, **Eray the Kid** and **Mama Aigul**
 - The first match shows a short controls card (H hides it; it appears only once).
 - No install, no downloads. The online version counts anonymous visits with
   [GoatCounter](https://www.goatcounter.com) (no cookies, no personal data); local copies don't.
-- No other network use after the page has loaded (everything, including all sound,
-  is generated in the browser).
+- **Play with a friend (new, beta):** the menu button PLAY WITH A FRIEND opens a room and gives you a link;
+  up to 3 friends join from their own browsers and fight in the same destructible arena (Arena and Meadow for now,
+  the other maps are single-player). The host's browser runs the match and the game data flows directly between
+  the browsers (WebRTC). A small room server (a Cloudflare Worker) is contacted only to introduce the browsers to each
+  other: it sees the room code, your display name and the connection details, stores nothing and relays no game data.
+  If you never press the button there is no network use after the page has loaded; everything, including all sound,
+  is generated in the browser. The CrazyGames build has no multiplayer code at all.
 
 **If the picture freezes every few seconds, update your graphics driver.** On the test laptop
 (Intel integrated graphics + RTX 5080), Intel driver 32.0.101.6629 (February 2025) froze the
@@ -466,7 +471,7 @@ tools/          benchmark scripts
 
 ## Status
 
-Proof of concept, built with Claude. Bots only, no multiplayer (yet). Water does not flow: blasting
+Proof of concept, built with Claude. Bots, plus a beta multiplayer mode (host + up to 3 friends on Arena and Meadow). Water does not flow: blasting
 a lake bank does not drain the lake, and a deep crater anywhere fills with water from the water table.
 Lava does not flow either: where it can be is fixed when the map is built, so digging under it leaves
 a standing wall of lava. Air is simplified too: it follows a precomputed field toward the holes
@@ -600,6 +605,12 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
 - **Ayarlar:** dil, fare hassasiyeti, görüş alanı, grafik kalitesi, bot sayısı (0-11, varsayılan 3, maç
   sırasında da değişir), 7 kademe bot zorluğu (Acemi'den Kâbus'a; varsayılan Acemi), ses. Botlardan üçü aile:
   Papa Eren, Eray the Kid ve Mama Aigul.
+- **Arkadaşla oyna (yeni, beta):** menüdeki ARKADAŞLA OYNA düğmesi bir oda açar ve sana bir bağlantı verir;
+  en fazla 3 arkadaşın kendi tarayıcısından girip aynı parçalanabilir arenada kapışır (şimdilik Arena ve Çayır,
+  diğer haritalar tek kişilik). Maçı ev sahibinin tarayıcısı yürütür, oyun verisi tarayıcılar arasında doğrudan
+  (WebRTC) akar. Küçük bir oda sunucusuna (Cloudflare Worker) yalnız tarayıcıları tanıştırmak için bağlanılır:
+  oda kodunu, görünen adını ve bağlantı bilgisini görür, hiçbir şey saklamaz, oyun verisini aktarmaz. Düğmeye
+  basmazsan sayfa yüklendikten sonra hiç ağ kullanımı olmaz. CrazyGames sürümünde çok oyunculu kod hiç yok.
 - **Gereksinim:** WebGL 2 destekli masaüstü tarayıcı (Chrome / Edge önerilir), fare ve klavye.
   Harici ekran kartı önerilir. **Görüntü birkaç saniyede bir donuyorsa ekran kartı sürücünü
   güncelle:** test dizüstünde Intel sürücüsü 32.0.101.6629 (Şubat 2025), oyundan bağımsız olarak
