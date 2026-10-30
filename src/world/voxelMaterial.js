@@ -54,6 +54,16 @@ P([M.SCREEN], 38);
 P([M.FOIL], 39);
 P([M.GROW], 8);
 P([M.PLANT], 16);
+// fisekhane: sandik kirmizi (60) / sari (61), fitil (62), fitil diregi (63), fici (64), depo betonu (65), uyari levhasi (66),
+// barut cuvali (67), kagit fener (68), isli tugla (69), cati tahtasi (70), havan tupu (71), kaldirim (72), ip (73)
+P([M.FW_CRATE], 60); P([M.FW_CRATE_Y], 61); P([M.FUSE], 62); P([M.FUSE_POST], 63); P([M.KEG], 64); P([M.BUNKER], 65);
+P([M.WARN], 66); P([M.POWDER], 67); P([M.LANTERN], 68); P([M.FBRICK], 69); P([M.ROOF], 70); P([M.TUBE], 71);
+P([M.COBBLE], 72); P([M.CORD], 73);
+// gok adalari: kristal (74; kesirli kisim catlak kademesi, fx/sky-islands.js yazar), kumtasi (75), ada topragi (76),
+// mermer (77), pirinc (78), bakir kubbe (79), kiremit (80), yelken bezi (81), halat (82), bulut tasi (83); cimen cayirinki
+P([M.SKY_CRYSTAL0, M.SKY_CRYSTAL1, M.SKY_CRYSTAL2, M.SKY_CRYSTAL3, M.SKY_CRYSTAL4, M.SKY_CRYSTAL5], 74);
+P([M.SKYROCK], 75); P([M.SKYSOIL], 76); P([M.MARBLE], 77); P([M.BRASS], 78); P([M.VERDIGRIS], 79);
+P([M.ROOFTILE], 80); P([M.SAIL], 81); P([M.ROPE], 82); P([M.CLOUDSTONE], 83); P([M.SKYGRASS], 13);
 
 // lav isigi haritasi yokken baglanan bos doku
 const blankTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
@@ -237,6 +247,156 @@ float vxMetal = 0.0;`)
     // kristal
     float sp = pow(h, 12.0);
     vxEmissive = base * (mp.z + sp * 0.6) * uEmissiveScale * 0.5;
+  } else if (pat > 59.5 && pat < 73.5) {
+    // fisekhane (60-73): sandiklar x/z'de 4 voxele hizali (1 m'lik yuz), levhalar 4x4 voxel panel
+    bool top = vObjNormal.y > 0.5;
+    vec2 cc = fract(t / 4.0);
+    tint = vec3(1.0);
+    var = 1.0 + (h - 0.5) * 0.08 * detail;
+    if (pat < 61.5) {
+      // fisek sandigi: kagit kapli kutu; capraz serit (ikinci renk), ustte halka + yildiz etiketi, kenarda koyu bant
+      vec3 c2 = pat < 60.5 ? vec3(0.86, 0.5, 0.02) : vec3(0.6, 0.03, 0.02);
+      if (top) {
+        vec2 d = cc - 0.5;
+        float ring = 1.0 - smoothstep(0.025, 0.06, abs(length(d) - 0.3));
+        float a = atan(d.y, d.x), rr = length(d);
+        float star = step(rr, 0.1 + 0.08 * abs(cos(a * 2.5)));
+        base = mix(base, c2, max(ring, star) * mix(0.6, 1.0, detail));
+        float rim = step(0.92, max(abs(d.x), abs(d.y)) * 2.0);
+        base *= 1.0 - rim * 0.35;
+      } else {
+        float s = step(0.66, fract((t.x + t.y) * 0.25 + 0.17));
+        base = mix(base, c2, s * mix(0.6, 0.95, detail));
+        base *= 1.0 - 0.3 * step(0.93, max(cc.x, 1.0 - cc.x)) * detail;
+      }
+      bevel = mix(1.0, bevel, 0.6);
+    } else if (pat < 62.5) {
+      // barut fitili: orgulu koyu ip, seyrek barut parltisi
+      base *= 0.8 + 0.3 * (0.5 + 0.5 * sin((t.x + t.y) * 9.0 + h * 3.0));
+      vxEmissive += vec3(1.0, 0.45, 0.1) * step(0.985, vxHash(vec3(floor(t * 3.0), cell.y))) * 0.4;
+      bevel = mix(1.0, bevel, 0.4);
+    } else if (pat < 63.5) {
+      // fitil diregi: kirmizi / beyaz bantlar (0.5 m), kirmizi bantlar hafif isikli (gecede belli olsun)
+      float wb = step(0.5, fract(q.y / 4.0));
+      base = mix(base, vec3(0.85, 0.85, 0.8), wb);
+      vxEmissive += vec3(1.0, 0.08, 0.04) * (1.0 - wb) * 0.5;
+    } else if (pat < 64.5) {
+      // barut ficisi: dikey tahta cubuklar, ust ve alt sirada demir cember
+      float stave = vxLine(t.x * 2.0, 0.05, aa * 2.0);
+      base *= (1.0 - stave * 0.4 * detail) * (0.9 + 0.2 * h);
+      float hoop = vertical > 0.5 ? step(0.82, fract(q.y / 3.0 + 0.1)) : 0.0;
+      base = mix(base, vec3(0.05, 0.05, 0.055), hoop);
+      vxMetal = mix(vxMetal, 0.8, hoop); vxRough = mix(vxRough, 0.4, hoop);
+      if (top) base *= 0.75;
+    } else if (pat < 65.5) {
+      // depo betonu: kalip tahtasi izleri (0.25 m), 2 m'lik paneller, ust yuzde yosunlu lekeler
+      float board = vxLine(t.y, 0.03, aa) * (vertical > 0.5 ? 1.0 : 0.0);
+      float seam = max(vxLine(t.x / 8.0, 0.012, aa / 8.0), vxLine(t.y / 8.0, 0.012, aa / 8.0));
+      p *= (1.0 - board * 0.18 * detail) * (1.0 - seam * 0.35 * detail);
+      if (top) base = mix(base, base * vec3(0.8, 0.95, 0.7), step(0.7, vxNoise(vWPos.xz * 0.6)) * 0.6);
+    } else if (pat < 66.5) {
+      // uyari levhasi: sari zemin, siyah cerceve, ortada kirmizi unlem
+      float frame = step(0.4, max(abs(cc.x - 0.5), abs(cc.y - 0.5)));
+      float bar = step(abs(cc.x - 0.5), 0.07) * step(0.36, cc.y) * step(cc.y, 0.82);
+      float dot2 = step(length((cc - vec2(0.5, 0.2)) * vec2(1.0, 1.2)), 0.08);
+      if (vertical > 0.5) { base = mix(base, vec3(0.6, 0.02, 0.01), max(bar, dot2)); base = mix(base, vec3(0.015), frame); }
+      bevel = 1.0;
+    } else if (pat < 67.5) {
+      // barut cuvali: kaba dokuma
+      float wv = vxLine(t.x * 4.0, 0.12, aa * 4.0) * 0.5 + vxLine(t.y * 4.0, 0.12, aa * 4.0) * 0.5;
+      base *= (0.85 + 0.2 * h) * (1.0 - wv * 0.25 * detail);
+      bevel = mix(1.0, bevel, 0.3);
+    } else if (pat < 68.5) {
+      // kagit fener: icten yanan kirmizi-turuncu kagit, yatay kaburgalar, alt ve ust kapak koyu
+      float rib = vxLine(t.y * 2.0, 0.08, aa * 2.0);
+      float fl = 0.82 + 0.18 * sin(uTime * 7.0 + h * 40.0) * sin(uTime * 3.1 + h2 * 9.0);
+      if (vertical > 0.5) vxEmissive = base * mp.z * uEmissiveScale * 0.55 * fl * (1.0 - rib * 0.7);
+      else base *= 0.25;
+      bevel = 1.0;
+    } else if (pat < 69.5) {
+      // isli tugla: tugla deseni + yukari dogru koyulasan is, kara lekeler
+      float row = floor(t.y), off = mod(row, 2.0);
+      float mortar = max(vxLine(t.y, 0.06, aa), vxLine((t.x + off) / 2.0, 0.03, aa / 2.0));
+      if (vertical < 0.5) mortar = vxLine(t.x, 0.05, aa);
+      p *= 1.0 - mortar * 0.5 * detail;
+      float soot = smoothstep(0.45, 0.85, vxNoise(vWPos.xz * 0.35 + vWPos.y * 0.25)) * 0.55;
+      base *= (1.0 - soot) * (0.85 + 0.3 * h);
+    } else if (pat < 70.5) {
+      // cati tahtasi: kaydirmali tahta siralari, yipranmis
+      float rowz = floor(t.y / 2.0);
+      float plank = vxLine(t.y / 2.0, 0.04, aa / 2.0);
+      float joint = vxLine((t.x + mod(rowz, 2.0) * 3.0) / 6.0, 0.02, aa / 6.0);
+      base *= (1.0 - max(plank, joint) * 0.45 * detail) * (0.8 + 0.35 * vxHash(vec3(rowz, floor((t.x + mod(rowz, 2.0) * 3.0) / 6.0), 3.0)));
+    } else if (pat < 71.5) {
+      // havan tupu: karton; sirayla yesil / kahve bant, beyaz kagit etiket, ustte kara agiz
+      float band = mod(floor(q.y), 2.0);
+      base = mix(base, vec3(0.2, 0.09, 0.04), band * 0.6);
+      base = mix(base, vec3(0.75, 0.72, 0.62), step(0.86, fract(q.y / 4.0)) * 0.8);
+      if (top) base = mix(base * 0.6, vec3(0.01), step(length(fract(t * 0.5) - 0.5), 0.3));
+      vxRough = 0.85;
+    } else if (pat < 72.5) {
+      // avlu kaldirimi: yarim voxellik duzensiz taslar, koyu derzler
+      vec2 sp = t * 2.0;
+      vec2 ci = floor(sp + vec2(mod(floor(sp.y), 2.0) * 0.5, 0.0));
+      vec2 fp = fract(sp + vec2(mod(floor(sp.y), 2.0) * 0.5, 0.0));
+      float gap = 1.0 - smoothstep(0.03, 0.12, min(min(fp.x, 1.0 - fp.x), min(fp.y, 1.0 - fp.y)));
+      base *= (0.75 + 0.45 * vxHash(vec3(ci, 7.0))) * (1.0 - gap * 0.6 * detail);
+      bevel = mix(1.0, bevel, 0.4);
+    } else {
+      // fener ipi: burgulu koyu ip
+      base *= 0.75 + 0.3 * (0.5 + 0.5 * sin((t.x + t.y) * 12.0));
+      bevel = 1.0;
+    }
+  } else if (pat > 73.5 && pat < 83.5) {
+    // gok adalari: kristal (74, kesirli kisim catlak kademesi), kumtasi (75), ada topragi (76), mermer (77), pirinc (78),
+    // bakir kubbe (79), kiremit (80), yelken bezi (81), halat (82), bulut tasi (83)
+    float s = vxHash(vec3(floor(t * 4.0), cell.y * 0.37 + cell.x * 0.11 + 7.0));
+    tint = vec3(1.0);
+    if (pat < 74.5) {
+      float stg = floor((pat - 73.95) * 10.0);
+      float facet = 0.7 + 0.6 * vxHash(vec3(floor(t * 0.5), cell.y * 0.21 + 3.0));
+      float cn = abs(vxNoise(t * 0.9 + cell.zx * 0.13) - 0.5);
+      float crack = stg > 0.5 ? 1.0 - smoothstep(0.0, 0.012 + 0.018 * stg, cn) : 0.0;
+      vxEmissive = base * (mp.z * facet + pow(h, 14.0) * 0.8) * uEmissiveScale * 0.55 * (1.0 - crack * 0.9);
+      base *= 1.0 - crack * 0.7;
+      vxRough = 0.08; bevel = mix(1.0, bevel, 0.6); var = 1.0;
+    } else if (pat < 75.5) {
+      // kumtasi: yatay katmanlar, alt yuz koyu
+      base *= (0.8 + 0.32 * vxHash(vec3(0.0, floor(q.y / 3.0), 11.0))) * (0.94 + 0.1 * s);
+      if (vObjNormal.y < -0.5) base *= 0.72;
+    } else if (pat < 76.5) {
+      // ada topragi: yan yuzde kok izleri
+      float root = vxLine((t.x + vxNoise(vec2(t.y * 0.4, cell.z * 0.3)) * 2.0) / 3.0, 0.05, aa / 3.0) * vertical;
+      base *= (0.82 + 0.3 * s) * (1.0 - root * 0.45 * detail);
+    } else if (pat < 77.5) {
+      // mermer: yumusak damarlar, 1 m'lik blok derzleri
+      float vein = abs(vxNoise(vWPos.xz * 1.1 + vWPos.y * 0.8) - 0.5);
+      base *= mix(0.86, 1.04, smoothstep(0.0, 0.07, vein)) * (0.97 + 0.06 * s);
+      p *= 1.0 - max(vxLine(t.x / 4.0, 0.02, aa / 4.0), vxLine(t.y / 4.0, 0.02, aa / 4.0)) * 0.22 * detail;
+      vxRough = 0.28 + 0.15 * s;
+    } else if (pat < 78.5) {
+      // pirinc
+      base *= 0.85 + 0.25 * vxNoise(vWPos.xz * 3.0 + vWPos.y);
+      vxRough = 0.22 + 0.12 * s; vxMetal = 0.95; bevel = mix(1.0, bevel, 0.5);
+    } else if (pat < 79.5) {
+      // bakir kubbe: yesil pas akintilari
+      base = mix(base, base * vec3(0.72, 0.9, 0.84), vxNoise(vec2(t.x * 0.6, t.y * 0.12)) * 0.6) * (0.92 + 0.12 * s);
+    } else if (pat < 80.5) {
+      // kiremit: bindirmeli siralar
+      float tid = vxHash(vec3(floor(t.x * 0.5 + floor(t.y) * 0.5), floor(t.y), 5.0));
+      base *= (0.86 + 0.24 * tid) * (0.8 + 0.25 * smoothstep(0.0, 0.35, fract(t.y)));
+    } else if (pat < 81.5) {
+      // yelken bezi: kirmizi seritler
+      base = mix(base, vec3(0.45, 0.06, 0.04), step(0.5, fract(t.y / 4.0)) * 0.8) * (0.94 + 0.08 * s);
+    } else if (pat < 82.5) {
+      // halat: burgu
+      base *= 0.78 + 0.32 * (0.5 + 0.5 * sin((t.x + t.y) * 6.2831));
+    } else {
+      // bulut tasi: soluk tas, yavasca nabiz atan mavi damarlar
+      float vein = 1.0 - smoothstep(0.0, 0.04, abs(vxNoise(vWPos.xz * 0.9 + vWPos.y * 1.3) - 0.5));
+      vxEmissive = vec3(0.3, 0.7, 1.0) * vein * (0.6 + 0.4 * sin(uTime * 1.4 + vWPos.x * 0.7)) * mp.z * uEmissiveScale;
+      base *= 0.92 + 0.12 * s;
+    }
   } else if (pat > 31.5) {
     // ay ussu: regolit (32), ay kayasi (33), kubbe cami opak (34), govde paneli (35), gunes paneli (36),
     // kopuk yama (37), ekran (38), altin folyo (39)

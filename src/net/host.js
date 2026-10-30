@@ -9,7 +9,7 @@ import { fire } from '../game/combat.js';
 import { NameTags, RateMeter } from './netui.js';
 
 const FX_NAMES = { i: 'impact', t: 'tracer', r: 'rail', m: 'muzzle', h: 'robotHit' };
-const SNAP_DT = 1 / 30, VOX_DT = 1 / 15, MAX_CMD_DT = 0.05, VOX_CHUNKS_PER_FLUSH = 24;
+const SNAP_DT = 1 / 30, VOX_DT = 1 / 15, MAX_CMD_DT = 0.05, VOX_CHUNKS_PER_FLUSH = 24, MAPST_DT = 0.1;
 const GUEST_COLORS = [0x40d0ff, 0xffe040, 0xff60a0];
 const _e = new THREE.Vector3(), _d = new THREE.Vector3(), _m = new THREE.Vector3(), _p = new THREE.Vector3();
 
@@ -22,6 +22,7 @@ export class HostSession {
     this.hist = new Map();      // aktor -> [{t,x,y,z}]  (gecikme telafisi icin ~0.6 sn)
     this.stats = { snapBytes: 0, voxBytes: 0, voxMsgs: 0, inputs: 0, fires: 0, kills: 0 };
     this.hashPending = new Set(); this.hashT = 0;
+    this.mapT = 0; this.mapSig = new Map();     // harita sistemlerinin son gonderilen durumu (P.MAP_NET_SYSTEMS)
     this.fxQ = []; this.curShooter = -1; this.projId = 0; this.bodyId = 0; this.connT = 0;
     this.tags = new NameTags(); this.meter = new RateMeter();
     this.onChange = null;       // arayuz: oyuncu listesi degisti
@@ -59,7 +60,7 @@ export class HostSession {
     w.enableNetDirty(); w.netDirty.length = 0; w.netChunkDirty.fill(0);
     this.shadow = new VoxelShadow(w);
     this.baseHash = worldHashes(w);
-    this.hist.clear(); this.itemSig = ''; this.hashPending.clear();
+    this.hist.clear(); this.itemSig = ''; this.hashPending.clear(); this.mapSig.clear();
     for (const gu of this.guests.values()) {
       gu.ready = false; gu.synced = true;
       this.sendJson(gu, { t: 'newmap', map: g.mapId, seed: g.seed, items: this.itemString(), roster: this.roster(), you: gu.id, matchTime: g.matchTime });
@@ -144,6 +145,7 @@ export class HostSession {
     if (!g.player.alive) { g.player.frags = 0; g.player.deaths = 0; g.player.spawn(game.pickSpawn(g.player)); }
     g.inputQ.length = 0;       // lastSeq sifirlanmaz: konugun komut numaralari arena degisiminde de artarak devam eder
     this.rosterSig = '';   // liste degisti: hemen yolla
+    this.sendMapStates(g);   // harita sistemlerinin tam durumu (gec katilan / yeni harita)
     if (this.onChange) this.onChange();
   }
 
@@ -168,6 +170,8 @@ export class HostSession {
     if (this.voxT >= VOX_DT && game.world.netDirty.length) { this.voxT = 0; this.flushVoxels(); }
     this.hashT += dt;
     if (this.hashT >= 2 && this.hashPending.size) { this.hashT = 0; this.sendHashes(); }
+    this.mapT += dt;
+    if (this.mapT >= MAPST_DT) { this.mapT = 0; this.sendMapStates(null); }
     this.rosterT += dt;
     if (this.rosterT >= 0.5) {
       this.rosterT = 0;
@@ -290,6 +294,24 @@ export class HostSession {
     }
     return () => { for (const [pos, x, y, z] of saved) pos.set(x, y, z); };
   }
+
+  // ---- harita sistemleri (P.MAP_NET_SYSTEMS): durum degisince ~10 Hz 'mst', katilan konuga hemen tam durum; olaylar 'mev' ----
+  sendMapStates(target) {
+    if (!this.guests.size) { this.mapSig.clear(); return; }
+    const game = this.game;
+    for (const name of P.MAP_NET_SYSTEMS) {
+      const s = game[name];
+      if (!s || !s.active || typeof s.netState !== 'function') continue;
+      const v = s.netState();
+      if (v === undefined || v === null) continue;
+      if (target) { if (target.ready) this.sendJson(target, { t: 'mst', s: name, v }); this.mapSig.delete(name); continue; }
+      const js = JSON.stringify(v);
+      if (this.mapSig.get(name) === js) continue;
+      this.mapSig.set(name, js);
+      this.broadcast({ t: 'mst', s: name, v });
+    }
+  }
+  mapEvent(sys, ev) { if (this.guests.size) this.broadcast({ t: 'mev', s: sys, e: ev }); }
 
   // ---- Game kancalari (hasar / olum / esya): konuga kisisel olay, herkese olum akisi ----
   onDamage(victim, attacker, dmg, dir, head) {

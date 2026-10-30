@@ -13,6 +13,8 @@ import { LavaSystem, VOLCANO_ENV, VOLCANO_HILLS, createVolcanoSky, createVolcano
 import { IceSystem, FROZEN_SKY, FROZEN_WATER, FROZEN_ENV, FROZEN_HILLS } from '../fx/ice.js';
 import { MoonSystem, MOON_ENV, MOON_HILLS, createMoonSky, createMoonEnvironment, moonDirs } from '../fx/moon.js';
 import { ToySystem, TOY_ENV, createToySky, createToyEnvironment, toyDirs } from '../fx/toyroom.js';
+import { FireworksSystem, FW_ENV, FW_HILLS, createFwSky, createFwEnvironment, fwDirs } from '../fx/fireworks.js';
+import { SkySystem } from '../fx/sky-islands.js';
 import { PostFX, QUALITY } from '../fx/post.js';
 import { Effects } from '../fx/effects.js';
 import { Destruction } from './destruction.js';
@@ -25,11 +27,11 @@ import { Items, ITEM_TYPES } from './items.js';
 import { NavGrid } from './nav.js';
 import { padLaunchVelocity } from './mover.js';
 import { WEAPONS } from './weapons.js';
+import { KILL_IDS, SELF_FEED, KILLER_MSG } from './killnames.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 
-const KILL_IDS = new Set(['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava', 'cold', 'icicle', 'spaced', 'domino']);
 // lava dusen biri son bu kadar saniye icinde vurulduysa (itildiyse) parcalama vurana yazilir
 const LAVA_PUSH_CREDIT = 4;
 // statik nokta isiklari her haritada bu kadar (sayi degisirse tum malzemeler yeniden derlenir)
@@ -122,6 +124,11 @@ export class Game {
     // oyuncak odasi: pencereden gorunen gunduz goku (yalniz camin ardinda gorunur)
     this.toySky = createToySky();
     scene.add(this.toySky.mesh);
+    // fisekhane: lacivert gece goku (yildizlar, ay, sehir isimasi, uzak fisekler) ve koyu uzak tepeler
+    this.fwSky = createFwSky();
+    scene.add(this.fwSky.mesh);
+    this.fwHills = createHills(center, FW_HILLS);
+    scene.add(this.fwHills);
 
     mk('setup');
     this.world = new VoxelWorld(WORLD.X, WORLD.Y, WORLD.Z);
@@ -146,6 +153,8 @@ export class Game {
     this.iceSys = new IceSystem(this);
     this.moonSys = new MoonSystem(this);
     this.toySys = new ToySystem(this);
+    this.fwSys = new FireworksSystem(this);
+    this.skySys = new SkySystem(this);
     this.fx.debris.onLava = this.fx.glowDebris.onLava = (x, y, z) => {
       if (Math.random() < 0.25) this.fx.add.emit(x, y + 0.05, z, 0, 1.5, 0, 0.5, 0.05, 0.02, [5, 1.2, 0.15, 1], [1, 0.1, 0, 0], 2, 0.5, 0.01);
     };
@@ -248,6 +257,10 @@ export class Game {
     if (this.arena.env === 'moon') this.moonSys.setup(this.arena); else this.moonSys.disable();
     // oyuncak odasi: domino zinciri (sanal kati hucreler gezinme agindan once), blok kule, pencere isigi, dekor
     if (this.arena.env === 'toyroom') this.toySys.setup(this.arena); else this.toySys.disable();
+    // fisekhane: fisek sandiklari, barut fitilleri, depolar (kurallar yetkili makinede; konuk olaylardan cizer)
+    if (this.arena.env === 'fireworks') this.fwSys.setup(this.arena); else this.fwSys.disable();
+    // gok adalari: kristale bagli adalar, bulut denizi, gok ve ortam (applyEnvironment'in varsayilan dalinin ustune)
+    if (this.arena.env === 'sky') this.skySys.setup(this.arena); else this.skySys.disable();
     // mesh
     const total = this.chunks.n;
     this.chunks.allocPerFrame = Infinity;
@@ -305,9 +318,12 @@ export class Game {
     const frozen = arena.env === 'frozen';
     const moon = arena.env === 'moon';
     const toy = arena.env === 'toyroom';
+    const fw = arena.env === 'fireworks';
     this.moonSky.mesh.visible = false;
     this.moonHills.visible = false;
     this.toySky.mesh.visible = false;
+    this.fwSky.mesh.visible = false;
+    this.fwHills.visible = false;
     this.volcanoSky.mesh.visible = false;
     this.volcanoHills.visible = false;
     this.frozenHills.visible = false;
@@ -423,6 +439,25 @@ export class Game {
       this.hemi.groundColor.set(TOY_ENV.hemiGround);
       this.hemi.intensity = TOY_ENV.hemi;
       this.hills.visible = false;
+    } else if (fw) {
+      // fisekhane: lacivert gece; ay isigi (soguk, golgeli), ufukta sehir isimasi; fenerler ve patlamalar aydinlatir
+      ws.disable();
+      if (!this._fwEnv) this._fwEnv = createFwEnvironment(this.renderer);
+      scene.background = null;
+      scene.environment = this._fwEnv;
+      scene.environmentIntensity = FW_ENV.envIntensity;
+      this.sky.mesh.visible = false;
+      this.fwSky.mesh.visible = true;
+      this.sunDir.copy(fwDirs().moon);
+      this.sun.color.set(FW_ENV.moon);
+      this.sun.intensity = FW_ENV.moonIntensity;
+      scene.fog.color.set(FW_ENV.fog);
+      scene.fog.density = FW_ENV.fogDensity;
+      this.hemi.color.set(FW_ENV.hemiSky);
+      this.hemi.groundColor.set(FW_ENV.hemiGround);
+      this.hemi.intensity = FW_ENV.hemi;
+      this.hills.visible = false;
+      this.fwHills.visible = true;
     } else {
       ws.disable();
       scene.background = null;
@@ -496,6 +531,8 @@ export class Game {
     this.projectiles.clear();
     if (this.items) this.items.reset();
     if (this.toySys.active) this.toySys.matchReset();
+    if (this.fwSys.active) this.fwSys.matchReset();
+    if (this.skySys.active) this.skySys.matchReset();
     const rem = this.net && this.net.role === 'host' ? this.net.remotes() : [];
     this.actors = withPlayer ? [this.player, ...this.bots, ...rem] : [...this.bots, ...rem];
     for (const a of [this.player, ...this.bots, ...rem]) { a.frags = 0; a.deaths = 0; a.alive = false; }
@@ -612,7 +649,7 @@ export class Game {
     }
     if (hud) {
       const involves = victim.isPlayer || (killer && killer.isPlayer);
-      const selfFeed = { crush: 'crushedFeed', drown: 'drownedFeed', lava: 'lavaFeed', cold: 'coldFeed', icicle: 'icicleFeed', spaced: 'spacedFeed', domino: 'dominoFeed' }[weaponId];
+      const selfFeed = SELF_FEED[weaponId];
       if (!killer || killer === victim) hud.feed(null, victim, t(selfFeed || 'blewUp'), involves);
       else hud.feed(killer, victim, label, involves);
     }
@@ -625,12 +662,8 @@ export class Game {
         hud.hitmarker('kill');
         const msgs = { 2: t('multi2'), 3: t('multi3'), 4: t('multi4'), 5: t('multi5') };
         if (mk.n >= 2) hud.centerMsg(msgs[Math.min(5, mk.n)], 2.0);
-        else if (weaponId === 'crush') hud.centerMsg(t('buried'), 1.8);
-        else if (weaponId === 'lava') hud.centerMsg(t('lavaKill'), 1.8);
-        else if (weaponId === 'cold' || (weaponId === 'drown' && this.iceSys.active)) hud.centerMsg(t('iceKill'), 1.8);
-        else if (weaponId === 'icicle') hud.centerMsg(t('icicleKill'), 1.8);
-        else if (weaponId === 'spaced') hud.centerMsg(t('spacedKill'), 1.8);
-        else if (weaponId === 'domino') hud.centerMsg(t('dominoKill'), 1.8);
+        else if (weaponId === 'drown' && this.iceSys.active) hud.centerMsg(t('iceKill'), 1.8);
+        else if (KILLER_MSG[weaponId]) hud.centerMsg(t(KILLER_MSG[weaponId]), 1.8);
         else if (head) hud.centerMsg(t('headshot'), 1.4);
         else hud.centerMsg(t('fragged'), 1.2);
         const st = killer.streak;
@@ -677,6 +710,10 @@ export class Game {
 
   // ortam olumu (bogulma, buz gibi su) kime yazilir: buz golunde buzu kirip suya dusuren (fx/ice.js)
   envCredit(a) { return this.iceSys.active ? this.iceSys.credit(a) : null; }
+
+  // harita sisteminin ag olayi (yeni haritalar; sistem adlari net/protocol.js MAP_NET_SYSTEMS: fwSys, skySys). Ev sahibinde
+  // hazir konuklara gider ve konukta o sistemin onNetEvent(ev)'i calisir. Tek kisilikte ve konukta bir sey yapmaz.
+  netEmit(sys, ev) { if (this.net && this.net.role === 'host') this.net.mapEvent(sys, ev); }
 
   // kardan adamin icindeki esya ortaya cikti: yakindaki oyuncuya haber
   onCacheReveal(it) {
@@ -788,6 +825,7 @@ export class Game {
           if (this.iceSys.active) { this.iceSys.actorTick(a, dt); if (!a.alive) continue; }
           if (this.moonSys.active) { this.moonSys.actorTick(a, dt); if (!a.alive) continue; }
           if (this.toySys.active) this.toySys.actorTick(a);
+          if (this.skySys.active) { this.skySys.actorTick(a); if (!a.alive) continue; }
           if (a.mover.pos.y < -4) a.takeDamage(999, null, 'world', null, false);
         } else {
           a.respawnTimer -= dt;
@@ -841,6 +879,11 @@ export class Game {
       this.toySky.uniforms.uTime.value = this.time;
       this.toySys.update(paused ? 0 : dt, this.camera);
     }
+    if (this.fwSys.active) {
+      this.fwSky.uniforms.uTime.value = this.time;
+      this.fwSys.update(paused ? 0 : dt, this.camera);
+    }
+    if (this.skySys.active) this.skySys.update(paused ? 0 : dt, this.camera);
     // nisangahtaki hedef (ad etiketi icin)
     this.aimTarget = null;
     if (st === 'playing' && this.player.alive && (this.frame & 3) === 0) {
@@ -958,7 +1001,7 @@ export class Game {
     const c = this.center;
     // yuksekten genis yorunge: catilarin (11.5 m) ve antenin ustunde, tum arena gorunsun
     // (cayirda buyuk mesenin tacindan disarida, golu ve dereyi gorecek kadar genis)
-    const O = this.mapId === 'toyroom' ? { r: 26, y: 15, ty: 6, tr: 8 } : this.mapId === 'moon' ? { r: 31, y: 17, ty: 6, tr: 8 } : this.mapId === 'frozen' ? { r: 30, y: 19, ty: 9, tr: 8 } : this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
+    const O = this.mapId === 'sky' ? { r: 37, y: 19, ty: 9, tr: 5 } : this.mapId === 'toyroom' ? { r: 26, y: 15, ty: 6, tr: 8 } : this.mapId === 'fireworks' ? { r: 30, y: 20, ty: 6, tr: 8 } : this.mapId === 'moon' ? { r: 31, y: 17, ty: 6, tr: 8 } : this.mapId === 'frozen' ? { r: 30, y: 19, ty: 9, tr: 8 } : this.mapId === 'meadow' || this.mapId === 'volcano' ? { r: 31, y: 20, ty: 7, tr: 9 } : { r: 25, y: 19, ty: 2.5, tr: 4 };
     const r = O.r + Math.sin(a.t * 0.11) * 2;
     this.camera.position.set(c.x + Math.cos(t) * r, O.y + Math.sin(a.t * 0.07) * 1.5, c.z + Math.sin(t) * r);
     _v.set(c.x + Math.cos(t + 0.6) * O.tr, O.ty, c.z + Math.sin(t + 0.6) * O.tr);
@@ -971,6 +1014,7 @@ export class Game {
     this.volcanoSky.mesh.position.copy(this.camera.position);
     this.moonSky.mesh.position.copy(this.camera.position);
     this.toySky.mesh.position.copy(this.camera.position);
+    this.fwSky.mesh.position.copy(this.camera.position);
     this.renderer.info.reset();
     this.post.render(dt);
   }

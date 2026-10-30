@@ -155,6 +155,12 @@ export class Destruction {
     // oyuncak odasi: dominolar sanal kati hucre (voxel hasari almaz); mermi ya da patlama dokununca devrilir
     const toy = this.game.toySys;
     if (toy && toy.active) toy.onBlast(x, y, z, radius, source, power);
+    // fisekhane: mermi sandiga hasar verir / kirmizi direk fitili yakar; patlama yakindaki sandiklari tutusturur
+    const fw = this.game.fwSys;
+    if (fw && fw.active) fw.onBlast(x, y, z, radius, source, power);
+    // gok adalari: kristale yakin patlama / mermi kristalin canindan duser (fx/sky-islands.js)
+    const sky = this.game.skySys;
+    if (sky && sky.active) sky.onBlast(x, y, z, radius, power, source);
     return n;
   }
 

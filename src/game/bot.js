@@ -7,6 +7,7 @@ import { WEAPONS } from './weapons.js';
 import { fire } from './combat.js';
 import { EDGE_JUMP, EDGE_PAD } from './nav.js';
 import { TRANSPARENT, M } from '../world/materials.js';
+import { skyThink, skySteer, skyFire, skyWeapon, voidAhead, skyPre, skyPost, skyEdge } from './skybot.js';
 
 // speed: kosu hizi carpani, head: rayli tufekle kafaya nisan.
 // Eren'in geri bildirimi: eski "Caylak" ona gore zor/cok zor -> eski 4 seviye aynen korunup yukari kaydirildi,
@@ -109,7 +110,10 @@ export class Bot extends Actor {
     if (this.thinkT <= 0) { this.thinkT = 0.09 + Math.random() * 0.05; this.think(); }
     this.steer(dt);
     this.aim(dt);
+    const skyOn = this.game.skySys.active;
+    if (skyOn) skyPre(this);
     this.mover.simulate(dt, this.cmd);
+    if (skyOn) skyPost(this);
     this.weapons.update(dt);
     this.tryFire(dt);
     const m = this.mover;
@@ -192,6 +196,10 @@ export class Bot extends Actor {
     }
     if (this.breachT > 0) this.breachT -= 0.1;
     this._toyThink(now);
+    // fisekhane: rakip bir fisek sandiginin dibindeyse sandiga nisan (fx/fireworks.js botThink -> this.mapAim)
+    if (this.game.fwSys && this.game.fwSys.active) this.game.fwSys.botThink(this, now);
+    // gok adalari: tahliye ve kristal saldirisi (game/skybot.js)
+    if (game.skySys.active) skyThink(this, now);
     this.chooseWeapon();
     this.planMovement();
   }
@@ -257,13 +265,15 @@ export class Bot extends Actor {
   }
 
   chooseWeapon() {
-    if (this.switchCd > 0 && this.dominoT <= 0) return;
+    if (this.switchCd > 0 && this.dominoT <= 0 && !this.mapAim && !(this.skyT > 0)) return;
     const ws = this.weapons;
     const has = (i) => ws.ammo[i] > 0;
     const d = this.targetDist();
     let pick = ws.current;
     const glass = this.mode === 'engage' && this.target && this.memory(this.target).glass;
-    if (this.dominoT > 0) pick = has(0) ? 0 : has(4) ? 4 : has(1) ? 1 : ws.bestAvailable();
+    if (this.mapAim && has(this.mapAim.w)) pick = this.mapAim.w;
+    if (this.skyT > 0) pick = skyWeapon(ws);
+    else if (this.dominoT > 0) pick = has(0) ? 0 : has(4) ? 4 : has(1) ? 1 : ws.bestAvailable();
     else if (this.breachT > 0) pick = has(3) && d > 5 ? 3 : has(4) ? 4 : has(2) ? 2 : 0;
     // camin ardindaki rakip: kubbeyi delecek agir silah (roket paneli patlatir, icerdekiler emilir)
     else if (glass) pick = has(3) && d > 5 ? 3 : has(2) ? 2 : has(4) ? 4 : ws.bestAvailable();
@@ -420,6 +430,12 @@ export class Bot extends Actor {
         if (e) { mx = e[0]; mz = e[1]; jump = false; dash = m.onGround && Math.random() < (0.15 + sk.dodge) * dt * 3; this.detourT = 0; }
       } else if ((mx || mz) && ts.dangerAt(p.x + mx * 1.8, p.z + mz * 1.8, p.y)) { mx = 0; mz = 0; jump = false; dash = false; }
     }
+    // fisekhane: yanan fitilin deposundan / tutusmus sandiktan kac, tehlikeye yurume, rakip yakinken sandik dibinde durma
+    const fws = this.game.fwSys;
+    if (fws && fws.active) {
+      const e = fws.botSteer(this, mx, mz);
+      if (e) { mx = e[0]; mz = e[1]; if (e[2]) { jump = false; dash = m.onGround && Math.random() < (0.15 + sk.dodge) * dt * 3; this.detourT = 0; } }
+    }
     // lav korumasi: yalniz istenen yona degil, govdenin hizina da bakar (9.6 m/s'de kayma ~1 m; kiyi
     // egiminden asagi kosan bot havalanip lava ucuyordu). Zemin izlenir: basamak, inis, ucurumdan dusus.
     //  - hiz lava goturuyorsa fren: hizin tersine iste (yerde ~200 m/s2, havada ~17 m/s2)
@@ -468,6 +484,8 @@ export class Bot extends Actor {
         if (this._trajLava(p.x, p.y, p.z, dx / l * sp, vy0, dz / l * sp, 1.2)) dash = false;
       }
     }
+    // gok adalari: bosluk korumasi ve tahliye (game/skybot.js)
+    if (this.game.skySys.active) { const o = skySteer(this, dt, mx, mz, jump, dash); mx = o.mx; mz = o.mz; jump = o.jump; dash = o.dash; }
     // yuze gore ileri/yan
     const fy = this.yaw;
     const fx = -Math.sin(fy), fz = -Math.cos(fy), rx = Math.cos(fy), rz = -Math.sin(fy);
@@ -488,6 +506,8 @@ export class Bot extends Actor {
     if (w.solidAtWorld(ax, p.y + 0.8, az) || w.solidAtWorld(ax, p.y + 1.5, az)) return true;
     // lava dogru yurume
     if (this.game.lavaSys.active && this._runLava(p.x, p.y, p.z, mx / l, mz / l, 1.3, MOVE.runSpeed * this.mover.speedMul * 0.6)) return true;
+    // gok adalari: bosluga dogru yurume
+    if (this.game.skySys.active && voidAhead(this, mx / l, mz / l)) return true;
     // derin suya bilerek girme (yuzerken ates edemez, bogulabilir)
     if (w.waterY > -1e9 && !this.mover.swimming) {
       const bx = p.x + mx / l * 1.3, bz = p.z + mz / l * 1.3;
@@ -577,7 +597,13 @@ export class Bot extends Actor {
     const sk = this.skill, p = this.mover.pos;
     this.eye(_eye);
     let tx, ty, tz, has = false, precise = false;
-    if (this.dominoT > 0 && this.dominoAt) {
+    if (this.mapAim) {
+      // harita nesnesi (fisekhane: rakibin dibindeki fisek sandigi)
+      tx = this.mapAim.x; ty = this.mapAim.y; tz = this.mapAim.z; has = true; precise = true;
+    } else if (this.skyT > 0 && this.skyAt) {
+      // gok adalari: kristale nisan (game/skybot.js)
+      tx = this.skyAt.x; ty = this.skyAt.y; tz = this.skyAt.z; has = true; precise = true;
+    } else if (this.dominoT > 0 && this.dominoAt) {
       // zincirin ilk dominosu (ortasindan biraz asagi: devrilme kolu uzun)
       tx = this.dominoAt.x; ty = this.dominoAt.y - 0.2; tz = this.dominoAt.z; has = true; precise = true;
     } else if (this.mode === 'engage' && this.target) {
@@ -644,6 +670,13 @@ export class Bot extends Actor {
     if (this.stuckBlast) {
       if (ws.current !== 2) { if (ws.pending < 0) ws.select(2); return; }
       ok = true; this.stuckBlast = false; this.stuckT = 1.0;
+    } else if (this.mapAim) {
+      // harita nesnesine (fisek sandigi) atis: tutustu ya da sure doldu -> birak
+      const ma = this.mapAim;
+      if (game.time > ma.until || !ma.ok()) { this.mapAim = null; return; }
+      if (this.reactT > 0) { this.reactT -= dt; return; }
+      if (this.aimDelta > ma.cone || ws.pending >= 0 || ws.current !== ma.w) return;
+      ok = true;
     } else if (this.dominoT > 0 && this.dominoAt) {
       // zincir basladiysa birak (ucan mermi obur dominolari devirmesin); anlik isabetli silah varsa mermi atma
       const ts = this.game.toySys;
@@ -655,12 +688,15 @@ export class Bot extends Actor {
       if (this.aimDelta > 0.045 || ws.pending >= 0) return;
       if (W.type === 'projectile' && (ws.ammo[0] > 0 || ws.ammo[4] > 0 || ws.ammo[1] > 0)) return;
       ok = true;
+    } else if (this.skyT > 0 && this.skyAt) {
+      if (!skyFire(this, dt)) return;
+      ok = true;
     } else if (this.mode === 'engage' && this.target) {
       if (this.reactT > 0) { this.reactT -= dt; return; }
       const cone = this.skill.cone * (W.id === 'rail' ? 0.45 : W.id === 'shotgun' ? 1.6 : 1);
       if (this.aimDelta > cone + 0.02) return;
       // patlama: dibimize atma
-      if (W.id === 'rocket' && this.targetDist() < 3.5) return;
+      if (W.id === 'rocket' && (this.targetDist() < 3.5 || (this.game.skySys.active && this.targetDist() < 7 && skyEdge(this)))) return;
       // ara ara atesi kes (insan gibi)
       this.burstT -= dt;
       if (this.pauseT > 0) { this.pauseT -= dt; return; }
@@ -675,7 +711,9 @@ export class Bot extends Actor {
     this.eye(_eye);
     this.aimDir(_dir);
     // kendi dibine roket atma
-    if (W.id === 'rocket' && game.world.raycast(_eye.x, _eye.y, _eye.z, _dir.x, _dir.y, _dir.z, 2.6, _hit)) return;
+    if (W.id === 'rocket' && game.world.raycast(_eye.x, _eye.y, _eye.z, _dir.x, _dir.y, _dir.z, game.skySys.active && skyEdge(this) ? 5.5 : 2.6, _hit)) return;
+    // fisekhane: atis kendi dibindeki sandigi / kumeyi tutusturacaksa atma
+    if (game.fwSys && game.fwSys.active && game.fwSys.shotUnsafe(this, _eye, _dir, W)) return;
     // atis efektleri modelin namlu ucundan; model gizliyse (birinci sahis izleme) gozun onunden
     const m = this.mover;
     if (this.model.root.visible) this.model.muzzle(_muz, m.pos.x, m.pos.y - m.stepSmooth, m.pos.z, this.yaw, this.pitch);

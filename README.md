@@ -3,8 +3,9 @@
 **A fast, fully destructible arena shooter that runs in your browser.**
 Jump in, no accounts, no setup: fight bots in a neon-lit voxel arena, a sunny meadow of
 treehouses, a creek and a lake, a dark volcanic valley cut by a creek of lava, a snowy valley
-around a frozen lake with an ice castle, a moon base of glass domes in low gravity, or a giant kid's
-room where you are a tiny robot. Almost every wall, tree and bridge can be blown apart, and whatever
+around a frozen lake with an ice castle, a moon base of glass domes in low gravity, a giant kid's room
+where you are a tiny robot, an abandoned fireworks factory at night, or islands floating above a sea
+of clouds. Almost every wall, tree and bridge can be blown apart, and whatever
 collapses buries whoever stands below.
 
 **▶ Play now: https://erenciracioglu-dotcom.github.io/FragRush/**
@@ -44,9 +45,10 @@ Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to 
 ## Maps
 
 Pick the map on the main menu: **MEADOW**, **VOLCANO**, **FROZEN LAKE**, **MOON BASE**, **TOY ROOM**,
-**ARENA** or **ROTATE** (the default; changes after every match: toy room, volcano, moon base, frozen
-lake, arena, meadow, ...). *NEW ARENA* rebuilds the chosen map with a new layout seed. URL override for testing:
-`?map=meadow`, `?map=volcano`, `?map=frozen`, `?map=moon`, `?map=toyroom` or `?map=arena`.
+**FIREWORKS**, **SKY ISLANDS**, **ARENA** or **ROTATE** (the default; changes after every match: toy
+room, fireworks factory, sky islands, volcano, moon base, frozen lake, arena, meadow, ...). *NEW ARENA*
+rebuilds the chosen map with a new layout seed. URL override for testing: `?map=meadow`,
+`?map=volcano`, `?map=frozen`, `?map=moon`, `?map=toyroom`, `?map=fireworks`, `?map=sky` or `?map=arena`.
 
 - **Arena**: the original neon sunset arena: central tower, four forts, bridges, corner yards.
 - **Meadow**: a sunny afternoon in a valley ringed by cliffs. A great oak in the middle carries a
@@ -135,6 +137,37 @@ lake, arena, meadow, ...). *NEW ARENA* rebuilds the chosen map with a new layout
 | ![Toy Room](media/toyroom.jpg) | ![Domino line](media/toyroom_dominoes.jpg) |
 | ![The tower falls](media/toyroom_tower.jpg) | ![Bed trampoline](media/toyroom_bed.jpg) |
 | ![Bookshelf and wardrobe](media/toyroom_shelf.jpg) | ![Castle, tower and race track](media/toyroom_south.jpg) |
+
+- **Fireworks**: an abandoned fireworks factory at night, under a navy sky with stars, a moon and a
+  city glow on the horizon; now and then a show bursts far away beyond the hills. In the middle stands
+  a 16.5 m brick and steel firework tower, wrapped one and a half times by a steel staircase, with a
+  test-firing platform, mortar tubes and the Doomsday Orb on top. Brick workshops line three sides
+  (wooden roofs, windows, workbenches and crate racks inside), two low concrete powder stores sit in
+  opposite corners (thick doors, warning signs, powder kegs), and the yard is full of firework crates
+  stacked on pallets, hand carts, a loading ramp, a water tower and chains of paper lanterns strung
+  around the tower. Steel catwalks link the roofs to the tower stairs, and three jump pads throw you to
+  the middle of the tower and onto two workshop roofs. Three powder fuses run from red posts to the
+  stores; one climbs a shed wall and comes down its roof.
+
+| | |
+|---|---|
+| ![Fireworks factory](media/fireworks.jpg) | ![A chain goes up](media/fireworks_chain.jpg) |
+| ![Shells over the yard](media/fireworks_sky.jpg) | ![A burning fuse](media/fireworks_fuse.jpg) |
+| ![A powder store blows](media/fireworks_depot.jpg) | ![The firework tower](media/fireworks_tower.jpg) |
+
+- **Sky Islands**: islands floating above a sea of clouds at sunset. In the middle, the main island
+  with an observatory and a lookout tower; the Doomsday Orb waits on top of the tower. Around it, five
+  smaller islands: a garden with a pond whose waterfall pours into the clouds (north), a windmill
+  (east), a village house (south), ruins of columns (west) and a crystal quarry (northeast). Three
+  rope bridges and a stone arch link the main island to its neighbours, floating cloud stones serve as
+  stepping stones, and jump pads fly you from island to island. Every island hangs from a glowing
+  crystal underneath it: break the crystal and the island drops into the clouds.
+
+| | |
+|---|---|
+| ![Sky Islands](media/sky.jpg) | ![An island drops](media/sky_drop.jpg) |
+| ![The crystal under an island](media/sky_crystal.jpg) | ![Rising out of the clouds](media/sky_rise.jpg) |
+| ![The garden island](media/sky_garden.jpg) | ![The lookout tower](media/sky_tower.jpg) |
 
 ### Water (meadow)
 
@@ -256,6 +289,65 @@ there is none.
 - The wall clock ticks (real time), birds chirp outside, a music box plays as the match starts,
   rubber toys squeak, the blocks and dominoes clatter (all synthesized).
 
+### Fireworks (fireworks factory)
+
+- **Firework crates**: a crate catches fire when the hits on it add up (two pulse rounds do it) or
+  when something blows up next to it. It fizzes for a moment, then explodes (100 damage at the centre,
+  3.5 m), and the crates around it catch fire one after another, so a stack goes up in a rolling wave.
+  Every explosion throws three to six shells into the sky that burst 8–15 m up as peonies,
+  chrysanthemums or willows; about one in three is a dud that falls back, blows up where it lands and
+  can light another crate.
+- **Fuses**: shoot a red post (or the start of its fuse), or blast next to it, and a spark runs along
+  the powder fuse at 2.5 m/s, burning it away as it goes. Shoot the fuse ahead of the spark to cut it:
+  the spark dies at the gap. At the end of the fuse the powder store fizzes for a second and then goes
+  up in the biggest blast on the map (7.5 m).
+- **CHAIN!**: every frag of a chain (crates, shells, duds, fuses and stores alike) is credited to
+  whoever started it, with CHAIN! / CHAIN x2! in place of the usual multi-kill message. Die in your
+  own chain and it counts as a **self frag (−1)**.
+- **Restock**: crates come back 40–60 seconds after they blow up (not while someone stands in their
+  place), fuses and stores after 75–90 seconds, and every match starts fully stocked. Nothing comes
+  back floating: the crater under a returning crate (and up to 1 m around it), fuse or red post is
+  first filled back in with the original ground, and a crate whose roof has been blown away stays
+  gone.
+- Bots use the yard: when an enemy stands next to a crate a bot can see, it shoots the crate, and it
+  doesn't fire at a crate (or a stack) it is standing next to.
+- Distant shows thump beyond the hills, crates fizz and bang, shells whistle and crackle (all
+  synthesized).
+
+### Islands (sky islands)
+
+- **Crystals**: every island floats on a glowing crystal hanging underneath it (the small islands
+  take 900 damage, the main island 1800). Hits and blasts near a crystal wear it down; at 75 %, 50 %
+  and 25 % it cracks further, its light flickers, its cracking sound rises in pitch and the island
+  shakes.
+- **Island drop**: when the crystal breaks, the island shakes hard and creaks for 2.5 seconds (the
+  time to get off), then drops into the clouds in one piece with everyone still on it.
+- **Clouds**: fall below the clouds and you die. Whoever goes down with an island is credited to the
+  player who broke its crystal (**ISLAND DROP!**); whoever falls within 4 seconds of being hit by an
+  enemy is credited to that enemy (**INTO THE CLOUDS!**). Fall on your own, or drop the island you are
+  standing on, and it counts as a **self frag (−1)**.
+- **Return**: about 45 seconds later the island rises out of the clouds in 4 seconds and is written
+  back exactly as it was built: crystal at full strength, bridges repaired, items back. Anyone in its
+  way is pushed up.
+- **Regrowth**: an island that is still up heals itself. Two seconds after a blast the hole starts
+  filling in from its edges, layer by layer, with the original rock, grass and buildings: a rocket
+  hole is gone 3–4 seconds after the blast, a Doomsday crater within about 15 seconds, and even an
+  island blasted almost to nothing grows back from its core in under 20 seconds as long as its
+  crystal holds. Anyone standing in a filling hole is lifted out, never buried. The stepping stones
+  heal the same way.
+- **Doomsday** rockets carve only twice as wide as a rocket here (5 m instead of 12.5 m): the big
+  crater wiped out a whole island in one shot. Their kill radius is unchanged.
+- Jump pads to a dropped island are off until it is back, and so is a pad whose landing spot has
+  been blown away. You only respawn on islands that are up and not about to drop, and never over a
+  hole.
+- Bots treat the edges like lava: they don't run, jump or dash where they would land in the clouds,
+  don't fire rockets at close range near an edge, get off an island whose crystal is breaking, and,
+  when they can see it from another island, shoot the crystal of the island their enemies stand on
+  if it is weak or they carry a rocket launcher or a railgun. In test matches about one bot per match
+  fell on its own.
+- Crystals crack and shatter, a falling island rumbles and the clouds whoosh as it sinks, and it
+  comes back up with a low roar (all synthesized).
+
 ### Weapons
 
 1. **Pulse Rifle**: rapid fire, slowly carves through walls
@@ -268,7 +360,8 @@ there is none.
 
 Spawns on the roof of the central tower, reachable only with jump pads or a rocket jump.
 For **15 seconds every hit kills**: every pulse bolt, every shotgun pellet, every plasma bolt,
-every rail. Rocket blasts become **5× larger** (≈12 m craters, ≈21 m damage radius). Your own
+every rail. Rocket blasts become **5× larger** (≈12 m craters, ≈21 m damage radius; on the sky
+islands the craters are only 2× larger). Your own
 blasts throw you around but don't hurt you.
 
 ### No camping
@@ -376,6 +469,17 @@ every 4 seconds (`&breach`) averaged 90 FPS, and no frame took longer than 20 ms
 101 FPS (GPU 8.8 ms/frame); a worst-case run that rebuilt the block tower (about 2,200 voxels
 written at once) and ran the whole domino line into it every 7 seconds, with the camera taking in the
 whole room (`&domino`), averaged 93 FPS, and no frame took longer than 16 ms.
+The fireworks factory averaged 131 FPS (GPU 7.2 ms/frame); a worst-case run that restocked the
+yard and set off every crate, both powder stores and the fuses every 14 seconds, with the camera
+taking in the whole yard (`&chain`), averaged 128 FPS, and no frame took longer than 18 ms (the toy
+room averaged 115 FPS in the same session). In a later session in which the machine ran every map at roughly a third of its earlier speed (the
+toy room averaged 42 FPS there), the sky islands averaged 47 FPS (GPU 11.6 ms/frame), as fast as the
+fireworks factory in the same session, and a worst-case run that broke an island's crystal every 9
+seconds, the main island first, with the camera circling the islands (`&drop`), averaged 46 FPS.
+Back at full speed in another session (toy room 105 FPS), the sky islands averaged 150 FPS (GPU
+5.7 ms/frame) and the fireworks factory 124 FPS; a worst-case run that carved a Doomsday-size crater
+into every island every 8 seconds, so that the islands were regrowing the whole time (`&grow`),
+averaged 126 FPS, and no frame took longer than 20 ms.
 
 ## How it works
 
@@ -454,18 +558,43 @@ whole room (`&domino`), averaged 93 FPS, and no frame took longer than 16 ms.
   are a material table like the slippery ice: landing on one above a speed threshold reflects the
   vertical speed. The window light is a set of camera-facing beam cards with soft edges and drifting
   dust motes (GPU points); the daylight sky outside is a small shader.
+- **Fireworks factory**: the firework crates are a list of boxes rather than something the voxels
+  are scanned for: bullet hits and blasts are checked against the boxes, and every crate that catches
+  fire carries the player who started it, so the whole chain (crate → shell → crate → fuse → store)
+  knows whom to credit. Shells are simple ballistic particles that burst into GPU point sprites, with
+  at most a few short-lived lights; the night sky (stars, moon, city glow and the distant shows) is a
+  shader. A fuse is a line of voxel cells the spark walks along at a fixed speed, so a gap shot into it
+  stops the spark. Crates, fuses and stores come back from a snapshot taken when the map is built,
+  together with the ground under them (each crate, fuse cell and red post keeps the columns below
+  it), so nothing returns over a crater; a crate first checks that what it will stand on reaches the
+  bedrock or a large structure, the way the structural check does. In
+  multiplayer the host runs the rules and sends the events (fizz, blast, shell seeds, fuse state); the
+  guests draw the same shells from the same seeds.
+- **Sky islands**: an island's voxels count as anchored while its crystal is whole, so the
+  structural check never drops a floating island. When the crystal breaks, the island (about 70,000
+  voxels for the main island) is lifted out of the world into one rigid body in a few milliseconds and
+  falls into the clouds with a slight tumble. A snapshot taken when the map is built is written back
+  when it returns, together with its navigation nodes; until then the rising island is a separate
+  mesh. Jump pads and spawn points follow the islands that are up. In multiplayer the host sends the
+  island phases (up, warning, falling, gone, rising) and the crystal health; the guests show the
+  falling and rising island themselves, and the voxel changes come through the usual world updates.
+  Islands that stay up regrow: the world reports every box it changes, cells of an island's (or a
+  stepping stone's) snapshot that are now empty join a queue, and every 0.3 s up to 2,700 of them
+  grow back, but only next to a solid cell (or at the island's core base), so holes close from their
+  edges, layer by layer. A cell inside a player waits, except at foot level, where it fills and lifts
+  the player. Only the host does this; guests get the voxels like any other change.
 
 ```
 src/            source (src/config.js: all tunables in one place)
-  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake, moon base, toy room), levels, voxel shader
-  game/         game loop, movement (incl. swimming, ice, per-map gravity, trampolines), weapons, bots, destruction, items, navigation, domino chain
-  fx/           sky, post-processing, water bridge, lava, ice and snow, moon base (sky, air leaks), toy room (dominoes, block tower, window light), environments, particles, debris, lights
+  world/        voxel world, materials, mesher (+ worker), map generators (arena, meadow, volcano, frozen lake, moon base, toy room, fireworks factory, sky islands), levels, voxel shader
+  game/         game loop, movement (incl. swimming, ice, per-map gravity, trampolines), weapons, bots, destruction, items, navigation, domino chain, sky-island bots
+  fx/           sky, post-processing, water bridge, lava, ice and snow, moon base (sky, air leaks), toy room (dominoes, block tower, window light), fireworks factory (crates, fuses, shells, night sky), sky islands (crystals, island drops, clouds), environments, particles, debris, lights
   vendor/       water.js
   audio/ ui/    sound synthesis, HUD
 docs/           built single-file game (served by GitHub Pages)
 serve.mjs       dependency-free local server
 build.mjs       build script
-test/           headless tests (movement, world, water, meadow, volcano, frozen lake, moon base, toy room, flows, screenshots)
+test/           headless tests (movement, world, water, meadow, volcano, frozen lake, moon base, toy room, fireworks factory, sky islands, network, flows, screenshots)
 tools/          benchmark scripts
 ```
 
@@ -477,7 +606,9 @@ Lava does not flow either: where it can be is fixed when the map is built, so di
 a standing wall of lava. Air is simplified too: it follows a precomputed field toward the holes
 rather than a fluid simulation, and an opened dome empties in a few seconds whatever the size of the
 hole. The dominoes are simplified as well: they only tip along the line (a blast knocks one forward or
-back, never sideways), and the block tower always falls the same way. Weapon models and robots are
+back, never sideways), and the block tower always falls the same way. A falling sky island is one rigid body that only
+tumbles slightly, and it always comes back exactly as it was built; an island that stays up always
+regrows the shape it was built with. Weapon models and robots are
 simple procedural boxes. Very large structures (over 160k
 voxels) are treated as fixed and don't fall.
 Sound starts after the first click (browser rule).
@@ -497,7 +628,7 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   kazanır, ardından yeni bir arena kurulur.
 - **Dil:** oyun İngilizce açılır; *SETTINGS → Language* ile Türkçeye geçilir (seçim hatırlanır).
 - **Haritalar:** ana menüde **ÇAYIR**, **VOLKAN**, **BUZ GÖLÜ**, **AY ÜSSÜ**, **OYUNCAK ODASI**,
-  **ARENA** ya da **SIRAYLA** (varsayılan; her maçtan sonra değişir: oyuncak odası, volkan, ay üssü, buz gölü, arena, çayır...). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
+  **FİŞEKHANE**, **GÖK ADALARI**, **ARENA** ya da **SIRAYLA** (varsayılan; her maçtan sonra değişir: oyuncak odası, fişekhane, gök adaları, volkan, ay üssü, buz gölü, arena, çayır...). Çayır: uçurumlarla çevrili güneşli bir vadi; ortada tepesinde KIYAMET küresinin çıktığı
   gözetleme yeri olan büyük bir meşe ve ağaç evi, köprülerle bağlı üç ağaç evi daha, uçurumdaki
   mağaradan çıkıp küçük bir göle akan dere, iskele, atlama tahtası, avcı kulübesi. Ağacı kesersen
   tacı (ve ağaç evindeki) aşağı iner.
@@ -540,6 +671,21 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   ve bloklardan bir şehir. Kale kapısından yere kıvrılarak giden 22 dev domino, 13 m'lik bir blok
   kuleye uzanır: ilk dominoyu devir, sonuncusu kuleyi yıkar. Duvarların ve tavanın iç katı (duvar
   kâğıdı, sıva) kırılır, arkasındaki tuğla kırılmaz.
+  Fişekhane: gece, terk edilmiş bir havai fişek fabrikası; lacivert gökte yıldızlar, ay ve ufukta
+  şehir ışıması, tepelerin ardında ara ara açılan gösteri fişekleri. Ortada 16,5 m'lik tuğla-çelik
+  fişek kulesi: bir buçuk tur saran çelik merdiven, tepesinde deneme atış platformu, havan tüpleri ve
+  KIYAMET küresi. Üç yanda tuğla atölyeler (ahşap çatı, pencereler, içeride tezgâhlar ve sandık
+  rafları), karşılıklı köşelerde iki alçak beton barut deposu (kalın kapı, uyarı levhaları, barut
+  fıçıları); avluda paletlere yığılmış fişek sandıkları, el arabaları, yükleme rampası, su kulesi ve
+  kuleyi çevreleyen kâğıt fener zincirleri. Çatılar çelik geçitlerle kulenin merdivenine bağlanır,
+  üç zıplama pedi kulenin ortasına ve iki atölye çatısına atar. Üç barut fitili kırmızı direklerden
+  depolara koşar; biri bir sundurmanın duvarına tırmanıp çatısından iner.
+  Gök Adaları: gün batımında bulut denizinin üstünde uçan adalar. Ortada gözlemevi ve gözlem kulesi
+  olan ana ada (KIYAMET küresi kulenin tepesinde); çevresinde beş küçük ada: kuzeyde şelalesi
+  bulutlara dökülen göletli bahçe, doğuda yel değirmeni, güneyde köy evi, batıda sütunlu harabe,
+  kuzeydoğuda kristal ocağı. Ana adayı komşularına üç halatlı ahşap köprü ve bir taş kemer bağlar,
+  süzülen bulut taşları basamak olur, adalar arası pedler uçurur. Her ada altından sarkan parlak bir
+  kristalle havada durur: kristali kırarsan ada bulutlara düşer.
 - **Su:** derede yavaşlarsın ama ateş edebilirsin. Gölde yüzersin: Boşluk yukarı (yüzeyde basılı
   tutunca başın suyun üstünde kalır), **C** dalış; tuşa basmazsan yavaşça batarsın. **Başın su
   altındayken ateş edemezsin.** 12 saniye nefesin var; sonra her saniye artan hasar alırsın (zırhı
@@ -596,10 +742,45 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   saniye içinde yıkacak, doğru yöne düşen yakın birini); zincir koşarken fark eden botlar kenara
   kaçar. Duvar saati tıkırdar, dışarıda kuşlar öter, maç başında bir müzik kutusu çalar, lastik
   oyuncaklar gıcırdar.
+- **Fişekhane:** fişek sandığı yeterince isabet alınca (iki darbe mermisi yeter) ya da yanında bir
+  şey patlayınca tutuşur, kısa bir an cızırdayıp patlar (merkezde 100 hasar, 3,5 m); çevresindeki
+  sandıklar art arda tutuşur, yığın dalga dalga havaya uçar. Her patlama göğe üç-altı fişek atar,
+  8-15 m yukarıda şakayık, kasımpatı ya da söğüt gibi açılır; yaklaşık üçte biri çürüktür: geri düşer,
+  düştüğü yerde patlar ve başka bir sandığı tutuşturabilir. **Kırmızı direği vur** (ya da yanında
+  patlat): kıvılcım barut fitilinde saniyede 2,5 m ilerleyip fitili yakar; kıvılcımın önündeki fitili
+  vurursan koparsın, kıvılcım boşlukta söner. Fitilin sonunda depo bir saniye cızırdar ve haritanın en
+  büyük patlamasıyla (7,5 m) havaya uçar. **Zincirin bütün parçalamaları** (sandık, fişek, çürük
+  fişek, fitil, depo) **zinciri başlatana yazılır** (ZİNCİRLEME! / ZİNCİRLEME x2!); kendi zincirinde
+  ölürsen **kendini parçalamış sayılırsın (−1)**. Sandıklar patladıktan 40-60 saniye sonra (yerinde
+  kimse yokken), fitiller ve depolar 75-90 saniye sonra yerine gelir; her maç tam başlar. Hiçbiri
+  havada geri gelmez: dönen sandığın (ve 1 m çevresinin), fitilin ve kırmızı direğin altındaki çukur
+  önce ilk zeminle dolar; çatısı uçmuş sandık geri gelmez. Botlar
+  avluyu kullanır: görebildikleri bir sandığın yanında rakip durunca sandığı vururlar, dibinde
+  durdukları sandığa ateş etmezler.
+- **Gök adaları:** her ada altından sarkan parlak bir kristalle havada durur (küçük adalar 900, ana
+  ada 1800 hasar taşır). Kristalin yakınındaki isabet ve patlamalar onu aşındırır; %75, %50 ve %25'te
+  çatlaklar büyür, ışığı titrer, çatırtısı incelir, ada sarsılır. Kristal kırılınca ada 2,5 saniye
+  sarsılıp gıcırdar (kaçma süresi), sonra üstündekilerle birlikte tek parça halinde bulutlara düşer.
+  **Bulutların altına düşen ölür.** Adayla düşen, kristali kırana (**ADAYI DÜŞÜRDÜN!**); son 4 saniyede
+  bir rakibin vurduğu ve düşen, o rakibe (**BULUTLARA GÖNDERDİN!**) yazılır; kendi düşersen ya da
+  üstünde durduğun adayı düşürürsen **kendini parçalamış sayılırsın (−1)**. ~45 saniye sonra ada 4
+  saniyede bulutlardan yükselir ve kurulduğu gibi yerine yazılır: kristal tam canlı, köprüler onarılmış,
+  eşyalar yerinde; yolundaki herkesi yukarı iter. **Ayakta duran ada kendini onarır:** patlamadan 2
+  saniye sonra delik kenarlarından katman katman ilk haliyle (kaya, çimen, yapılar) dolmaya başlar;
+  roket çukuru patlamadan 3-4 saniye sonra, KIYAMET çukuru 15 saniye içinde kapanır, neredeyse
+  tamamen silinen ada bile kristali sağlamsa çekirdeğinden 20 saniyede yeniden büyür. Dolan çukurdaki
+  kişi yukarı itilir, gömülmez; basamak taşları da onarılır. Bu haritada KIYAMET roketi 2 kat oyar
+  (12,5 m yerine 5 m; büyük krater adayı tek atışta siliyordu), öldürme yarıçapı aynı. Düşen adaya
+  giden pedler ve iniş yeri patlatılmış
+  pedler kapanır; yalnız ayakta duran, uyarıda olmayan adalarda ve altı delik olmayan yerde doğarsın.
+  Botlar kenarları lav gibi görür: bulutlara düşecekleri yere koşmaz, zıplamaz, atılmazlar; kenarda
+  yakına roket atmazlar, kristali kırılan adadan kaçarlar ve başka bir adadan görebildiklerinde,
+  rakiplerinin durduğu adanın kristalini (zayıfsa ya da ellerinde roketatar veya raylı tüfek varsa)
+  vururlar. Deneme maçlarında maç başına bir bot kendi kendine düştü.
 - **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).
 - **KIYAMET küresi:** merkez kulenin çatısında çıkar. 15 saniye boyunca her isabet öldürür,
-  roket patlamaları 5 kat büyür. Kendi patlaman sana hasar vermez.
+  roket patlamaları 5 kat büyür (gök adalarında oyma 2 kat). Kendi patlaman sana hasar vermez.
 - **Saklanmak işe yaramaz:** botlar silah sesini duyar ve siperi deler; 15 saniyeden uzun aynı
   yerde kalırsan konumun açığa çıkar. Bağlantısı kopan yapılar çöker ve altındakini ezer.
 - **Ayarlar:** dil, fare hassasiyeti, görüş alanı, grafik kalitesi, bot sayısı (0-11, varsayılan 3, maç

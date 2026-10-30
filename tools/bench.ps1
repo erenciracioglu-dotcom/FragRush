@@ -1,11 +1,12 @@
 # ENKAZ performans olcumu: sunucuyu acar, ayri Chrome profiliyle bench sayfasini calistirir.
-param([int]$Sec = 30, [string]$Q = 'ultra', [string]$Extra = '', [string]$Flags = '--force-high-performance-gpu', [string]$Tag = '')
+param([int]$Sec = 30, [string]$Q = 'ultra', [string]$Extra = '', [string]$Flags = '--force-high-performance-gpu', [string]$Tag = '', [int]$Port = 8777)
 $ErrorActionPreference = 'SilentlyContinue'
 $root = Split-Path $PSScriptRoot -Parent
 $log = Join-Path $root 'reports\bench_log.txt'
 New-Item -ItemType Directory -Force (Join-Path $root 'reports') | Out-Null
-function Ping { try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 1 http://127.0.0.1:8777/__ping | Out-Null; return $true } catch { return $false } }
+function Ping { try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 1 http://127.0.0.1:$Port/__ping | Out-Null; return $true } catch { return $false } }
 if (-not (Ping)) {
+  $env:PORT = "$Port"
   Start-Process -FilePath 'node' -ArgumentList 'serve.mjs' -WorkingDirectory $root -WindowStyle Minimized
   for ($i = 0; $i -lt 50 -and -not (Ping); $i++) { Start-Sleep -Milliseconds 200 }
 }
@@ -13,7 +14,7 @@ if ($Tag -eq '') { $Tag = $Q }
 Remove-Item (Join-Path $root "reports\bench_$Tag.json") -ErrorAction SilentlyContinue
 $prof = Join-Path $root '.bench-profile'
 $chrome = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
-$url = "http://127.0.0.1:8777/?bench=$Sec&q=$Q&tag=$Tag$Extra"
+$url = "http://127.0.0.1:$Port/?bench=$Sec&q=$Q&tag=$Tag$Extra"
 $cargs = @("--user-data-dir=`"$prof`"") + ($Flags -split ' ' | Where-Object { $_ }) + @('--no-first-run', '--no-default-browser-check', '--new-window', '--start-maximized', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', $url)
 Start-Process -FilePath $chrome -ArgumentList $cargs
 "$(Get-Date -Format s) basladi $url" | Out-File -Append -Encoding utf8 $log

@@ -12,6 +12,7 @@ import { meshVoxels } from '../world/mesher.js';
 import { buildGeometry } from '../world/chunkManager.js';
 import { NameTags, RateMeter } from './netui.js';
 import { t } from '../i18n.js';
+import { killLabelId, SELF_FEED, KILLER_MSG } from '../game/killnames.js';
 
 const INTERP = 0.1;                       // s: ev sahibi zamaninin bu kadar gerisinden ciz
 const CHUNK_FULL = 2 + CS * CS * CS * 2;  // fullChunk boyutu
@@ -166,6 +167,7 @@ export class GuestSession {
     else if (m.t === 'ann') this.onAnn(m);
     else if (m.t === 'bodyend') this.bodies.end(m.i);
     else if (m.t === 'hash') this.checkHashes(m);
+    else if (m.t === 'mst' || m.t === 'mev') this.onMapNet(m);
     else if (m.t === 'pend') this.vis.remove(m.i);
     else if (m.t === 'boom') {
       const [x, y, z] = m.p, [nx, ny, nz] = m.n, q = m.q === 1;
@@ -327,15 +329,19 @@ export class GuestSession {
     const nm = (id) => id === this.myId ? me : this.actors.get(id) || null;
     const victim = nm(m.v) || { name: (this.roster.get(m.v) || {}).name || '?', color: m.c || 0x888888, isPlayer: false };
     const killer = m.k >= 0 ? (nm(m.k) || { name: (this.roster.get(m.k) || {}).name || '?', color: (this.roster.get(m.k) || {}).color || 0x888888, isPlayer: false }) : null;
-    const label = t('k.' + (['pulse', 'shotgun', 'plasma', 'rocket', 'rail', 'crush', 'world', 'drown', 'lava', 'cold', 'icicle', 'spaced', 'domino'].includes(m.w) ? m.w : 'world'));
+    const label = t('k.' + killLabelId(m.w));
     const self = !killer || killer === victim;
     game.fx.robotGib(m.p[0], m.p[1], m.p[2], m.c || 0x888888, 0, 0, 0);
     if (game.audio) game.audio.play(victim === me ? 'playerDeath' : 'botDeath', m.p[0], m.p[1] + 1, m.p[2], 1, victim === me);
     if (victim === me && hud) { me.killer = killer && killer !== me ? killer : null; hud.death(killer ? killer.name : '', label, self, m.w); }
     if (hud) {
       const involves = victim === me || killer === me;
-      if (self) hud.feed(null, victim, t('blewUp'), involves); else hud.feed(killer, victim, label, involves);
-      if (killer === me && !self) { hud.hitmarker('kill'); hud.centerMsg(m.h ? t('headshot') : t('fragged'), 1.2); }
+      if (self) hud.feed(null, victim, t(SELF_FEED[m.w] || 'blewUp'), involves); else hud.feed(killer, victim, label, involves);
+      if (killer === me && !self) {
+        hud.hitmarker('kill');
+        const sp = m.w === 'drown' && game.iceSys.active ? 'iceKill' : KILLER_MSG[m.w];
+        if (sp) hud.centerMsg(t(sp), 1.8); else hud.centerMsg(m.h ? t('headshot') : t('fragged'), 1.2);
+      }
     }
     if (game.audio && killer === me && !self) game.audio.play('kill', 0, 0, 0, 1, true);
   }
@@ -349,6 +355,17 @@ export class GuestSession {
     const bad = [];
     for (let i = 0; i < m.c.length; i++) if (chunkHash(this.game.world, m.c[i]) !== m.h[i]) bad.push(m.c[i]);
     if (bad.length) { this.stats.resync = (this.stats.resync || 0) + bad.length; this.link.send(true, P.encodeJson({ t: 'resync', c: bad })); }
+  }
+
+  // harita sistemleri (P.MAP_NET_SYSTEMS): ev sahibinin durumu (mst) ve olaylari (mev) o sisteme
+  onMapNet(m) {
+    if (!this.worldReady || !P.MAP_NET_SYSTEMS.includes(m.s)) return;
+    const s = this.game[m.s];
+    if (!s || !s.active) return;
+    try {
+      if (m.t === 'mst') { if (s.applyNetState) s.applyNetState(m.v); }
+      else if (s.onNetEvent) s.onNetEvent(m.e);
+    } catch (e) { console.error('map net', m.s, e); }
   }
 
   onProj(m) {

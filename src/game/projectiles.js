@@ -133,6 +133,8 @@ export class Projectiles {
       }
       const py0 = p.pos.y;
       p.pos.addScaledVector(p.vel, dt);
+      // gok adalari: bulut denizine dalan mermi bulutta kaybolur (altinda carpacak bir sey yok; 7 sn ucmasin)
+      if (game.skySys.active && p.pos.y < game.skySys.sinkY) { game.skySys.projectileSink(p.pos.x, p.pos.z); this._release(p); list.splice(i, 1); continue; }
       p.vis.multiplyScalar(Math.exp(-dt * 10));
       // su yuzeyini gecti: sicrama + halka
       const L = w.waterY;
@@ -213,7 +215,8 @@ export class Projectiles {
     const ws = game.waterSys;
     const deep = ws.active && ws.isWater(ox, oy, oz) && oy < game.world.waterY - 0.45;
     if (W.id === 'rocket') {
-      const dm = quad > 1 ? DOOMSDAY.rocketScale : 1;
+      // KIYAMET: oyma 5 kat (harita kucultebilir: gok adalarinda 2 kat, 12.5 m'lik krater adayi tek atista silerdi)
+      const dm = quad > 1 ? (game.arena && game.arena.doomVox) || DOOMSDAY.rocketScale : 1;
       game.destruction.blast(x - nx * 0.2, y - ny * 0.2, z - nz * 0.2, W.voxR * dm, W.voxP * (quad > 1 ? 2 : 1), p.owner, 10 * (quad > 1 ? 2.5 : 1), quad > 1 ? 900 : 320);
       const wet = ws.active && ws.explode(ox, oy, oz, quad > 1 ? 2.6 : 1);
       if (!deep) game.fx.explosion(ox, oy, oz, 3.0 * (quad > 1 ? 2.4 : 1), quad > 1 ? 0xff5a2a : 0xff7a1a, quad > 1 ? 1.6 : 1, nx, ny, nz);

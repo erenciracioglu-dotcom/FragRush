@@ -2,6 +2,7 @@
 import { WEAPONS } from '../game/weapons.js';
 import { WATER } from '../config.js';
 import { t } from '../i18n.js';
+import { DEATH_TITLE } from '../game/killnames.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -185,9 +186,9 @@ export class HUD {
   }
 
   death(killerName, weaponLabel, self, weaponId) {
-    const drown = weaponId === 'drown', lava = weaponId === 'lava', cold = weaponId === 'cold', icicle = weaponId === 'icicle', spaced = weaponId === 'spaced', domino = weaponId === 'domino';
-    this.el.deathTitle.textContent = drown ? t('youDrowned') : lava ? t('youBurned') : cold ? t('youFroze') : icicle ? t('youIcicle') : spaced ? t('youSpaced') : domino ? t('youDomino') : self ? t('selfKill') : t('youDied');
+    const env = DEATH_TITLE[weaponId];
+    this.el.deathTitle.textContent = env ? t(env) : self ? t('selfKill') : t('youDied');
     // ortam olumu: kendin dustuysen -1 notu, biri dusurduyse (buzu kirdiysa, ittiyse, kubbeyi deldiyse, dominoyu vurduysa) onun adi
-    this.el.deathBy.textContent = (drown || lava || cold || icicle || spaced || domino) && self ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
+    this.el.deathBy.textContent = env && self ? t('selfFragNote') : self ? '' : `${killerName} · ${weaponLabel}`;
   }
 }

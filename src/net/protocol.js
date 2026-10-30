@@ -173,3 +173,8 @@ export function decodeBodies(buf) {
   }
   return out;
 }
+
+// Yeni haritalarin ag cogaltmasi: Game uzerindeki bu sistemler (varsa ve active ise) netState() / applyNetState(s) /
+// onNetEvent(e) verir. Ev sahibi durum degisince ~10 Hz 'mst' (JSON, guvenilir kanal), katilan konuga hemen tam durumu,
+// game.netEmit(sys, ev) ile olaylari 'mev' olarak yollar; konuk yalniz bu listedekilere dagitir.
+export const MAP_NET_SYSTEMS = ['fwSys', 'skySys'];

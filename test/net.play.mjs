@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(path.resolve(root, '..', 'FragRush-CrazyGames', 'tools', 'package.json'));
 const { chromium } = require('playwright-core');
 const NS = process.argv[2] || '', MAP = process.argv[3] || 'arena';
-const SIGNAL = process.env.SIGNAL || 'http://127.0.0.1:8787', PORT = '8812', BASE = `http://127.0.0.1:${PORT}/`;
+const SIGNAL = process.env.SIGNAL || 'http://127.0.0.1:8787', PORT = process.env.PORT || '8812', BASE = `http://127.0.0.1:${PORT}/`;
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fail++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -111,9 +111,9 @@ try {
     const g = window.__enkaz.game, r = g.actors.find((x) => x.remote !== undefined), bot = g.bots[0];
     bot.update = () => {};                                   // yapay zeka kapali: yerinde dursun
     const p = r.mover.pos, w = g.world, h = { x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, dist: 0, mat: 0, i: 0 };
-    for (let k = 0; k < 16; k++) {                           // onu 8 m acik bir yon bul, botu 6 m oteye koy
+    for (let k = 0; k < 16; k++) {                           // onu 8 m acik, 6 m otesinde zemin olan bir yon bul, botu oraya koy
       const yaw = k * Math.PI / 8, dx = -Math.sin(yaw), dz = -Math.cos(yaw);
-      if (!w.raycast(p.x, p.y + 1.2, p.z, dx, 0, dz, 8, h)) { bot.mover.pos.set(p.x + dx * 6, p.y + 0.05, p.z + dz * 6); bot.mover.vel.set(0, 0, 0); bot.health = 125; bot.armor = 0; bot.protect = 0; return { id: bot.id, hp: bot.health }; }
+      if (!w.raycast(p.x, p.y + 1.2, p.z, dx, 0, dz, 8, h) && w.raycast(p.x + dx * 6, p.y + 1, p.z + dz * 6, 0, -1, 0, 3, h)) { /* altinda zemin olsun (gok adalarinda bosluk) */ bot.mover.pos.set(p.x + dx * 6, p.y + 0.05, p.z + dz * 6); bot.mover.vel.set(0, 0, 0); bot.health = 125; bot.armor = 0; bot.protect = 0; return { id: bot.id, hp: bot.health }; }
     }
     return null;
   });
@@ -126,6 +126,9 @@ try {
       p.weapons.current = 4; p.weapons.cooldown = 0; p.weapons.ammo[4] = 20;
       return { o: [o.x, o.y, o.z], d: t.sub(o).normalize().toArray() };
     }, target.id);
+    // skor atistan onceki degerine gore: gok adalarinda konuk yururken adadan dusup -1 almis olabilir
+    const rf0 = await host.evaluate(() => window.__enkaz.game.actors.find((x) => x.remote !== undefined).frags);
+    const gf0 = await guest.evaluate(() => window.__enkaz.game.player.frags);
     for (let k = 0; k < 2; k++) {
       await guest.evaluate((sh) => { const g = window.__enkaz.game, p = g.player, THREE = p.mover.pos.constructor; p.weapons.cooldown = 0; const o = new THREE(...sh.o), d = new THREE(...sh.d); g.net.fire(o, d, o.clone()); }, shot);
       // raylinin yeniden dolumu OYUN zamaninda 1.4 sn; yuk altinda ev sahibi karesi yavassa (dt <= 0.05) gercek sure uzar: bitene dek bekle
@@ -134,10 +137,10 @@ try {
     }
     const res = await host.evaluate((id) => { const b = window.__enkaz.game.actors.find((x) => x.id === id); const r = window.__enkaz.game.actors.find((x) => x.remote !== undefined); return { alive: b.alive, hp: b.health, deaths: b.deaths, rfrags: r.frags }; }, target.id);
     ok(res.deaths >= 1 || res.hp < 125, 'konugun raylisi bota isabet etti: ' + JSON.stringify(res));
-    ok(res.rfrags >= 1, 'ev sahibinde konugun skoru artti (' + res.rfrags + ')');
+    ok(res.rfrags - rf0 >= 1, 'ev sahibinde konugun skoru artti (' + rf0 + ' -> ' + res.rfrags + ')');
     await sleep(600);
     const gv = await guest.evaluate(() => ({ frags: window.__enkaz.game.player.frags, feed: window.__enkaz.game.hud.el.feed.children.length }));
-    ok(gv.frags >= 1 && gv.feed >= 1, 'konukta skor ve olum akisi geldi: ' + JSON.stringify(gv));
+    ok(gv.frags - gf0 >= 1 && gv.feed >= 1, 'konukta skor ve olum akisi geldi: ' + JSON.stringify({ ...gv, once: gf0 }));
   }
 
   // ---- konukta ev sahibi ve botlar gorunuyor / hasar akisi ----

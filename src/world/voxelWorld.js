@@ -34,6 +34,9 @@ export class VoxelWorld {
     // yuzen malzeme (buz golu): bu malzemenin [floatY0, floatY1] katlarindaki voxelleri su tasir; kopan buz
     // parcasi (kutle) dusmez, yerinde yuzer. 0: yok
     this.floatMat = 0; this.floatY0 = 0; this.floatY1 = -1;
+    // sabit sutunlar (gok adalari): (x,z) sutununda [anchorLo, anchorHi] katlarindaki voxeller bagli sayilir; havada
+    // duran adanin cekirdegi kristali saglamken boyle tutulur (kenardan kopan parca yine duser). null: yok
+    this.anchorLo = null; this.anchorHi = null;
     // yumusak tavan (m): ustunde aktorleri asagi ceken ek yercekimi (mover.js); ay ussunde dusuk yercekimi
     this.ceilY = Infinity;
     // sanal kati hucreler (oyuncak odasi dominolari, fx/toyroom.js): mat[] disinda tutulur (hucre basina sayac).
@@ -306,6 +309,7 @@ export class VoxelWorld {
     const anchorId = ++this.markCounter;
     const maxCap = Math.min(cap, stack.length - 8);
     const fm = this.floatMat, fy0 = this.floatY0, fy1 = this.floatY1;
+    const aLo = this.anchorLo, aHi = this.anchorHi;
     for (let s = 0; s < this.seedCount; s++) {
       const start = this.seeds[s];
       if (mat[start] === 0) continue;
@@ -326,6 +330,7 @@ export class VoxelWorld {
         if (fm && mat[i] === fm && y >= fy0 && y <= fy1) { anchored = true; break; }
         if (visited >= maxCap) { anchored = true; break; }
         const rem = i - y * sxz; const z = (rem / sx) | 0; const x = rem - z * sx;
+        if (aLo !== null && y >= aLo[rem] && y <= aHi[rem]) { anchored = true; break; }
         // asagi en son itilir -> once islenir (zemine hizli inis)
         let j;
         if (y < sy - 1) { j = i + sxz; if (mat[j]) { const mj = mark[j]; if (mj === anchorId) { anchored = true; break; } if (mj !== bfsId) { mark[j] = bfsId; stack[sp++] = j; } } }

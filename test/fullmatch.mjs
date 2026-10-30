@@ -14,7 +14,8 @@ const map = process.argv[2] || 'meadow', bots = process.argv[3] || '11', diff = 
 const out = path.join(root, 'reports', `fullmatch_${map}.json`);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 
-const srv = spawn(process.execPath, [path.join(root, 'serve.mjs')], { cwd: root, env: { ...process.env, PORT: '8812' }, stdio: 'ignore' });
+const TPORT = process.env.PORT || '8812';
+const srv = spawn(process.execPath, [path.join(root, 'serve.mjs')], { cwd: root, env: { ...process.env, PORT: TPORT }, stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 600));
 const browser = await chromium.launch({ channel: 'chrome', headless: !!process.env.HEADLESS, args: ['--window-size=1280,760'] });
 const errors = [];
@@ -23,7 +24,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1216, height: 684 } });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://127.0.0.1:8812/?map=${map}&bots=${bots}`);
+  await page.goto(`http://127.0.0.1:${TPORT}/?map=${map}&bots=${bots}`);
   await page.waitForFunction(() => window.__enkaz && window.__enkaz.ready, null, { timeout: 120000 });
   await page.evaluate((d) => {
     const g = window.__enkaz.game; g.settings.difficulty = d;
@@ -39,7 +40,8 @@ try {
     const em = g.endMatch.bind(g);
     g.endMatch = () => {
       if (!g.__end) g.__end = { t: Math.round(g.time), final: g.actors.map((a) => [a.name, a.frags, a.deaths]), kills: { ...g.__kills },
-        toy: g.toySys && g.toySys.active ? { ...g.toySys.stats } : undefined, moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats } : undefined };
+        toy: g.toySys && g.toySys.active ? { ...g.toySys.stats } : undefined, moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats } : undefined,
+        fw: g.fwSys && g.fwSys.active ? { ...g.fwSys.stats } : undefined };
       return em();
     };
   }, diff);
@@ -59,6 +61,7 @@ try {
         iceQ: g.iceSys && g.iceSys.active ? g.iceSys.queue.size : undefined, wet: g.actors.filter((a) => a.alive && a.mover.inWater).length,
         moon: g.moonSys && g.moonSys.active ? { ...g.moonSys.stats, open: g.moonSys.vols.filter((v) => v.state !== 'sealed').map((v) => v.name + ':' + v.state) } : undefined,
         toy: g.toySys && g.toySys.active ? { ...g.toySys.stats, tower: g.toySys.tower.state, standing: g.toySys.chain.standing } : undefined,
+        fw: g.fwSys && g.fwSys.active ? { ...g.fwSys.stats } : undefined,
         end: g.__end ? g.__end.t : undefined };
     });
     res.samples.push(s);
@@ -70,7 +73,7 @@ try {
   res.ended = ended; res.seconds = Math.round((Date.now() - t0) / 1000);
   res.lava = await page.evaluate(() => window.__enkaz.game.__lava || []);
   const end = await page.evaluate(() => window.__enkaz.game.__end);
-  if (end) { res.endT = end.t; res.kills = end.kills; res.final = end.final; res.moon = end.moon; res.toy = end.toy; }
+  if (end) { res.endT = end.t; res.kills = end.kills; res.final = end.final; res.moon = end.moon; res.toy = end.toy; res.fw = end.fw; }
   else {
     res.kills = await page.evaluate(() => window.__enkaz.game.__kills || {});
     res.final = await page.evaluate(() => window.__enkaz.game.actors.map((a) => [a.name, a.frags, a.deaths]));

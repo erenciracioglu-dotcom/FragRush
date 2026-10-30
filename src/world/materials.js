@@ -100,6 +100,27 @@ export const M = {
   SHADE: 90,
   DOMINO: 91,
   BOOK_LAY: 92,
+  // fisekhane haritasi (gece fisek fabrikasi): sandiklar, fitil, barut deposu, fenerler, isli tugla, cati, havan tupleri
+  FW_CRATE: 93,
+  FW_CRATE_Y: 94,
+  FUSE: 95,
+  FUSE_POST: 96,
+  KEG: 97,
+  BUNKER: 98,
+  WARN: 99,
+  POWDER: 100,
+  LANTERN: 101,
+  FBRICK: 102,
+  ROOF: 103,
+  TUBE: 104,
+  COBBLE: 105,
+  CORD: 106,
+  // gok adalari haritasi (ucan adalar, bulut denizi): ada basina bir kristal kimligi (isigi ve catlaklari adaya gore
+  // golgelendirilir: voxelMaterial uMatP), kumtasi alt yuz, ada topragi, mermer, pirinc, bakir kubbe, kiremit, yelken bezi,
+  // halat, ada cimeni, bulut tasi (suzulen basamak taslari). 93-108 fisekhane haritasina ayrildi.
+  SKY_CRYSTAL0: 109, SKY_CRYSTAL1: 110, SKY_CRYSTAL2: 111, SKY_CRYSTAL3: 112, SKY_CRYSTAL4: 113, SKY_CRYSTAL5: 114,
+  SKYROCK: 115, SKYSOIL: 116, MARBLE: 117, BRASS: 118, VERDIGRIS: 119, ROOFTILE: 120, SAIL: 121, ROPE: 122,
+  SKYGRASS: 123, CLOUDSTONE: 124,
 };
 
 // [id, ad, renk, puruzluluk, metallik, emissive, tough, ses]
@@ -209,9 +230,44 @@ const DEFS = [
   [M.SHADE, 'abajur', 0xffd498, 0.6, 0.0, 1.0, 30, 'cloth'],
   // domino: dunyada voxeli yok (sanal kati hucre, fx/toyroom.js); isin izleme carpmasi, etki rengi ve sesi
   [M.DOMINO, 'domino', 0xf5efe2, 0.3, 0.0, 0, 90, 'toy'],
+  // fisekhane: fisek sandiklari (kagit kapli, tutusur: fx/fireworks.js listeyle izler), barut fitili (tek mermi koparir),
+  // fitilin basindaki kirmizi direk, barut ficisi, depo betonu, uyari levhasi, barut cuvali, kagit fener (isikli)
+  [M.FW_CRATE, 'fisek sandigi', 0xc4261c, 0.72, 0.0, 0, 40, 'wood'],
+  [M.FW_CRATE_Y, 'sari fisek sandigi', 0xeab21a, 0.72, 0.0, 0, 40, 'wood'],
+  [M.FUSE, 'barut fitili', 0x3b3936, 0.95, 0.0, 0, 14, 'dirt'],
+  [M.FUSE_POST, 'fitil diregi', 0xd42a1e, 0.45, 0.2, 0, 120, 'metal'],
+  [M.KEG, 'barut ficisi', 0x5c3b22, 0.78, 0.0, 0, 50, 'wood'],
+  [M.BUNKER, 'depo betonu', 0x7b8276, 0.93, 0.0, 0, 150, 'stone'],
+  [M.WARN, 'uyari levhasi', 0xf0be1e, 0.45, 0.3, 0, 60, 'metal'],
+  [M.POWDER, 'barut cuvali', 0x2f2b27, 1.0, 0.0, 0, 30, 'cloth'],
+  [M.LANTERN, 'kagit fener', 0xff5626, 0.6, 0.0, 1.0, 14, 'cloth'],
+  // fabrika: isli tugla, cati tahtasi, havan tupu (karton), avlu kaldirimi, fener ipi
+  [M.FBRICK, 'isli tugla', 0x6f3b2c, 0.95, 0.0, 0, 72, 'stone'],
+  [M.ROOF, 'cati tahtasi', 0x4b3526, 0.86, 0.0, 0, 34, 'wood'],
+  [M.TUBE, 'havan tupu', 0x3e5b3b, 0.8, 0.0, 0, 45, 'wood'],
+  [M.COBBLE, 'arnavut kaldirimi', 0x5f5c58, 0.9, 0.0, 0, 130, 'stone'],
+  [M.CORD, 'fener ipi', 0x3a2b1f, 1.0, 0.0, 0, 10, 'cloth'],
+  // gok adalari: kristaller yikilmaz (cani fx/sky-islands.js'te; kirilinca ada duser) ve parlak; kumtasi sert, toprak yumusak
+  [M.SKY_CRYSTAL0, 'ana kristal', 0x9fe6ff, 0.12, 0.0, 0.9, 255, 'glass'],
+  [M.SKY_CRYSTAL1, 'bahce kristali', 0x8fd6ff, 0.12, 0.0, 0.9, 255, 'glass'],
+  [M.SKY_CRYSTAL2, 'degirmen kristali', 0xb8a0ff, 0.12, 0.0, 0.9, 255, 'glass'],
+  [M.SKY_CRYSTAL3, 'koy kristali', 0x86f2da, 0.12, 0.0, 0.9, 255, 'glass'],
+  [M.SKY_CRYSTAL4, 'harabe kristali', 0xc9a8ff, 0.12, 0.0, 0.9, 255, 'glass'],
+  [M.SKY_CRYSTAL5, 'ocak kristali', 0x9cbcff, 0.12, 0.0, 0.9, 255, 'glass'],
+  [M.SKYROCK, 'ada kayasi', 0xb98a5e, 0.9, 0.0, 0, 150, 'stone'],
+  [M.SKYSOIL, 'ada topragi', 0x6e4b30, 1.0, 0.0, 0, 40, 'dirt'],
+  [M.MARBLE, 'mermer', 0xe9e3d7, 0.32, 0.0, 0, 140, 'stone'],
+  [M.BRASS, 'pirinc', 0xc9a14a, 0.28, 0.9, 0, 170, 'metal'],
+  [M.VERDIGRIS, 'bakir kubbe', 0x63a894, 0.55, 0.45, 0, 150, 'metal'],
+  [M.ROOFTILE, 'kiremit', 0xb5553a, 0.8, 0.0, 0, 70, 'stone'],
+  [M.SAIL, 'yelken bezi', 0xeee3cc, 0.95, 0.0, 0, 20, 'cloth'],
+  [M.ROPE, 'halat', 0x9c7a4c, 0.95, 0.0, 0, 25, 'wood'],
+  [M.SKYGRASS, 'ada cimeni', 0x6fae3e, 0.95, 0.0, 0, 40, 'dirt'],
+  [M.CLOUDSTONE, 'bulut tasi', 0xc9d4e4, 0.6, 0.0, 0.3, 160, 'stone'],
 ];
 
-export const MAT_COUNT = 93;
+// 93-108 fisekhane, 109-124 gok adalari
+export const MAT_COUNT = 125;
 
 // ustunde durulunca kayilan malzemeler (mover.js): gol ve dere buzu
 export const SLIPPERY = new Uint8Array(MAT_COUNT);
@@ -222,7 +278,7 @@ export const BOUNCY = new Uint8Array(MAT_COUNT);
 BOUNCY[M.MATTRESS] = 1; BOUNCY[M.DUVET] = 1; BOUNCY[M.PILLOW] = 1; BOUNCY[M.RUBBER] = 1;
 
 // isigi bir statik isiga bagli malzemeler: yikilinca isik soner (lamba, mangal atesi)
-export const LAMP_MATS = new Set([M.LAMP, M.FIRE, M.GROW, M.SCREEN, M.SHADE]);
+export const LAMP_MATS = new Set([M.LAMP, M.FIRE, M.GROW, M.SCREEN, M.SHADE, M.LANTERN]);
 // saydam malzemeler: ayri saydam mesh (mesher bolmesi) ve botlarin gorus hatti (icinden gorulur, mermi carpar)
 export const TRANSPARENT = new Uint8Array(MAT_COUNT);
 TRANSPARENT[M.GLASS] = 1;

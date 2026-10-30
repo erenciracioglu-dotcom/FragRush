@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(path.resolve(root, '..', 'FragRush-CrazyGames', 'tools', 'package.json'));
 const { chromium } = require('playwright-core');
 const MAP = process.argv[2] || 'toyroom';
-const SIGNAL = process.env.SIGNAL || 'http://127.0.0.1:8787', PORT = '8813', BASE = `http://127.0.0.1:${PORT}/`;
+const SIGNAL = process.env.SIGNAL || 'http://127.0.0.1:8787', PORT = process.env.PORT || '8813', BASE = `http://127.0.0.1:${PORT}/`;
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fail++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

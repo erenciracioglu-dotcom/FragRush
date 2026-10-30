@@ -520,7 +520,7 @@ function runBench() {
   let winFrames = [], nextSample = 10;
   const shotTimes = soak ? [0.15, 0.35, 0.55, 0.75, 0.95].map((k) => k * dur) : [5, 10, 15, 20, 25];
   // &domino (oyuncak odasi en kotu durumu): kamera bastan odanin genel gorunusunde (olcum disi ilk 2 sn'de gecis)
-  game.spectate = params.has('domino') ? null : game.bots[0] || null;
+  game.spectate = params.has('domino') || params.has('chain') || params.has('drop') || params.has('grow') ? null : game.bots[0] || null;
   game.benchMode = true;
   if (params.has('fp')) game.benchFirstPerson = true;
   hud.show(false); menu.classList.add('hidden');
@@ -719,6 +719,26 @@ function runBench() {
       game.toySys.matchReset();
       game.toySys.trigger(game.bots[0] || null);
     }
+    // fisekhane en kotu durum (&chain): 14 sn'de bir her sey yerine kurulur, uc fitil ve kumelerden sandiklar birden
+    // tutusur: butun sandiklar + iki depo + fisek yagmuru. Kamera genel gorunuste
+    if (params.has('chain') && game.fwSys.active && el > (runBench.nextChain ??= 2)) {
+      runBench.nextChain += 14;
+      game.fwSys.benchChain(game.bots[0] || null);
+    }
+    // gok adalari en kotu durum (&drop): 9 sn'de bir bir adanin kristali kirilir (once ana ada: ~70 bin voxel govde
+    // cikarma + mesh, dusus, bulut sicramasi; sonra rastgele uydu adalar). Kamera adalarin genel gorunusunde
+    if (params.has('drop') && game.skySys.active && el > (runBench.nextDrop ??= 2)) {
+      runBench.nextDrop += 9;
+      const up = game.skySys.isles.filter((s) => s.phase === 0);
+      const pick = up.find((s) => s.id === 0) || up[(Math.random() * up.length) | 0];
+      if (pick) game.skySys.forceBreak(pick.id, game.bots[0] || null);
+    }
+    // gok adalari yenilenme (&grow): 8 sn'de bir her ayaktaki adanin ustune KIYAMET boyu (5 m) oyuk; adalar surekli
+    // kenarlarindan geri buyur (tarama, secim, voxel yazma, chunk ve gezinme guncellemesi). Kamera genel gorunuste
+    if (params.has('grow') && game.skySys.active && el > (runBench.nextGrow ??= 2)) {
+      runBench.nextGrow += 8;
+      for (const s of game.skySys.isles) if (s.phase === 0) { const c = s.def.crystal; game.destruction.blast(c.x + 3, s.def.top + 0.2, c.z, 5, 860, null, 25, 900); }
+    }
     if (shots < 5 && el > shotTimes[shots] && !params.has('noshots')) {
       shots++;
       lastShotT = el;
@@ -743,6 +763,7 @@ function runBench() {
       chunkTris: game.chunks.triangles, debris: game.fx.debris.count, d: game.destruction.stats,
       moon: game.moonSys.active ? game.moonSys.stats : undefined,
       toy: game.toySys.active ? game.toySys.stats : undefined,
+      fw: game.fwSys.active ? game.fwSys.stats : undefined,
       frags: game.actors.map((x) => x.name + ':' + x.frags),
       samples, spikes, gpuSpikes,
       programs: game.renderer.info.programs ? game.renderer.info.programs.map((p) => p.name || p.cacheKey.slice(0, 60)) : null,
