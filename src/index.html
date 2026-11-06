@@ -139,8 +139,11 @@
 
 <script>/*__JS__*/</script>
 <!--ANALYTICS--><script>
-// GoatCounter ziyaret sayaci: yalniz yayindaki GitHub Pages sayfasinda (yerel / file:// acilislar sayilmaz)
-if (/\.github\.io$/.test(location.hostname)) {
+// GoatCounter ziyaret sayaci: yalniz yayindaki GitHub Pages sayfasinda (yerel / file:// acilislar ve baska
+// github.io kopyalari sayilmaz). Sayaca tek adres gider: oda davet linki (?room=KOD), ?lang= / ?map= gibi
+// parametreler ve /index.html ayri sayfa diye listelenmez; baslik da sabit.
+if (location.hostname === 'erenciracioglu-dotcom.github.io') {
+  window.goatcounter = { path: location.pathname.replace(/index\.html?$/i, '') || '/', title: 'FragRush' };
   var gc = document.createElement('script');
   gc.async = true; gc.src = 'https://gc.zgo.at/count.js';
   gc.setAttribute('data-goatcounter', 'https://fragrush.goatcounter.com/count');
