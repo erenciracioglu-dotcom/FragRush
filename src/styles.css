@@ -200,3 +200,18 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 #keyCard .kcGoal { margin-top: 9px; font-size: 12px; color: #ffcf6a; letter-spacing: 1px; }
 #keyCard .kcH { margin-top: 4px; font-size: 11px; color: var(--dim); }
 @media (max-height: 560px), (max-width: 900px) { #keyCard { bottom: 18%; padding: 8px 12px 7px; } #keyCard .kcG { gap: 4px 12px; font-size: 12px; } }
+
+/* tus atama paneli */
+#panelKeys .kbT { font-size: 13px; letter-spacing: 5px; color: var(--acc2); margin: 4px 0 6px; }
+#panelKeys .kbHelp { font-size: 12px; color: var(--dim); letter-spacing: 0.5px; line-height: 1.35; margin: 4px 0 8px; }
+#kbList { max-height: min(46vh, 440px); overflow-y: auto; padding-right: 6px; scrollbar-width: thin; scrollbar-color: rgba(255,122,26,0.6) rgba(255,255,255,0.06); }
+#kbList .kbRow { display: grid; grid-template-columns: 1fr 104px 104px; gap: 6px; align-items: center; margin: 3px 0; font-size: 14px; color: var(--ink); }
+#kbList .kbRow.sep { margin-top: 10px; }
+#menu #kbList button.kbSlot { width: auto; margin: 0; padding: 5px 4px; font-size: 13px; letter-spacing: 0.5px; text-align: center; clip-path: none; border-left: none; border-bottom: 2px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#menu #kbList button.kbSlot:hover { padding-left: 4px; background: rgba(255,122,26,0.2); border-bottom-color: var(--acc); }
+#menu #kbList button.kbSlot.empty { color: var(--dim); }
+#menu #kbList button.kbSlot.wait { background: rgba(34,228,255,0.2); border-bottom-color: var(--acc2); color: #fff; animation: kbBlink 0.9s infinite; }
+@keyframes kbBlink { 50% { opacity: 0.55; } }
+#kbMsg { min-height: 18px; margin: 6px 0 0; font-size: 12px; color: #ffcf6a; line-height: 1.35; }
+#kbMsg.err { color: #ff6a5a; }
+@media (max-height: 780px) { #kbList .kbRow { margin: 1px 0; font-size: 13px; } #menu #kbList button.kbSlot { padding: 3px 4px; } #kbList { max-height: 36vh; } }

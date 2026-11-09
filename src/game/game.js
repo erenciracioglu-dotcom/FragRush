@@ -829,7 +829,7 @@ export class Game {
           if (a.mover.pos.y < -4) a.takeDamage(999, null, 'world', null, false);
         } else {
           a.respawnTimer -= dt;
-          const want = a.isPlayer ? (this.input && (this.input.mouseHit(0) || this.input.pressed('Space')) && a.respawnTimer <= 0) || a.respawnTimer < -2.5 : a.respawnTimer <= 0;
+          const want = a.isPlayer ? (this.input && (this.input.actPressed('fire') || this.input.actPressed('jump')) && a.respawnTimer <= 0) || a.respawnTimer < -2.5 : a.respawnTimer <= 0;
           if (want && st !== 'matchEnd') { a.spawn(this.pickSpawn(a)); if (this.audio) this.audio.play('respawn', a.mover.pos.x, a.mover.pos.y + 1, a.mover.pos.z, a.isPlayer ? 1 : 0.5, a.isPlayer); }
         }
       }

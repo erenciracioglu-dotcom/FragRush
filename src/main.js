@@ -5,7 +5,8 @@ import { HUD } from './ui/hud.js';
 import { Audio } from './audio/sfx.js';
 import { MeshBasicMaterial as THREE_Basic, MeshStandardMaterial as THREE_Std } from 'three';
 import { voxelUniforms } from './world/voxelMaterial.js';
-import { t, setLang, onLangChange } from './i18n.js';
+import { t, setLang, onLangChange, setKeyNamer, applyDom } from './i18n.js';
+import { ACTIONS, keyLabel, isForbidden } from './core/keybinds.js';
 import { portal } from './portal.js';
 import { NET } from './config.js';
 import { RoomClient, parseNetsim, HostSession, GuestSession, Autopilot } from './net/index.js';
@@ -45,6 +46,8 @@ if (testMode) settings.volume = 0;
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
 const input = new Input(canvas);
+setKeyNamer((id) => input.binds.label(id));
+applyDom();
 const hud = new HUD();
 const audio = new Audio();
 audio.setVolume(settings.volume);
@@ -69,7 +72,7 @@ const portalReady = portal.init().then(() => {
 });
 
 const menu = $('menu'), btnPlay = $('btnPlay');
-const panels = { settings: $('panelSettings'), controls: $('panelControls') };
+const panels = { settings: $('panelSettings'), controls: $('panelControls'), keys: $('panelKeys') };
 const buttons = $('menuButtons');
 function showPanel(name) {
   buttons.classList.toggle('hidden', !!name);
@@ -216,7 +219,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   // P: Esc'ye ek duraklatma tusu (Esc portalda tam ekrandan da cikarir)
-  if (!e.repeat && e.code === 'KeyP' && $('loading').classList.contains('hidden')) {
+  if (!e.repeat && input.binds.has('pause', e.code) && $('loading').classList.contains('hidden')) {
     const panelP = Object.keys(panels).find((k) => !panels[k].classList.contains('hidden'));
     if (game.state === 'playing' && !game.inputBlocked) { e.preventDefault(); pauseGame(); return; }
     if (midMatch() && !panelP) { e.preventDefault(); resumeGame(); return; }
@@ -230,7 +233,7 @@ window.addEventListener('keydown', (e) => {
     // kilit Esc ile birakildiysa ayni tus vurusu menuyu hemen kapatmasin
     if (performance.now() - lastPauseT < 350) return;
     if (menuOpen) {
-      if (panel) { if (panel === 'settings') saveSettings(settings); showPanel(null); return; }
+      if (panel) { if (panel === 'settings') saveSettings(settings); showPanel(panel === 'keys' ? 'controls' : null); return; }
       if (midMatch()) resumeGame();
       return;
     }
@@ -261,6 +264,96 @@ if (localServer) setInterval(() => { fetch('/__ping', { cache: 'no-store' }).cat
 $('btnControls').addEventListener('click', () => showPanel('controls'));
 $('btnBack1').addEventListener('click', () => { saveSettings(settings); showPanel(null); });
 $('btnBack2').addEventListener('click', () => showPanel(null));
+
+// ---- tus atama (Kontroller -> TUSLARI DEGISTIR) ----
+// Atamalar input.binds'ta (core/keybinds.js), localStorage'da saklanir. Ctrl / Win / Esc / F tuslari atanamaz.
+const kbList = $('kbList'), kbMsgEl = $('kbMsg');
+let kbWait = null, kbSwallow = false;
+function kbMsg(text, err) { kbMsgEl.textContent = text || ''; kbMsgEl.classList.toggle('err', !!err); }
+function renderKb() {
+  const rows = [];
+  for (const a of ACTIONS) {
+    const c = input.binds.codes(a.id);
+    const sep = a.id === 'fire' || a.id === 'w1' || a.id === 'scoreboard' ? ' sep' : '';
+    rows.push('<div class="kbRow' + sep + '"><div>' + esc(t('a.' + a.id)) + '</div>' +
+      [0, 1].map((i) => '<button class="kbSlot' + (c[i] ? '' : ' empty') + (kbWait && kbWait.id === a.id && kbWait.slot === i ? ' wait' : '') +
+        '" data-a="' + a.id + '" data-s="' + i + '">' + esc(kbWait && kbWait.id === a.id && kbWait.slot === i ? t('kbWait') : keyLabel(c[i])) + '</button>').join('') + '</div>');
+  }
+  kbList.innerHTML = rows.join('');
+}
+// menudeki ve tus kartindaki tus adlari
+function refreshKeyLabels() {
+  const L = (id) => input.binds.label(id);
+  const p = (id) => input.binds.codes(id)[0] || input.binds.codes(id)[1] || null;
+  const mv = ['forward', 'left', 'back', 'right'].map(L);
+  const move = mv.every((x) => x.length === 1) ? mv.join('') : mv.join(' ');
+  const ws = ['w1', 'w2', 'w3', 'w4', 'w5'];
+  const weapons = ws.every((id, i) => p(id) === 'Digit' + (i + 1)) ? '1-5' : ws.map(L).join(' ');
+  const pause = p('pause') ? 'Esc / ' + L('pause') : 'Esc';
+  const val = { move, weapons, weaponsWheel: weapons + ' / ' + t('kWheelOnly'), pauseKc: pause };
+  for (const el of document.querySelectorAll('[data-key]')) {
+    const k = el.dataset.key;
+    if (el.dataset.mouse) {
+      const c = p(k);
+      el.classList.toggle('m', c === 'Mouse0' || c === 'Mouse2');
+      el.textContent = c === 'Mouse0' ? 'L' : c === 'Mouse2' ? 'R' : L(k);
+    } else el.textContent = k in val ? val[k] : L(k);
+  }
+}
+function kbRefresh() { refreshKeyLabels(); applyDom(); if (!panels.keys.classList.contains('hidden')) renderKb(); }
+input.binds.onChange(kbRefresh);
+onLangChange(() => { refreshKeyLabels(); renderKb(); });
+refreshKeyLabels();
+function kbAssign(code) {
+  const w = kbWait; if (!w) return;
+  if (code !== null && isForbidden(code)) { kbMsg(t('kbForbidden'), true); return; }
+  kbWait = null;
+  const r = input.binds.set(w.id, w.slot, code);
+  let m = '';
+  if (r.taken) {
+    m = t('kbTaken', keyLabel(code), t('a.' + r.taken));
+    const c = input.binds.codes(r.taken);
+    if (!c[0] && !c[1]) m += ' ' + t('kbEmpty', t('a.' + r.taken));
+  } else if (code === null) {
+    const c = input.binds.codes(w.id);
+    if (!c[0] && !c[1]) m = t('kbEmpty', t('a.' + w.id));
+  }
+  kbMsg(m, false);
+  renderKb();
+}
+kbList.addEventListener('click', (e) => {
+  const b = e.target.closest('button.kbSlot'); if (!b) return;
+  kbWait = { id: b.dataset.a, slot: Number(b.dataset.s) };
+  kbMsg('');
+  renderKb();
+  // odak dugmede kalirsa Bosluk / Enter dugmeye yeniden tiklar
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+});
+window.addEventListener('keydown', (e) => {
+  if (!kbWait) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.repeat) return;
+  if (e.code === 'Escape') { kbWait = null; kbMsg(''); renderKb(); return; }
+  if (e.code === 'Backspace') { kbAssign(null); return; }
+  kbAssign(e.code);
+}, true);
+window.addEventListener('mousedown', (e) => {
+  if (!kbWait) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  kbSwallow = true;
+  kbAssign('Mouse' + e.button);
+}, true);
+// atama icin basilan fare dugmesi menude baska bir seye tiklamasin / yan dugme sayfayi geri gotermesin
+for (const ev of ['mouseup', 'click', 'auxclick']) {
+  window.addEventListener(ev, (e) => {
+    if (!kbSwallow) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (ev === 'mouseup') setTimeout(() => { kbSwallow = false; }, 60); else kbSwallow = false;
+  }, true);
+}
+$('btnKeys').addEventListener('click', () => { kbWait = null; kbMsg(''); showPanel('keys'); renderKb(); });
+$('btnBack3').addEventListener('click', () => { kbWait = null; showPanel('controls'); });
+$('btnKbReset').addEventListener('click', () => { kbWait = null; input.binds.reset(); kbMsg(t('kbResetDone')); renderKb(); });
 async function rebuildArena(map = null) {
   buttons.classList.add('hidden');
   $('loading').classList.remove('hidden');

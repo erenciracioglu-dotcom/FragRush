@@ -138,7 +138,7 @@ export class HUD {
     }
     this.set('fps', e.fps, this.showFps ? this.fpsText : '');
     // skor tablosu
-    const showSb = game.input && game.input.down('Tab') && game.state === 'playing' || game.state === 'matchEnd';
+    const showSb = game.input && game.input.act('scoreboard') && game.state === 'playing' || game.state === 'matchEnd';
     if (this.cache.sb !== showSb) { this.cache.sb = showSb; e.sb.classList.toggle('hidden', !showSb); }
     if (showSb) this.renderScoreboard(game, sorted);
   }

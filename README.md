@@ -40,7 +40,14 @@ last.
 
 First to 25 frags (or the leader after 10 minutes) wins, then a fresh arena is generated.
 
-Ctrl is not bound to anything: in Chrome, Ctrl+W closes the tab (crouch used to be on Ctrl too).
+These are the default keys. **Change them in Controls → Change keys:** click a box, then press a key or a
+mouse button (Esc cancels, Backspace clears the box). Every action has two slots, a key taken from another
+action is moved over (the panel says from which), and *Reset to defaults* brings the table back. Bindings
+are saved in your browser, so they work on GitHub Pages as well as on a local copy. Esc (menu), F3 and the
+mouse wheel stay fixed.
+
+**Ctrl, Win/Cmd, Esc and the F keys cannot be bound:** in Chrome, Ctrl+W closes the tab and a web page cannot
+stop it (crouch used to be on Ctrl too).
 
 ## Maps
 
@@ -777,7 +784,13 @@ köprüleri havaya uçur, çöken binaların altında rakiplerini göm.
   yakına roket atmazlar, kristali kırılan adadan kaçarlar ve başka bir adadan görebildiklerinde,
   rakiplerinin durduğu adanın kristalini (zayıfsa ya da ellerinde roketatar veya raylı tüfek varsa)
   vururlar. Deneme maçlarında maç başına bir bot kendi kendine düştü.
-- **Ctrl tuşu kullanılmıyor:** Chrome'da Ctrl+W sekmeyi kapatıyor; eğilme yalnızca **C**.
+- **Tuşları değiştirmek:** Kontroller → Tuşları değiştir. Bir kutuya tıkla, sonra bir tuşa ya da fare
+  düğmesine bas (Esc vazgeçer, Backspace kutuyu boşaltır). Her eylemin iki yuvası var; başka eylemdeki bir
+  tuşu seçersen oradan alınır (panel nereden alındığını söyler); *Varsayılana dön* tabloyu geri getirir.
+  Atamalar tarayıcıda saklanır: GitHub Pages'te de yerel kopyada da çalışır. Esc (menü), F3 ve fare
+  tekerleği sabit.
+- **Ctrl, Win/Cmd, Esc ve F tuşları atanamaz:** Chrome'da Ctrl+W sekmeyi kapatıyor ve web sayfası bunu
+  engelleyemiyor; eğilme varsayılan olarak **C**.
 - **Silahlar:** Darbe Tüfeği, Saçmalı, Plazma, Roketatar, Raylı Tüfek (duvarın arkasını vurur).
 - **KIYAMET küresi:** merkez kulenin çatısında çıkar. 15 saniye boyunca her isabet öldürür,
   roket patlamaları 5 kat büyür (gök adalarında oyma 2 kat). Kendi patlaman sana hasar vermez.

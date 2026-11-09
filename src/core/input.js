@@ -1,4 +1,6 @@
 // Klavye/fare girisi + pointer lock. Fiziksel tus kodlari (event.code) kullanilir -> klavye duzeninden bagimsiz.
+// Oyun eylemleri (ileri, zipla, ates...) oyuncunun sectigi tuslara baglidir: act('jump'), actPressed('fire').
+import { Keybinds } from './keybinds.js';
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
@@ -13,10 +15,13 @@ export class Input {
     this.enabled = true;
     this.virtual = new Set();      // test icin sanal tuslar
     this.virtualMouse = 0;
+    this.binds = new Keybinds();
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Tab' || e.code === 'Space' || e.code.startsWith('Arrow') || (e.ctrlKey && e.code === 'KeyW')) e.preventDefault();
       if (e.code === 'F3' || e.code === 'F1') e.preventDefault();
+      // oyunda atanmis tuslarin tarayici davranisi olmasin (Alt menu cubugu, ' / hizli bul, Backspace geri vb.)
+      if (this.locked && this.binds.actionOf(e.code)) e.preventDefault();
       if (!e.repeat) this.pressedSet.add(e.code);
       this.keys.add(e.code);
     });
@@ -36,7 +41,10 @@ export class Input {
       this.mousePressed |= 1 << e.button;
       e.preventDefault();
     });
-    window.addEventListener('mouseup', (e) => { this.mouseButtons &= ~(1 << e.button); });
+    window.addEventListener('mouseup', (e) => {
+      this.mouseButtons &= ~(1 << e.button);
+      if (this.locked && e.button >= 3) e.preventDefault();   // yan dugmeler: tarayici geri/ileri gitmesin
+    });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('wheel', (e) => { if (this.locked) { this.wheel += Math.sign(e.deltaY); } }, { passive: true });
     document.addEventListener('pointerlockchange', () => {
@@ -67,5 +75,9 @@ export class Input {
   mouseHit(b = 0) { return (this.mousePressed & (1 << b)) !== 0; }
   consumeMouse() { const r = [this.dx, this.dy]; this.dx = 0; this.dy = 0; return r; }
   consumeWheel() { const w = this.wheel; this.wheel = 0; return w; }
+  codeDown(c) { return !!c && (c.startsWith('Mouse') ? this.mouseDown(Number(c.slice(5))) : this.down(c)); }
+  codePressed(c) { return !!c && (c.startsWith('Mouse') ? this.mouseHit(Number(c.slice(5))) : this.pressed(c)); }
+  act(id) { const c = this.binds.codes(id); return this.codeDown(c[0]) || this.codeDown(c[1]); }
+  actPressed(id) { const c = this.binds.codes(id); return this.codePressed(c[0]) || this.codePressed(c[1]); }
   endFrame() { this.pressedSet.clear(); this.mousePressed = 0; }
 }

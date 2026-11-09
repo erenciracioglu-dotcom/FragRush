@@ -44,16 +44,16 @@ export class Player extends Actor {
     this.pitch = Math.max(-1.55, Math.min(1.55, this.pitch));
     if (!this.alive) { this.deathT += dt; return; }
 
-    const fwd = (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0) - (input.down('KeyS') || input.down('ArrowDown') ? 1 : 0);
-    const side = (input.down('KeyD') || input.down('ArrowRight') ? 1 : 0) - (input.down('KeyA') || input.down('ArrowLeft') ? 1 : 0);
-    // Ctrl kullanilmaz: Chrome'da Ctrl+W sekmeyi kapatir. C: egil / kay, suda dal.
+    const fwd = (input.act('forward') ? 1 : 0) - (input.act('back') ? 1 : 0);
+    const side = (input.act('right') ? 1 : 0) - (input.act('left') ? 1 : 0);
+    // tuslar oyuncunun atamasi (core/keybinds.js). Ctrl atanamaz: Chrome'da Ctrl+W sekmeyi kapatir.
     // cok oyunculu maçta menu acikken oyun durmaz (game.inputBlocked): oyuncu yerinde durur, ates etmez
     const B = this.game.inputBlocked;
     const cmd = {
       fwd: B ? 0 : fwd, side: B ? 0 : side, yaw: this.yaw, pitch: this.pitch,
-      jump: !B && input.down('Space'),
-      crouch: !B && input.down('KeyC'),
-      dash: !B && (input.pressed('ShiftLeft') || input.pressed('ShiftRight')),
+      jump: !B && input.act('jump'),
+      crouch: !B && input.act('crouch'),
+      dash: !B && input.actPressed('dash'),
     };
     // otomatik pilot (yalniz testler: ?autopilot)
     let autoFire = false;
@@ -94,21 +94,21 @@ export class Player extends Actor {
 
     // silah secimi
     const ws = this.weapons;
-    for (let i = 0; i < WEAPONS.length; i++) if (input.pressed('Digit' + (i + 1)) || input.pressed('Numpad' + (i + 1))) if (ws.select(i) && audio) audio.play('switch', p.x, p.y, p.z, 1, true);
+    for (let i = 0; i < WEAPONS.length; i++) if (i < 5 && input.actPressed('w' + (i + 1))) if (ws.select(i) && audio) audio.play('switch', p.x, p.y, p.z, 1, true);
     const wh = input.consumeWheel();
     if (wh) { if (ws.cycle(wh > 0 ? 1 : -1) && audio) audio.play('switch', p.x, p.y, p.z, 1, true); }
-    if (input.pressed('KeyQ')) { if (ws.select(ws.previous) && audio) audio.play('switch', p.x, p.y, p.z, 1, true); }
+    if (input.actPressed('prevWeapon')) { if (ws.select(ws.previous) && audio) audio.play('switch', p.x, p.y, p.z, 1, true); }
     ws.update(dt);
     const under = m.eyesUnder;
-    this.zoom = input.mouseDown(2) && !!ws.def.zoom && ws.pending < 0 && !under;
+    this.zoom = input.act('zoom') && !!ws.def.zoom && ws.pending < 0 && !under;
 
     // ates (gozler su altindayken silah calismaz)
     if (under) {
-      if (input.mouseHit(0)) {
+      if (input.actPressed('fire')) {
         if (audio) audio.play('empty', p.x, p.y, p.z, 1, true);
         if (this.game.hud) this.game.hud.subMsg(t('noFireWater'), 1.2);
       }
-    } else if (!B && (autoFire || input.mouseDown(0))) {
+    } else if (!B && (autoFire || input.act('fire'))) {
       if (ws.canFire()) {
         const W2 = ws.def;
         this.game.camera.updateMatrixWorld();
@@ -120,7 +120,7 @@ export class Player extends Actor {
         this.recoil += W2.recoil;
         this.recoilYaw += (Math.random() - 0.5) * W2.recoil * 0.6;
         this.game.fx.addShake(W2.shake);
-      } else if (input.mouseHit(0) && ws.ammo[ws.current] <= 0) {
+      } else if (input.actPressed('fire') && ws.ammo[ws.current] <= 0) {
         if (audio) audio.play('empty', p.x, p.y, p.z, 1, true);
         ws.cycle(1);
       }

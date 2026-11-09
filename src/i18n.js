@@ -30,19 +30,32 @@ const D = {
   // kontroller
   kMove: ['move', 'hareket'], kSpace: ['Space', 'Boşluk'], kJump: ['jump (hold: bunny hop; hold + forward at a ledge up to 1.8 m: climb it, also out of craters and water)', 'zıpla (basılı tut: tavşan zıplaması; kenarın önünde ileri ile basılı tutarsan 1,8 m\'ye kadar tırmanırsın: krater ve sudan çıkış)'],
   kDash: ['dash', 'atılma (dash)'], kCrouch: ['crouch · slide while running · dive in water', 'eğil · koşarken kayma · suda dal'],
-  kWater: ['Water:', 'Su:'], kWaterText: ['creek slows you · in the lake hold Space to stay at the surface, C to dive · you cannot fire with your head underwater and you drown if you stay under too long',
-    'dere yavaşlatır · gölde yüzeyde kalmak için Boşluk, dalmak için C · başın su altındayken ateş edemezsin, çok uzun kalırsan boğulursun'],
+  kWater: ['Water:', 'Su:'], kWaterText: ['creek slows you · in the lake hold {K:jump} to stay at the surface, {K:crouch} to dive · you cannot fire with your head underwater and you drown if you stay under too long',
+    'dere yavaşlatır · gölde yüzeyde kalmak için {K:jump}, dalmak için {K:crouch} · başın su altındayken ateş edemezsin, çok uzun kalırsan boğulursun'],
   kLava: ['Lava:', 'Lav:'], kLavaText: ['kills instantly. Fall in on your own and it counts as a self frag (−1); blast an enemy into it and the frag is yours',
     'dokunan anında ölür. Kendin düşersen kendini parçalamış sayılırsın (−1); rakibi lava itersen parçalama senin'],
-  kIce: ['Ice:', 'Buz:'], kIceText: ['the lake ice is thin and slippery, and the water under it is freezing (it drains your health). Break the ice under an enemy and the frag is yours · trapped under the ice? hold Space to break through · shoot icicles to drop them on whoever is below · snowmen hide items',
-    'göl buzu ince ve kaygan, altındaki su buz gibi (canını yer). Rakibin altındaki buzu kırarsan parçalama senin · buzun altında kaldıysan Boşluk\'u basılı tut, buzu kır · sarkıtları vur, altındakinin başına düşsün · kardan adamlar eşya saklar'],
+  kIce: ['Ice:', 'Buz:'], kIceText: ['the lake ice is thin and slippery, and the water under it is freezing (it drains your health). Break the ice under an enemy and the frag is yours · trapped under the ice? hold {K:jump} to break through · shoot icicles to drop them on whoever is below · snowmen hide items',
+    'göl buzu ince ve kaygan, altındaki su buz gibi (canını yer). Rakibin altındaki buzu kırarsan parçalama senin · buzun altında kaldıysan {K:jump} tuşunu basılı tut, buzu kır · sarkıtları vur, altındakinin başına düşsün · kardan adamlar eşya saklar'],
   kMoon: ['Moon:', 'Ay:'], kMoonText: ['low gravity: jumps go twice as high, rocket jumps three times as high · shoot through a glass dome and its air rushes out: everyone inside is sucked to the hole and blown out into space (the frag is yours) · the hole is foam-patched after ~25 s',
     'düşük yerçekimi: zıplamalar iki kat, roket zıplamaları üç kat yükseğe · cam kubbeyi delersen havası kaçar: içeridekiler deliğe emilip uzaya fırlatılır (parçalama senin) · delik ~25 sn sonra köpükle kapanır'],
-  kToy: ['Toy room:', 'Oyuncak odası:'], kToyText: ['you are a tiny robot in a giant kid\'s room · the bed, pillows and rubber ball are trampolines (hold Space as you land to bounce higher) · shoot the first domino by the castle: the chain runs to the block tower and knocks it down on whoever is near (every frag is yours) · the dominoes stand up again after ~45 s · climb the bookshelf, cross the ruler and the Doomsday orb waits on the wardrobe',
-    'dev bir çocuk odasında minik bir robotsun · yatak, yastıklar ve lastik top trambolindir (inerken Boşluk\'a basılı tut, daha yükseğe sek) · kalenin yanındaki ilk dominoyu vur: zincir blok kuleye kadar koşar ve kuleyi yakındakilerin üstüne devirir (bütün parçalamalar senin) · dominolar ~45 sn sonra yeniden dizilir · kitaplığa tırman, cetvelden geç: KIYAMET küresi gardırobun tepesinde'],
+  kToy: ['Toy room:', 'Oyuncak odası:'], kToyText: ['you are a tiny robot in a giant kid\'s room · the bed, pillows and rubber ball are trampolines (hold {K:jump} as you land to bounce higher) · shoot the first domino by the castle: the chain runs to the block tower and knocks it down on whoever is near (every frag is yours) · the dominoes stand up again after ~45 s · climb the bookshelf, cross the ruler and the Doomsday orb waits on the wardrobe',
+    'dev bir çocuk odasında minik bir robotsun · yatak, yastıklar ve lastik top trambolindir (inerken {K:jump} tuşunu basılı tut, daha yükseğe sek) · kalenin yanındaki ilk dominoyu vur: zincir blok kuleye kadar koşar ve kuleyi yakındakilerin üstüne devirir (bütün parçalamalar senin) · dominolar ~45 sn sonra yeniden dizilir · kitaplığa tırman, cetvelden geç: KIYAMET küresi gardırobun tepesinde'],
   kLmb: ['Left click', 'Sol tık'], kFire: ['fire', 'ateş'], kRmb: ['Right click', 'Sağ tık'], kZoom: ['aim / zoom', 'nişan / yakınlaştırma'],
-  kWheel: ['1-5 / wheel', '1-5 / tekerlek'], kWeapon: ['weapon', 'silah'], kPrev: ['previous weapon', 'önceki silah'],
+  kWheel: ['1-5 / wheel', '1-5 / tekerlek'], kWheelOnly: ['wheel', 'tekerlek'], kWeapon: ['weapon', 'silah'], kPrev: ['previous weapon', 'önceki silah'],
   kTab: ['scoreboard', 'skor tablosu'], kEsc: ['menu (or P)', 'menü (ya da P)'], kF3: ['FPS meter', 'FPS göstergesi'],
+  kMmb: ['Middle click', 'Orta tık'], kMouseN: ['Mouse {0}', 'Fare {0}'],
+  // tus atama
+  kbOpen: ['CHANGE KEYS', 'TUŞLARI DEĞİŞTİR'], kbTitle: ['KEY BINDINGS', 'TUŞ ATAMA'],
+  kbHelp: ['Click a box, then press a key or mouse button · Esc: cancel · Backspace: clear', 'Bir kutuya tıkla, sonra bir tuşa ya da fare düğmesine bas · Esc: vazgeç · Backspace: boşalt'],
+  kbWait: ['press…', 'bas…'], kbReset: ['RESET TO DEFAULTS', 'VARSAYILANA DÖN'], kbResetDone: ['Default keys restored.', 'Varsayılan tuşlar geri geldi.'],
+  kbForbidden: ['Ctrl, Win/Cmd, Esc and F keys cannot be used (Ctrl+W would close the browser tab).', 'Ctrl, Win/Cmd, Esc ve F tuşları kullanılamaz (Ctrl+W tarayıcı sekmesini kapatır).'],
+  kbTaken: ['{0} was taken from "{1}".', '{0}, "{1}" eyleminden alındı.'], kbEmpty: ['"{0}" has no key now.', '"{0}" eyleminin tuşu kalmadı.'],
+  kbFixed: ['Fixed: Esc menu · F3 FPS · mouse wheel weapon', 'Sabit: Esc menü · F3 FPS · fare tekerleği silah'],
+  'a.forward': ['Forward', 'İleri'], 'a.back': ['Back', 'Geri'], 'a.left': ['Left', 'Sol'], 'a.right': ['Right', 'Sağ'],
+  'a.jump': ['Jump / climb', 'Zıpla / tırman'], 'a.crouch': ['Crouch / slide / dive', 'Eğil / kay / dal'], 'a.dash': ['Dash', 'Atılma'],
+  'a.fire': ['Fire', 'Ateş'], 'a.zoom': ['Aim / zoom', 'Nişan / yakınlaştır'], 'a.prevWeapon': ['Previous weapon', 'Önceki silah'],
+  'a.w1': ['Pulse Rifle', 'Darbe Tüfeği'], 'a.w2': ['Shotgun', 'Saçmalı'], 'a.w3': ['Plasma Gun', 'Plazma'], 'a.w4': ['Rocket Launcher', 'Roketatar'], 'a.w5': ['Railgun', 'Raylı Tüfek'],
+  'a.scoreboard': ['Scoreboard', 'Skor tablosu'], 'a.pause': ['Menu (Esc also works)', 'Menü (Esc de olur)'],
   kRj: ['Rocket jump:', 'Roketle zıpla:'], kRjText: ['fire a rocket at your feet + jump', 'ayağının dibine roket at + zıpla'],
   // yukleme
   ldArena: ['Building arena...', 'Arena kuruluyor...'], ldMesh: ['Voxel mesh: {0}/{1}', 'Voxel mesh: {0}/{1}'],
@@ -53,7 +66,7 @@ const D = {
   hp: ['HEALTH', 'CAN'], armor: ['ARMOR', 'ZIRH'], frags: ['FRAGS', 'PARÇALAMA'], scoreboard: ['SCOREBOARD', 'SKOR TABLOSU'],
   sbPlayer: ['PLAYER', 'OYUNCU'], sbFrags: ['FRAGS', 'PARÇALAMA'], sbDeaths: ['DEATHS', 'ÖLÜM'],
   quadHud: ['DOOMSDAY {0}', 'KIYAMET MODU {0}'],
-  respawnIn: ['respawn: {0}', 'yeniden doğuş: {0}'], respawnClick: ['click / space to respawn', 'doğmak için tıkla / boşluk'],
+  respawnIn: ['respawn: {0}', 'yeniden doğuş: {0}'], respawnClick: ['{K:fire} / {K:jump} to respawn', 'doğmak için {K:fire} / {K:jump}'],
   youDied: ['FRAGGED', 'PARÇALANDIN'], selfKill: ['YOU FRAGGED YOURSELF', 'KENDİNİ PARÇALADIN'], selfFeed: ['fragged themself', 'kendini parçaladı'],
   fps: ['{0} FPS  ·  worst {1} ms  ·  {2}k tris  ·  {3} draws  ·  {4}\ndebris {5}  ·  particles {6}  ·  falling {7}  ·  scale {8}%',
     '{0} FPS  ·  en kötü {1} ms  ·  {2}k üçgen  ·  {3} çizim  ·  {4}\nenkaz {5}  ·  parçacık {6}  ·  düşen {7}  ·  ölçek {8}%'],
@@ -100,7 +113,7 @@ const D = {
   youFroze: ['YOU FROZE', 'DONDUN'], youIcicle: ['SKEWERED BY AN ICICLE', 'SARKIT SAPLANDI'],
   iceKill: ['THROUGH THE ICE!', 'BUZA GÖMDÜN!'], icicleKill: ['ICICLE DROP!', 'SARKITLA VURDUN!'],
   freezing: ['ice-cold water! get out fast', 'buz gibi su! hemen çık'],
-  underIce: ['UNDER THE ICE · hold SPACE to break through', 'BUZUN ALTINDASIN · kırmak için BOŞLUK\'u basılı tut'],
+  underIce: ['UNDER THE ICE · hold {K:jump} to break through', 'BUZUN ALTINDASIN · kırmak için {K:jump} tuşunu basılı tut'],
   cacheFound: ['something was hidden inside the snowman!', 'kardan adamın içinden bir şey çıktı!'],
   multi2: ['DOUBLE FRAG!', 'ÇİFTE PARÇALAMA!'], multi3: ['TRIPLE DESTRUCTION!', 'ÜÇLÜ YIKIM!'], multi4: ['MASSACRE!', 'KATLİAM!'], multi5: ['DOOMSDAY!', 'KIYAMET!'],
   buried: ['BURIED IN RUBBLE!', 'ENKAZ ALTINDA KALDI!'], headshot: ['HEADSHOT!', 'KAFADAN!'], fragged: ['FRAGGED', 'PARÇALADIN'],
@@ -114,6 +127,9 @@ const D = {
 const LANGS = ['en', 'tr'];
 let lang = 'en';
 const listeners = [];
+// metinlerdeki {K:eylem} -> oyuncunun o eyleme atadigi tusun adi (core/keybinds.js baglar)
+let keyNamer = null;
+export function setKeyNamer(f) { keyNamer = f; }
 
 export function setLang(l) {
   lang = LANGS.includes(l) ? l : 'en';
@@ -128,6 +144,7 @@ export function t(key, ...args) {
   const e = D[key];
   let s = e ? e[lang === 'tr' ? 1 : 0] : key;
   for (let i = 0; i < args.length; i++) s = s.split('{' + i + '}').join(String(args[i]));
+  if (s.includes('{K:')) s = s.replace(/\{K:(\w+)\}/g, (m, id) => (keyNamer ? keyNamer(id) : id));
   return s;
 }
 
